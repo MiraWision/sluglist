@@ -387,7 +387,7 @@ export function widgetStyles(theme: UiTheme): string {
   padding: 0;
 }
 .add-shot {
-  height: 48px;
+  height: 56px;
   padding: 0 12px;
   border: 1px dashed #d1d5db;
   border-radius: 6px;
