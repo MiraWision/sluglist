@@ -1,0 +1,21 @@
+project: trugenix
+session_id: session-2026-07-20-a1b2
+created_at: 2026-07-20T14:03:22Z
+base_url: https://dev.trugenix.example
+browser: Chrome 138
+os: macOS
+viewport: 1512x982
+device_pixel_ratio: 2
+issues:
+  - id: "01"
+    file: 01-broken-header.md
+    screenshot: 01-broken-header.png
+    url: /dashboard/animals
+    selector: "header > nav .logo"
+    created_at: 2026-07-20T14:05:10Z
+  - id: "02"
+    file: 02-logotip-sezzhaet-vniz-pri-uzkom-ekrane.md
+    screenshot: null
+    url: /dashboard/animals
+    selector: null
+    created_at: 2026-07-20T14:07:45Z

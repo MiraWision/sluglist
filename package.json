@@ -1,0 +1,56 @@
+{
+  "name": "sluglist",
+  "version": "0.1.0",
+  "description": "Universal embeddable feedback widget: capture visual feedback (element, area, full page) on dev and staging sites, annotate it, and deliver artifacts through pluggable connectors.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "pack": "npm pack",
+    "prepublishOnly": "npm run build",
+    "publish": "npm publish --access public"
+  },
+  "keywords": [
+    "feedback",
+    "widget",
+    "bug report",
+    "screenshot",
+    "annotation",
+    "html-to-image",
+    "visual feedback",
+    "qa",
+    "staging",
+    "typescript",
+    "sluglist"
+  ],
+  "author": "Yelysei Lukin <yelysei277@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MiraWision/sluglist.git"
+  },
+  "bugs": {
+    "url": "https://github.com/MiraWision/sluglist/issues"
+  },
+  "homepage": "https://github.com/MiraWision/sluglist#readme",
+  "license": "MIT",
+  "dependencies": {
+    "html-to-image": "^1.11.13",
+    "jszip": "^3.10.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4",
+    "yaml": "^2.8.0"
+  }
+}
