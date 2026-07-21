@@ -269,6 +269,7 @@ export function mountFeedbackWidget(
 
   let draft: Draft | null = null;
   let addingToDraft = false;
+  let annotating = false;
   let captureCancelled = false;
   let toastTimer: ReturnType<typeof setTimeout> | null = null;
   let hoverTarget: Element | null = null;
@@ -394,12 +395,17 @@ export function mountFeedbackWidget(
         if (!draft) {
           return;
         }
-        const annotated = await annotateBlob(shadow, draft.shots[i], strings);
-        if (annotated) {
-          URL.revokeObjectURL(draft.urls[i]);
-          draft.shots[i] = annotated;
-          draft.urls[i] = URL.createObjectURL(annotated);
-          renderPanel();
+        annotating = true;
+        try {
+          const annotated = await annotateBlob(shadow, draft.shots[i], strings);
+          if (annotated) {
+            URL.revokeObjectURL(draft.urls[i]);
+            draft.shots[i] = annotated;
+            draft.urls[i] = URL.createObjectURL(annotated);
+            renderPanel();
+          }
+        } finally {
+          annotating = false;
         }
       });
       thumbs.appendChild(thumb);
@@ -658,6 +664,11 @@ export function mountFeedbackWidget(
   }
 
   function onKeyDown(event: KeyboardEvent): void {
+    // While the annotation editor is open it owns the keyboard (its own
+    // document listener handles Escape); do not let Escape close the panel.
+    if (annotating) {
+      return;
+    }
     if (event.key === "Escape") {
       if (isPanelOpen()) {
         closePanel();

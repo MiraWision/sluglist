@@ -102,7 +102,18 @@ export function annotateBlob(
       }
     }
 
+    function onKeyDown(event: KeyboardEvent): void {
+      if (event.key === "Escape") {
+        // Escape closes only the editor, not the surrounding feedback panel.
+        event.preventDefault();
+        event.stopPropagation();
+        finish(null);
+      }
+    }
+    document.addEventListener("keydown", onKeyDown, true);
+
     function finish(result: Blob | null): void {
+      document.removeEventListener("keydown", onKeyDown, true);
       overlay.remove();
       resolve(result);
     }
@@ -213,12 +224,6 @@ export function annotateBlob(
     doneBtn.textContent = strings.annotateDone;
     doneBtn.addEventListener("click", commit);
     toolbar.append(undoBtn, spacer, cancelBtn, doneBtn);
-
-    overlay.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") {
-        finish(null);
-      }
-    });
 
     const url = URL.createObjectURL(blob);
     img.onload = () => {
