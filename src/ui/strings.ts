@@ -9,7 +9,6 @@ export interface FeedbackWidgetStrings {
   buttonLabel: string;
   cancel: string;
   capturing: string;
-  capturingCancel: string;
   categoryBug: string;
   categoryDesign: string;
   categoryIdea: string;
@@ -38,7 +37,6 @@ export const DEFAULT_STRINGS: FeedbackWidgetStrings = {
   buttonLabel: "Feedback",
   cancel: "Cancel",
   capturing: "Capturing...",
-  capturingCancel: "Cancel",
   categoryBug: "Bug",
   categoryDesign: "Design",
   categoryIdea: "Idea",

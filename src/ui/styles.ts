@@ -246,6 +246,15 @@ export function widgetStyles(theme: UiTheme): string {
 .thumb:hover {
   border-color: #9ca3af;
 }
+.thumb-pending {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+}
+.thumb-pending:hover {
+  border-color: #e5e7eb;
+}
 .chips {
   display: flex;
   gap: 6px;
@@ -433,26 +442,6 @@ export function widgetStyles(theme: UiTheme): string {
   border-color: ${theme.accentColor};
   color: ${theme.accentColor};
 }
-.capture-overlay {
-  position: fixed;
-  bottom: 24px;
-  ${side}: 24px;
-  z-index: 2147483646;
-  display: none;
-  pointer-events: auto;
-}
-.capture-card {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  padding: 10px 14px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
-  font-size: 13px;
-  color: #111;
-}
 .spinner {
   width: 18px;
   height: 18px;
@@ -463,15 +452,6 @@ export function widgetStyles(theme: UiTheme): string {
 }
 @keyframes fbw-spin {
   to { transform: rotate(360deg); }
-}
-.capture-card button {
-  border: 1px solid #d1d5db;
-  background: #fff;
-  border-radius: 6px;
-  padding: 5px 10px;
-  font-size: 12px;
-  color: #111;
-  cursor: pointer;
 }
 textarea {
   width: 100%;

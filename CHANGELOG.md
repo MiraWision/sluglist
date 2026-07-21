@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.0 — Non-blocking capture
+
+- **Capture no longer blocks the panel.** Selecting an element, area or full page
+  now opens the comment panel immediately with a loading placeholder, and the
+  screenshot renders in the background. You can start writing your comment right
+  away instead of waiting on a modal spinner.
+- The comment field keeps focus and text while a shot finishes rendering; only
+  the thumbnail row updates when it arrives.
+- Sending waits for any still-rendering screenshot so it is never dropped.
+- Removed the blocking capture overlay and its `capturingCancel` string.
+
 ## 1.0.0 — Initial public release
 
 First published version. A framework-agnostic, embeddable visual feedback widget

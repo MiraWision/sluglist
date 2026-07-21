@@ -61,6 +61,10 @@ interface Draft {
   selector: string | null;
   shots: Blob[];
   urls: string[];
+  /** Screenshots still rendering in the background. */
+  pending: number;
+  /** In-flight capture tasks, awaited before an issue is sent. */
+  captures: Promise<void>[];
 }
 
 function defaultCategories(s: FeedbackWidgetStrings): IssueCategory[] {
@@ -73,7 +77,6 @@ function defaultCategories(s: FeedbackWidgetStrings): IssueCategory[] {
 
 const HOST_ATTRIBUTE = "data-feedback-widget";
 const TOAST_MS = 2600;
-const CAPTURE_SETTLE_MS = 60;
 const DEFAULT_HOTKEY = "alt+shift+f";
 const MAC_PLATFORM = /mac|iphone|ipad/i;
 
@@ -90,10 +93,6 @@ function el<K extends keyof HTMLElementTagNameMap>(
     node.className = className;
   }
   return node;
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function isEditableTarget(event: Event): boolean {
@@ -215,17 +214,6 @@ export function mountFeedbackWidget(
   const areaOverlay = el("div", "area-overlay");
   const areaRect = el("div", "area-rect");
 
-  const captureOverlay = el("div", "capture-overlay");
-  const captureCard = el("div", "capture-card");
-  const spinner = el("div", "spinner");
-  const captureText = el("span");
-  captureText.textContent = strings.capturing;
-  const captureCancelBtn = el("button");
-  captureCancelBtn.type = "button";
-  captureCancelBtn.textContent = strings.capturingCancel;
-  captureCard.append(spinner, captureText, captureCancelBtn);
-  captureOverlay.appendChild(captureCard);
-
   // Corner panel instead of a centered modal: the page stays visible and
   // scrollable while the reporter writes the comment.
   const panel = el("div", "panel");
@@ -282,7 +270,6 @@ export function mountFeedbackWidget(
     highlight,
     areaOverlay,
     areaRect,
-    captureOverlay,
     panel,
     toast
   );
@@ -293,7 +280,6 @@ export function mountFeedbackWidget(
   let draft: Draft | null = null;
   let addingToDraft = false;
   let annotating = false;
-  let captureCancelled = false;
   let toastTimer: ReturnType<typeof setTimeout> | null = null;
   let hoverTarget: Element | null = null;
   let retryPayload: Pick<CaptureResult, "files" | "sessionId"> | null = null;
@@ -348,15 +334,6 @@ export function mountFeedbackWidget(
     return panel.style.display === "flex";
   }
 
-  function showCaptureOverlay(): void {
-    captureCancelled = false;
-    captureOverlay.style.display = "flex";
-  }
-
-  function hideCaptureOverlay(): void {
-    captureOverlay.style.display = "none";
-  }
-
   function resetModes(): void {
     hint.style.display = "none";
     highlight.style.display = "none";
@@ -378,6 +355,9 @@ export function mountFeedbackWidget(
     addingToDraft = false;
   }
 
+  // Full (re)open of the panel: sets the comment field and focuses it. Called
+  // once when a draft opens. Live updates (a screenshot finishing) go through
+  // renderThumbs so the reporter's typing and cursor are never disturbed.
   function renderPanel(): void {
     if (!draft) {
       return;
@@ -388,9 +368,25 @@ export function mountFeedbackWidget(
       .join(" · ");
     panelContext.textContent = context;
     panelContext.title = context;
+    renderThumbs();
+    syncChips();
+    if (commentBox.value !== draft.comment) {
+      commentBox.value = draft.comment;
+    }
+    sendBtn.disabled = false;
+    sendBtn.textContent = strings.send;
+    panel.style.display = "flex";
+    commentBox.focus();
+  }
 
+  // Rebuilds only the thumbnail row (real shots + pending placeholders + the
+  // "add" button). Safe to call while the reporter is typing.
+  function renderThumbs(): void {
+    if (!draft) {
+      return;
+    }
     thumbs.innerHTML = "";
-    if (draft.urls.length === 0) {
+    if (draft.urls.length === 0 && draft.pending === 0) {
       const empty = el("span", "no-shot");
       empty.textContent = strings.noScreenshot;
       thumbs.appendChild(empty);
@@ -410,7 +406,7 @@ export function mountFeedbackWidget(
         URL.revokeObjectURL(url);
         draft?.shots.splice(i, 1);
         draft?.urls.splice(i, 1);
-        renderPanel();
+        renderThumbs();
       });
       thumb.appendChild(remove);
       thumb.title = strings.annotateArrow;
@@ -425,7 +421,7 @@ export function mountFeedbackWidget(
             URL.revokeObjectURL(draft.urls[i]);
             draft.shots[i] = annotated;
             draft.urls[i] = URL.createObjectURL(annotated);
-            renderPanel();
+            renderThumbs();
           }
         } finally {
           annotating = false;
@@ -433,6 +429,15 @@ export function mountFeedbackWidget(
       });
       thumbs.appendChild(thumb);
     });
+    // Placeholder tiles for screenshots that are still rendering. They show a
+    // spinner so the reporter can see the shot is on its way while they type.
+    for (let i = 0; i < draft.pending; i += 1) {
+      const loading = el("div", "thumb thumb-pending");
+      loading.title = strings.capturing;
+      const spin = el("div", "spinner");
+      loading.appendChild(spin);
+      thumbs.appendChild(loading);
+    }
     const addBtn = el("button", "add-shot");
     addBtn.type = "button";
     addBtn.textContent = strings.addScreenshot;
@@ -446,65 +451,67 @@ export function mountFeedbackWidget(
       openMenu();
     });
     thumbs.appendChild(addBtn);
-
-    syncChips();
-    commentBox.value = draft.comment;
-    sendBtn.disabled = false;
-    panel.style.display = "flex";
-    commentBox.focus();
   }
 
-  function addShot(shot: Blob | null): void {
-    if (!draft) {
-      return;
-    }
-    if (shot) {
-      draft.shots.push(shot);
-      draft.urls.push(URL.createObjectURL(shot));
-    }
-    addingToDraft = false;
-    renderPanel();
-  }
-
-  function openDraft(
+  // Start (or reuse) the draft that a capture belongs to. When adding a shot to
+  // an open draft, the existing draft (and its comment) is kept.
+  function ensureDraft(
     mode: CaptureMode,
-    shot: Blob | null,
     meta: ElementMetadata | null
-  ): void {
+  ): Draft {
     if (addingToDraft && draft) {
-      addShot(shot);
-      return;
+      addingToDraft = false;
+      return draft;
     }
     discardDraft();
     draft = {
       mode,
       meta,
       selector: meta?.selector ?? null,
-      shots: shot ? [shot] : [],
-      urls: shot ? [URL.createObjectURL(shot)] : [],
+      shots: [],
+      urls: [],
       comment: "",
       category: null,
+      pending: 0,
+      captures: [],
     };
+    return draft;
+  }
+
+  // Open the panel immediately with a pending placeholder, then render the
+  // screenshot in the background. The reporter can write their comment while it
+  // loads instead of staring at a blocking spinner.
+  function captureIntoDraft(
+    mode: CaptureMode,
+    meta: ElementMetadata | null,
+    work: () => Promise<Blob>
+  ): void {
+    const owner = ensureDraft(mode, meta);
+    owner.pending += 1;
     renderPanel();
+    const task = (async () => {
+      try {
+        const shot = await work();
+        if (draft !== owner) {
+          return; // draft was cancelled or replaced mid-capture
+        }
+        owner.shots.push(shot);
+        owner.urls.push(URL.createObjectURL(shot));
+      } catch (error) {
+        console.error("[feedback-widget] capture failed:", error);
+      } finally {
+        if (draft === owner) {
+          owner.pending = Math.max(0, owner.pending - 1);
+          renderThumbs();
+        }
+      }
+    })();
+    owner.captures.push(task);
   }
 
   function closePanel(): void {
     panel.style.display = "none";
     discardDraft();
-  }
-
-  async function runCapture(work: () => Promise<Blob>): Promise<Blob | null> {
-    showCaptureOverlay();
-    try {
-      await sleep(CAPTURE_SETTLE_MS);
-      const shot = await work();
-      return captureCancelled ? null : shot;
-    } catch (error) {
-      console.error("[feedback-widget] capture failed:", error);
-      return null;
-    } finally {
-      hideCaptureOverlay();
-    }
   }
 
   // Element mode: hover highlight, capture on click.
@@ -522,7 +529,7 @@ export function mountFeedbackWidget(
     highlight.style.height = `${rect.height}px`;
   }
 
-  async function onElementClick(event: MouseEvent): Promise<void> {
+  function onElementClick(event: MouseEvent): void {
     event.preventDefault();
     event.stopPropagation();
     const target =
@@ -534,11 +541,7 @@ export function mountFeedbackWidget(
     // Collect selector + metadata synchronously, before the capture (which
     // reveals scroll-hidden nodes and could otherwise perturb the DOM).
     const meta = collectElementMetadata(target);
-    const shot = await runCapture(() => captureElement(target));
-    if (captureCancelled) {
-      return;
-    }
-    openDraft("element", shot, meta);
+    captureIntoDraft("element", meta, () => captureElement(target));
   }
 
   function startElementMode(): void {
@@ -549,15 +552,11 @@ export function mountFeedbackWidget(
     document.addEventListener("click", onElementClick, true);
   }
 
-  async function startFullpageMode(): Promise<void> {
+  function startFullpageMode(): void {
     closeMenu();
     fab.style.display = "none";
-    const shot = await runCapture(() => captureFullPage());
+    captureIntoDraft("fullpage", null, () => captureFullPage());
     fab.style.display = "flex";
-    if (captureCancelled) {
-      return;
-    }
-    openDraft("fullpage", shot, null);
   }
 
   // Area mode: drag a rectangle over the overlay.
@@ -591,7 +590,7 @@ export function mountFeedbackWidget(
       drawAreaRect(dragStart.x, dragStart.y, event.clientX, event.clientY);
     }
   });
-  areaOverlay.addEventListener("pointerup", async (event) => {
+  areaOverlay.addEventListener("pointerup", (event) => {
     if (!dragStart) {
       return;
     }
@@ -606,20 +605,13 @@ export function mountFeedbackWidget(
     if (rect.width < 8 || rect.height < 8) {
       return;
     }
-    const shot = await runCapture(() => captureArea(rect));
-    if (captureCancelled) {
-      return;
-    }
-    openDraft("area", shot, null);
+    captureIntoDraft("area", null, () => captureArea(rect));
   });
 
   function startNoScreenshot(): void {
     closeMenu();
-    if (addingToDraft && draft) {
-      addShot(null);
-      return;
-    }
-    openDraft("fullpage", null, null);
+    ensureDraft("fullpage", null);
+    renderPanel();
   }
 
   async function trackDelivery(result: CaptureResult): Promise<void> {
@@ -669,6 +661,16 @@ export function mountFeedbackWidget(
     }
     sendBtn.disabled = true;
     const current = draft;
+    // A screenshot may still be rendering in the background. Wait for it so it
+    // ships with the issue instead of being silently dropped.
+    if (current.pending > 0) {
+      sendBtn.textContent = strings.capturing;
+      await Promise.allSettled(current.captures);
+      sendBtn.textContent = strings.send;
+      if (draft !== current) {
+        return; // draft was cancelled while we waited
+      }
+    }
     try {
       const meta = current.meta;
       const result = await core.captureIssue({
@@ -708,12 +710,12 @@ export function mountFeedbackWidget(
       if (isPanelOpen()) {
         closePanel();
       } else {
-        captureCancelled = true;
-        hideCaptureOverlay();
         resetModes();
         closeMenu();
         if (addingToDraft && draft) {
-          addShot(null);
+          // Back out of adding a shot: return to the panel unchanged.
+          addingToDraft = false;
+          renderPanel();
         }
       }
       return;
@@ -750,14 +752,6 @@ export function mountFeedbackWidget(
     }
   }
 
-  captureCancelBtn.addEventListener("click", () => {
-    captureCancelled = true;
-    hideCaptureOverlay();
-    if (addingToDraft && draft) {
-      addShot(null);
-    }
-  });
-
   fab.addEventListener("click", () => {
     if (isMenuOpen()) {
       closeMenu();
@@ -766,11 +760,7 @@ export function mountFeedbackWidget(
     }
   });
   menuItem(strings.menuElement, "1", startElementMode);
-  menuItem(strings.menuFullpage, "2", () => {
-    startFullpageMode().catch((error) => {
-      console.error("[feedback-widget] fullpage mode failed:", error);
-    });
-  });
+  menuItem(strings.menuFullpage, "2", startFullpageMode);
   menuItem(strings.menuArea, "3", startAreaMode);
   menuItem(strings.menuNoScreenshot, "4", startNoScreenshot);
   cancelBtn.addEventListener("click", closePanel);
