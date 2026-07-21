@@ -2,6 +2,8 @@
 
 > Universal embeddable feedback widget for dev and staging sites.
 
+**[Live demo & docs → mirawision.github.io/sluglist](https://mirawision.github.io/sluglist)**
+
 A framework-agnostic, dependency-light widget that lets people leave visual feedback directly on
 a running web app: pick an element, grab an area or the full page, annotate the screenshot, add a
 comment, and the widget produces a standard set of artifacts and hands them to pluggable
