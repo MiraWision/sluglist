@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.3.0 — Initial public release
+## 1.0.0 — Initial public release
 
 First published version. A framework-agnostic, embeddable visual feedback widget
 for dev and staging sites.
