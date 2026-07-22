@@ -35,6 +35,16 @@ export type FeedbackCustom = Record<string, string | number | boolean>;
 /** Usage preset. "beta" enables privacy defaults + the beta button label. */
 export type FeedbackWidgetPreset = "dev" | "beta";
 
+/** Page-error capture controls. */
+export interface FeedbackErrorConfig {
+  /** Capture console.error / uncaught errors / rejections. Default true. */
+  capture?: boolean;
+  /** Ring buffer size. Default 20. */
+  bufferSize?: number;
+  /** Also capture console.warn. Default false. */
+  captureWarnings?: boolean;
+}
+
 /** Screenshot privacy controls. All optional; off by default (dev). */
 export interface FeedbackPrivacy {
   /**
@@ -71,6 +81,8 @@ export interface FeedbackWidgetConfig {
   custom?: FeedbackCustom;
   /** Default true. The host project decides based on its environment. */
   enabled?: boolean;
+  /** Page-error capture (console + uncaught + rejections). Default on. */
+  errors?: FeedbackErrorConfig;
   /** Reporter identity, recorded once per session (session.yaml + each issue). */
   identity?: FeedbackIdentity;
   /**
@@ -103,8 +115,6 @@ export interface CaptureIssueInput {
   /** Optional triage category, e.g. "bug" | "design" | "idea". */
   category?: string;
   comment: string;
-  /** Recent console errors to append as a "## Console errors" section. */
-  consoleErrors?: string[];
   /** Full tag path with no classes (element mode). */
   domPath?: string | null;
   /**

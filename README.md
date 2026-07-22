@@ -277,6 +277,30 @@ storage, geolocation, or any DOM content beyond the screenshot pixels.
 Reporter **identity** and **custom** fields are collected only when you explicitly configure them
 (see [Beta feedback mode](#beta-feedback-mode)); by default neither is present in the artifacts.
 
+## Error capture
+
+From the moment the widget initializes, snaglist keeps a small ring buffer of recent page errors from
+three sources — `console.error`, uncaught `error` events, and `unhandledrejection` — and attaches a
+snapshot to each issue as a `## Errors` section (with a relative timestamp per entry) plus an
+`errors_count` field in the frontmatter. The original `console.error` still runs, so nothing is
+swallowed.
+
+```ts
+createFeedbackWidget({
+  project: "my-app",
+  connectors: [/* ... */],
+  errors: {
+    capture: true,          // default; set false to disable entirely
+    bufferSize: 20,         // default
+    captureWarnings: false, // default; true also captures console.warn
+  },
+});
+```
+
+> **Note:** error messages and stack traces can contain user data — in beta mode they may include PII.
+> Production stack traces are usually minified. Treat captured errors as diagnostic hints, not ground
+> truth; snaglist stores them verbatim and does not resolve source maps.
+
 ## Notes and limits
 
 - Desktop-first. Area selection and annotation use pointer events and work on touch; element mode

@@ -97,7 +97,8 @@ describe("buildIssueMarkdown", () => {
     expect(md).toBe(fixture("01-broken-header.md"));
   });
 
-  it("appends console errors as a section and matches the fixture", () => {
+  it("renders a ## Errors section with source + relative age", () => {
+    const at = 100_000; // issue time (ms)
     const md = buildIssueMarkdown({
       id: "02",
       url: "/dashboard/animals",
@@ -106,13 +107,64 @@ describe("buildIssueMarkdown", () => {
       viewport: "1512x982",
       screenshot: null,
       createdAt: "2026-07-20T14:07:45Z",
-      comment: "Страница мигает при загрузке.",
-      consoleErrors: [
-        "TypeError: Cannot read properties of undefined (reading 'map')\n    at AnimalList (animal-list.tsx:42:18)",
-        "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      comment: "Page flickers on load.",
+      errorsAt: at,
+      errorsCount: 2,
+      errors: [
+        {
+          ts: at - 120_000, // 2m before
+          source: "console",
+          message: "Failed to load resource: /api/animals 500",
+        },
+        {
+          ts: at - 3000, // 3s before
+          source: "exception",
+          message: "TypeError: Cannot read properties of undefined (reading 'id')",
+          stack: "    at AnimalCard (main.js:1:48213)",
+        },
       ],
     });
-    expect(md).toBe(fixture("02-with-console-errors.md"));
+    // frontmatter has errors_count
+    const fm = md.split("---\n")[1];
+    expect(fm).toContain("errors_count: 2");
+    // body section
+    expect(md).toContain("## Errors");
+    expect(md).toContain(
+      "- [2m before report] console: Failed to load resource: /api/animals 500"
+    );
+    expect(md).toContain(
+      "- [3s before report] exception: TypeError: Cannot read properties of undefined (reading 'id')"
+    );
+    expect(md).toContain("        at AnimalCard (main.js:1:48213)");
+  });
+
+  it("emits errors_count only when defined; no section when empty", () => {
+    const withCount = buildIssueMarkdown({
+      id: "0e",
+      url: "/x",
+      selector: null,
+      mode: "fullpage",
+      viewport: "800x600",
+      screenshot: null,
+      createdAt: "2026-07-22T10:00:00Z",
+      comment: "No errors captured",
+      errors: [],
+      errorsCount: 0,
+    });
+    expect(withCount.split("---\n")[1]).toContain("errors_count: 0");
+    expect(withCount).not.toContain("## Errors");
+
+    const withoutCapture = buildIssueMarkdown({
+      id: "0f",
+      url: "/x",
+      selector: null,
+      mode: "fullpage",
+      viewport: "800x600",
+      screenshot: null,
+      createdAt: "2026-07-22T10:00:00Z",
+      comment: "Capture disabled",
+    });
+    expect("errors_count" in parse(withoutCapture.split("---\n")[1])).toBe(false);
   });
 
   it("emits an additive screenshots list only for multi-screenshot issues", () => {

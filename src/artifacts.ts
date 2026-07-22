@@ -1,3 +1,4 @@
+import { type ErrorRecord, formatErrorAge } from "./errors";
 import type {
   ArtifactFile,
   CaptureMode,
@@ -119,8 +120,13 @@ function issueEntries(issue: IssueIndexEntry): [string, YamlValue][] {
 export interface IssueMarkdownInput {
   category?: string;
   comment: string;
-  consoleErrors?: string[];
   createdAt: string;
+  /** Captured page errors, snapshotted at issue time. */
+  errors?: ErrorRecord[];
+  /** Issue time (epoch ms) used to compute each error's relative age. */
+  errorsAt?: number;
+  /** Total errors in the snapshot; emitted as `errors_count` when defined. */
+  errorsCount?: number;
   /** Flat project fields; emitted as a `custom:` block (null when empty). */
   custom?: Record<string, YamlScalar> | null;
   domPath?: string | null;
@@ -181,6 +187,10 @@ export function buildIssueMarkdown(input: IssueMarkdownInput): string {
   if (input.masked !== undefined) {
     lines.push(yamlLine("masked", input.masked));
   }
+  // Additive: emitted only when error capture is engaged (0 when off/none).
+  if (input.errorsCount !== undefined) {
+    lines.push(yamlLine("errors_count", input.errorsCount));
+  }
   lines.push(yamlLine("created_at", input.createdAt));
   // Additive reporter / custom blocks: emitted only when provided (identity or
   // custom configured), so fixtures that omit them stay byte-identical.
@@ -194,11 +204,23 @@ export function buildIssueMarkdown(input: IssueMarkdownInput): string {
 
   let body = input.comment.trim();
 
-  if (input.consoleErrors && input.consoleErrors.length > 0) {
-    const errors = input.consoleErrors
-      .map((err) => `\`\`\`\n${err.trim()}\n\`\`\``)
-      .join("\n\n");
-    body += `\n\n## Console errors\n\n${errors}`;
+  if (input.errors && input.errors.length > 0) {
+    const at = input.errorsAt ?? input.errors.at(-1)?.ts ?? 0;
+    const items = input.errors
+      .map((err) => {
+        const age = formatErrorAge(at - err.ts);
+        let line = `- [${age} before report] ${err.source}: ${err.message}`;
+        if (err.stack) {
+          const indented = err.stack
+            .split("\n")
+            .map((l) => `    ${l}`)
+            .join("\n");
+          line += `\n${indented}`;
+        }
+        return line;
+      })
+      .join("\n");
+    body += `\n\n## Errors\n${items}`;
   }
 
   return `---\n${frontmatter}\n---\n\n${body}\n`;

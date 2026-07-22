@@ -4,6 +4,7 @@ import {
   sessionYamlFile,
 } from "./artifacts";
 import { deliver } from "./deliver";
+import { type ErrorCapture, createErrorCapture } from "./errors";
 import {
   collectPageEnvironment,
   isoTimestamp,
@@ -48,6 +49,8 @@ export interface FeedbackWidgetCore {
 export interface CreateFeedbackWidgetOptions {
   /** Test seam: environment override instead of reading from window. */
   environment?: () => PageEnvironment;
+  /** Test seam: error-capture override (skip installing global handlers). */
+  errorCapture?: ErrorCapture;
   /** Test seam: offline queue override. */
   queue?: OfflineQueue;
   /** Test seam: storage override for the session manager. */
@@ -81,6 +84,10 @@ export function createFeedbackWidget(
   // (backward compatible); `null` means "configured but empty".
   const reporter = normalizeIdentity(config.identity);
   const custom = normalizeCustom(config.custom);
+  // Error capture starts at widget init (not on panel open) so errors that
+  // happen before the reporter opens the widget are still recorded.
+  const errorCapture =
+    options.errorCapture ?? createErrorCapture(config.errors);
   const sessions = new SessionManager({
     project: config.project,
     storage: options.storage,
@@ -195,7 +202,10 @@ export function createFeedbackWidget(
     const pngPaths = shots.map((_, i) =>
       i === 0 ? `${id}-${slug}.png` : `${id}-${slug}-${i + 1}.png`
     );
-    const createdAt = isoTimestamp();
+    const createdAtMs = now();
+    const createdAt = isoTimestamp(new Date(createdAtMs));
+    // Snapshot the error buffer at issue time; relative ages are vs createdAtMs.
+    const errorSnapshot = errorCapture.snapshot();
 
     const entry: IssueIndexEntry = {
       id,
@@ -242,9 +252,13 @@ export function createFeedbackWidget(
         // configured), so an issue file is self-contained.
         ...(reporter !== undefined ? { reporter } : {}),
         ...(custom !== undefined ? { custom } : {}),
+        // Captured page errors: `errors_count` is always present once capture is
+        // engaged (0 when off/none); the `## Errors` section only when non-empty.
+        errors: errorSnapshot,
+        errorsAt: createdAtMs,
+        errorsCount: errorSnapshot.length,
         createdAt,
         comment,
-        consoleErrors: input.consoleErrors,
       })
     );
     // session.yaml is upserted with every issue so the session stays

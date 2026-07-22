@@ -386,3 +386,47 @@ image/vnd.microsoft.icon 1020
 ```
 (The headless preview cannot capture the OS browser-tab strip; the icon is proven served + valid +
 linked. The literal tab glance is the user's.)
+
+## Phase 3 — Unified error capture
+
+New `src/errors.ts` `createErrorCapture({capture,bufferSize,captureWarnings})`: one ring buffer (default
+20) fed by `console.error` (calls the original), optional `console.warn`, `window 'error'`, and
+`'unhandledrejection'` (reason via safe `String`). Records `{ts, source: console|exception|rejection,
+message, stack?}`, truncated to 500 chars with `…[truncated]`; the widget's own `[snaglist]` lines are
+skipped. Installed at **widget init** in `createFeedbackWidget` (not on panel open). Config gains
+`errors?: {capture,bufferSize,captureWarnings}`.
+
+Artifacts (additive): frontmatter `errors_count: N` (always present once capture is engaged; 0 when
+off/none); body `## Errors` with `- [<age> before report] <source>: <message>` (+ indented stack).
+The old `## Console errors` section + `CaptureIssueInput.consoleErrors` are replaced (retired
+`src/ui/console-buffer.ts` and its fixture). `FeedbackConnector` contract unchanged.
+
+### 3.1 Tests
+
+```
+$ npm run type-check   # clean
+$ npm test             # Test Files 11 passed (11) / Tests 97 passed (97)
+```
+`test/errors.test.ts` (9): three sources + labels; console.error still calls original; `capture:false`
+installs nothing → empty; 25 → last 20; warn only when `captureWarnings`; skips self lines; 500-char
+truncation; uninstall restores. `test/artifacts.test.ts`: `## Errors` with source + relative age (2m/3s),
+`errors_count` present/omitted semantics.
+
+### 3.2 Browser E2E (evidence/errors-harness.html, real IIFE)
+
+Fire `console.error` + an uncaught `TypeError` + a rejected promise, then capture an issue:
+
+```
+consolePrinted: true    // the original console.error still runs
+```
+Artifact ([`evidence/errors-issue.md`](evidence/errors-issue.md)) frontmatter `errors_count: 3` and:
+```
+## Errors
+- [0s before report] console: Failed to load resource: /api/animals 500
+- [0s before report] exception: Uncaught TypeError: Cannot read properties of undefined (reading 'id')
+        at .../errors-harness.html:43:36
+- [0s before report] rejection: Unhandled rejection: network down
+        at .../errors-harness.html:45:26
+```
+Second widget with `errors: { capture: false }` → `errors_count: 0`, no `## Errors` section.
+(All three fired within the same second → "0s"; distinct ages 2m/3s covered by the unit test.)

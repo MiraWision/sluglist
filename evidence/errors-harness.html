@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>snaglist — error capture harness</title>
+  </head>
+  <body>
+    <h1>Error capture harness</h1>
+    <script src="../dist/snaglist.global.js"></script>
+    <script>
+      const memory = new Snaglist.MemoryConnector();
+      const core = Snaglist.createFeedbackWidget({
+        project: "acme",
+        connectors: [memory],
+        // errors capture defaults on
+      });
+      Snaglist.mountFeedbackWidget(core);
+      window.__core = core;
+      window.__memory = memory;
+
+      // A second widget with capture disabled.
+      const memoryOff = new Snaglist.MemoryConnector();
+      const coreOff = Snaglist.createFeedbackWidget({
+        project: "acmeoff",
+        connectors: [memoryOff],
+        errors: { capture: false },
+      });
+      window.__coreOff = coreOff;
+      window.__memoryOff = memoryOff;
+
+      window.__consolePrinted = false;
+      const realLog = console.error.bind(console);
+
+      window.trigger = () =>
+        new Promise((resolve) => {
+          // 1) console.error (also prove it still prints via a sentinel wrapper)
+          const probe = (...a) => { window.__consolePrinted = true; };
+          const prev = console.error;
+          console.error = (...a) => { probe(...a); prev(...a); };
+          console.error("Failed to load resource: /api/animals 500");
+          console.error = prev;
+          // 2) uncaught exception
+          setTimeout(() => { throw new TypeError("Cannot read properties of undefined (reading 'id')"); }, 0);
+          // 3) unhandled rejection
+          Promise.reject(new Error("network down"));
+          setTimeout(resolve, 300);
+        });
+
+      window.captureIssue = async (which) => {
+        const c = which === "off" ? coreOff : core;
+        const r = await c.captureIssue({ comment: "Something broke on this page", mode: "fullpage" });
+        await r.delivered;
+        const mem = which === "off" ? memoryOff : memory;
+        const md = mem.getFiles(r.sessionId).find((f) => f.path.endsWith(".md"));
+        return await md.blob.text();
+      };
+    </script>
+  </body>
+</html>

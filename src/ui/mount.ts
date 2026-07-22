@@ -4,10 +4,6 @@ import type { CaptureMode, CaptureResult, FeedbackPrivacy } from "../types";
 import type { FeedbackWidgetCore } from "../widget";
 import { annotateBlob } from "./annotate";
 import {
-  type ConsoleErrorBuffer,
-  installConsoleErrorBuffer,
-} from "./console-buffer";
-import {
   collectElementMetadata,
   type ElementMetadata,
 } from "../selector";
@@ -285,8 +281,6 @@ export function mountFeedbackWidget(
     toast
   );
   container.appendChild(host);
-
-  const errors: ConsoleErrorBuffer = installConsoleErrorBuffer();
 
   let draft: Draft | null = null;
   let addingToDraft = false;
@@ -725,7 +719,6 @@ export function mountFeedbackWidget(
         elementText: meta?.elementText ?? null,
         domPath: meta?.domPath ?? null,
         screen: meta?.screen ?? null,
-        consoleErrors: errors.snapshot(),
       });
       closePanel();
       refreshBadge();
@@ -815,7 +808,6 @@ export function mountFeedbackWidget(
       document.removeEventListener("keydown", onKeyDown, true);
       resetModes();
       closePanel();
-      errors.uninstall();
       host.remove();
     },
   };

@@ -37,6 +37,7 @@ export type {
   DeliveryReport,
   FeedbackConnector,
   FeedbackCustom,
+  FeedbackErrorConfig,
   FeedbackIdentity,
   FeedbackPrivacy,
   FeedbackWidgetConfig,
@@ -46,8 +47,17 @@ export type {
   SessionMeta,
   SessionState,
 } from "./types";
-export type { ConsoleErrorBuffer } from "./ui/console-buffer";
-export { installConsoleErrorBuffer } from "./ui/console-buffer";
+export {
+  createErrorCapture,
+  formatErrorAge,
+  NOOP_ERROR_CAPTURE,
+} from "./errors";
+export type {
+  ErrorCapture,
+  ErrorCaptureOptions,
+  ErrorRecord,
+  ErrorSource,
+} from "./errors";
 export type {
   FeedbackWidgetUiConfig,
   IssueCategory,
