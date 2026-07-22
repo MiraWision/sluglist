@@ -235,6 +235,37 @@ If you need a support loop (triage, back-and-forth, resolution states), that is 
 snaglist deliberately stops at capture. Its output is a stable set of artifacts you can pipe into
 whatever tracker or workflow you already run.
 
+## Local feedback loop
+
+Test your app locally, click feedback with the widget, and have it land in a `.snaglist/` folder in
+your project — then let an agent (e.g. Claude Code) read it and fix the issues. Browser JS can't write
+to disk, so a tiny sidecar process, `snaglist dev`, sits between the widget and the folder.
+
+```ts
+import { createFeedbackWidget, mountFeedbackWidget, LocalConnector } from "snaglist";
+
+const widget = createFeedbackWidget({
+  project: "my-app",
+  connectors: [new LocalConnector()], // POSTs to http://127.0.0.1:4477 by default
+  enabled: process.env.NODE_ENV !== "production",
+});
+mountFeedbackWidget(widget);
+```
+
+Run the sidecar next to your dev server:
+
+```bash
+npx snaglist dev                        # writes to ./.snaglist, port 4477
+npx snaglist dev --dir .feedback --port 5511
+```
+
+Click feedback → the full artifact set appears under `.snaglist/session-*/`. The dev server binds to
+`127.0.0.1` only and has **no authentication** — it is local-only by design; don't expose it or forward
+its port. If it isn't running, `LocalConnector` warns once and your other connectors keep working (the
+UI is never blocked).
+
+> Add `.snaglist/` to your project's `.gitignore`.
+
 ## Programmatic capture
 
 The UI is optional. Produce and deliver an issue without any chrome:

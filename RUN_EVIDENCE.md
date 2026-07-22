@@ -430,3 +430,56 @@ Artifact ([`evidence/errors-issue.md`](evidence/errors-issue.md)) frontmatter `e
 ```
 Second widget with `errors: { capture: false }` → `errors_count: 0`, no `## Errors` section.
 (All three fired within the same second → "0s"; distinct ages 2m/3s covered by the unit test.)
+
+## Phase 4 — Local delivery: `snaglist dev` + LocalConnector
+
+`LocalConnector({port?})` (default 127.0.0.1:4477) POSTs base64 artifacts to the sidecar; if the server
+is down it warns **once per session** and rethrows (UI never blocks, other connectors keep working).
+CLI `src/cli/` (separate Node tsup entry → `dist/cli.js` with `#!/usr/bin/env node`; `bin.snaglist`):
+binds 127.0.0.1 only, `POST /put` → `.snaglist/{session}/{file}` (`--dir`/`--port` override), `GET
+/health` → `{ok,dir}`, CORS reflects localhost origins, path traversal → 400, sessionId `session-*`
+validated, one stdout line per accepted file. Browser bundle contains **zero** `node:http`/`node:fs`
+(grep = 0).
+
+### 4.1 Tests
+
+```
+$ npm test    # Test Files 12 passed (12) / Tests 104 passed (104)
+```
+`test/cli.test.ts` (7): resolveTarget accept/reject (traversal, absolute, subdir, bad session); live
+server GET /health, POST /put writes decoded bytes, traversal → 400 (nothing written), CORS reflected;
+LocalConnector warns once across two puts when the server is down.
+
+### 4.2 E2E — real CLI + browser widget (evidence/local-e2e/)
+
+`node dist/cli.js dev --dir …/evidence/local-e2e/.snaglist --port 4477`, then the widget with a
+LocalConnector captured 2 issues (`evidence/local-harness.html`). `deliveredOk: true`. Folder listing:
+
+```
+.snaglist/session-2026-07-22-qrwi/
+  02-header-overlaps-the-nav-on-mobile.md
+  02-header-overlaps-the-nav-on-mobile.png
+  03-save-button-does-nothing.md
+  03-save-button-does-nothing.png
+  session.yaml
+```
+Dev-server stdout ([`evidence/local-e2e/devserver.log`](evidence/local-e2e/devserver.log)):
+```
+snaglist dev listening on http://127.0.0.1:4477
+writing feedback to …/evidence/local-e2e/.snaglist
+  ← session-2026-07-22-qrwi/02-header-overlaps-the-nav-on-mobile.png  (110 bytes)
+  ← …/02-header-overlaps-the-nav-on-mobile.md  (236 bytes)
+  ← …/session.yaml  (731 bytes)
+  ← …/03-save-button-does-nothing.png  (110 bytes)
+  ← …/03-save-button-does-nothing.md  (224 bytes)
+  ← …/session.yaml  (934 bytes)
+```
+
+### 4.3 --dir / --port override
+
+```
+$ (cd scratch && node dist/cli.js dev --dir .feedback --port 5511)
+$ curl 127.0.0.1:5511/health → {"ok":true,"dir":".../.feedback"}
+$ curl -X POST 127.0.0.1:5511/put -d '{sessionId:session-2026-07-22-zz99, path:session.yaml, ...}'
+→ {"ok":true}; wrote .feedback/session-2026-07-22-zz99/session.yaml
+```
