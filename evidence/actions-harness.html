@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>snaglist — action trail harness</title>
+    <style>
+      body { font-family: -apple-system, system-ui, sans-serif; margin: 24px; }
+      nav a { margin-right: 12px; }
+      form { margin-top: 16px; display: grid; gap: 8px; max-width: 320px; }
+      input { padding: 8px; }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <a id="to-animals" href="#/animals">Animals</a>
+      <a id="to-detail" href="#/animals/128">Animal 128</a>
+    </nav>
+    <h1 id="route">/</h1>
+    <button id="refresh" type="button">Refresh</button>
+    <form id="animal-form" data-testid="animal-form">
+      <input id="email" type="email" placeholder="Email" />
+      <input id="pw" type="password" placeholder="Password" />
+      <button type="submit">Save</button>
+    </form>
+
+    <script src="../dist/snaglist.global.js"></script>
+    <script>
+      // tiny SPA: links call pushState (no full nav)
+      function go(path) { history.pushState({}, "", path); document.getElementById("route").textContent = path; }
+      document.getElementById("to-animals").addEventListener("click", (e) => { e.preventDefault(); go("/animals"); });
+      document.getElementById("to-detail").addEventListener("click", (e) => { e.preventDefault(); go("/animals/128?token=abc123secret"); });
+      document.getElementById("animal-form").addEventListener("submit", (e) => e.preventDefault());
+
+      const core = Snaglist.createFeedbackWidget({ project: "acme", connectors: [new Snaglist.MemoryConnector()] });
+      Snaglist.mountFeedbackWidget(core);
+      window.__core = core;
+
+      // Simulate a real user scenario, then capture a comment-only issue.
+      window.scenario = async () => {
+        document.getElementById("to-animals").click();      // navigate → /animals
+        document.getElementById("to-detail").click();       // navigate → /animals/128 (query dropped)
+        document.getElementById("refresh").click();         // click button#refresh
+        const email = document.getElementById("email");
+        email.value = "anna@mail.com";
+        email.dispatchEvent(new Event("input", { bubbles: true }));   // type (13 chars)
+        const pw = document.getElementById("pw");
+        pw.value = "hunter2";
+        pw.dispatchEvent(new Event("input", { bubbles: true }));      // password → NOT logged
+        await new Promise((r) => setTimeout(r, 900));       // let the type-debounce fire
+        document.getElementById("animal-form").dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+        const res = await core.captureIssue({ comment: "Report after this sequence", mode: "fullpage" });
+        await res.delivered;
+        const md = new Snaglist.MemoryConnector(); // not used; get from core connector below
+        return { routeAfter: document.getElementById("route").textContent, sessionId: res.sessionId };
+      };
+      // expose the memory connector to read the artifact
+      window.__memory = core.config.connectors[0];
+      window.readIssueMd = (sid) => {
+        const f = window.__memory.getFiles(sid).find((x) => x.path.endsWith(".md"));
+        return f.blob.text();
+      };
+    </script>
+  </body>
+</html>

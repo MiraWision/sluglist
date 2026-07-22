@@ -3,6 +3,17 @@ export { DownloadConnector } from "./connectors/download";
 export { LocalConnector } from "./connectors/local";
 export type { LocalConnectorOptions } from "./connectors/local";
 export { MemoryConnector } from "./connectors/memory";
+export {
+  createActionCapture,
+  NOOP_ACTION_CAPTURE,
+  renderAction,
+} from "./actions";
+export type {
+  ActionCapture,
+  ActionCaptureOptions,
+  ActionKind,
+  ActionRecord,
+} from "./actions";
 export { applyMask } from "./mask";
 export type { MaskResult } from "./mask";
 export { resolvePrivacy } from "./preset";
@@ -37,6 +48,7 @@ export type {
   CaptureResult,
   DeliveryFailure,
   DeliveryReport,
+  FeedbackActionsConfig,
   FeedbackConnector,
   FeedbackCustom,
   FeedbackErrorConfig,

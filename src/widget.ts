@@ -3,6 +3,7 @@ import {
   screenshotFile,
   sessionYamlFile,
 } from "./artifacts";
+import { type ActionCapture, createActionCapture } from "./actions";
 import { deliver } from "./deliver";
 import { type ErrorCapture, createErrorCapture } from "./errors";
 import {
@@ -30,6 +31,8 @@ import type {
 } from "./types";
 
 export interface FeedbackWidgetCore {
+  /** Background action trail; the UI's record mode subscribes to it for frames. */
+  readonly actions: ActionCapture;
   /** Capture and deliver one issue. Resolves once artifacts are built; delivery runs in the background. */
   captureIssue(input: CaptureIssueInput): Promise<CaptureResult | null>;
   readonly config: FeedbackWidgetConfig;
@@ -47,6 +50,8 @@ export interface FeedbackWidgetCore {
 }
 
 export interface CreateFeedbackWidgetOptions {
+  /** Test seam: action-trail override (skip installing global handlers). */
+  actionCapture?: ActionCapture;
   /** Test seam: environment override instead of reading from window. */
   environment?: () => PageEnvironment;
   /** Test seam: error-capture override (skip installing global handlers). */
@@ -88,6 +93,10 @@ export function createFeedbackWidget(
   // happen before the reporter opens the widget are still recorded.
   const errorCapture =
     options.errorCapture ?? createErrorCapture(config.errors);
+  // Action trail installs at widget init too, so actions before the widget is
+  // opened are still in the buffer.
+  const actionCapture =
+    options.actionCapture ?? createActionCapture(config.actions);
   const sessions = new SessionManager({
     project: config.project,
     storage: options.storage,
@@ -204,8 +213,9 @@ export function createFeedbackWidget(
     );
     const createdAtMs = now();
     const createdAt = isoTimestamp(new Date(createdAtMs));
-    // Snapshot the error buffer at issue time; relative ages are vs createdAtMs.
+    // Snapshot the error + action buffers at issue time; relative ages vs createdAtMs.
     const errorSnapshot = errorCapture.snapshot();
+    const actionSnapshot = actionCapture.snapshot();
 
     const entry: IssueIndexEntry = {
       id,
@@ -257,6 +267,10 @@ export function createFeedbackWidget(
         errors: errorSnapshot,
         errorsAt: createdAtMs,
         errorsCount: errorSnapshot.length,
+        // Action trail: same shape as errors (## Actions + actions_count).
+        actions: actionSnapshot,
+        actionsAt: createdAtMs,
+        actionsCount: actionSnapshot.length,
         createdAt,
         comment,
       })
@@ -274,6 +288,7 @@ export function createFeedbackWidget(
   }
 
   return {
+    actions: actionCapture,
     config: resolvedConfig,
     enabled,
     // Promise-wrapped so the public API stays async while the artifact build

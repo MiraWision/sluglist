@@ -1,3 +1,4 @@
+import { type ActionRecord, renderAction } from "./actions";
 import { type ErrorRecord, formatErrorAge } from "./errors";
 import type {
   ArtifactFile,
@@ -118,6 +119,12 @@ function issueEntries(issue: IssueIndexEntry): [string, YamlValue][] {
 }
 
 export interface IssueMarkdownInput {
+  /** Action trail, snapshotted at issue time. */
+  actions?: ActionRecord[];
+  /** Issue time (epoch ms) used to compute each action's relative age. */
+  actionsAt?: number;
+  /** Total actions in the snapshot; emitted as `actions_count` when defined. */
+  actionsCount?: number;
   category?: string;
   comment: string;
   createdAt: string;
@@ -191,6 +198,10 @@ export function buildIssueMarkdown(input: IssueMarkdownInput): string {
   if (input.errorsCount !== undefined) {
     lines.push(yamlLine("errors_count", input.errorsCount));
   }
+  // Additive: emitted only when the action trail is engaged (0 when off/none).
+  if (input.actionsCount !== undefined) {
+    lines.push(yamlLine("actions_count", input.actionsCount));
+  }
   lines.push(yamlLine("created_at", input.createdAt));
   // Additive reporter / custom blocks: emitted only when provided (identity or
   // custom configured), so fixtures that omit them stay byte-identical.
@@ -221,6 +232,18 @@ export function buildIssueMarkdown(input: IssueMarkdownInput): string {
       })
       .join("\n");
     body += `\n\n## Errors\n${items}`;
+  }
+
+  // `## Actions` comes after `## Errors` (spec order).
+  if (input.actions && input.actions.length > 0) {
+    const at = input.actionsAt ?? input.actions.at(-1)?.ts ?? 0;
+    const items = input.actions
+      .map(
+        (action) =>
+          `- [${formatErrorAge(at - action.ts)} before report] ${renderAction(action)}`
+      )
+      .join("\n");
+    body += `\n\n## Actions\n${items}`;
   }
 
   return `---\n${frontmatter}\n---\n\n${body}\n`;

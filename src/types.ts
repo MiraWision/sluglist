@@ -35,6 +35,16 @@ export type FeedbackCustom = Record<string, string | number | boolean>;
 /** Usage preset. "beta" enables privacy defaults + the beta button label. */
 export type FeedbackWidgetPreset = "dev" | "beta";
 
+/** Action-trail capture controls. */
+export interface FeedbackActionsConfig {
+  /** Capture clicks / navigations / submits / typing. Default true. */
+  capture?: boolean;
+  /** Ring buffer size. Default 30. */
+  bufferSize?: number;
+  /** Log the FACT of typing into password fields (never the value). Default false. */
+  capturePasswords?: boolean;
+}
+
 /** Page-error capture controls. */
 export interface FeedbackErrorConfig {
   /** Capture console.error / uncaught errors / rejections. Default true. */
@@ -72,6 +82,8 @@ export interface ReporterMeta {
 }
 
 export interface FeedbackWidgetConfig {
+  /** Background action trail (clicks/navigations/submits/typing). Default on. */
+  actions?: FeedbackActionsConfig;
   connectors: FeedbackConnector[];
   /**
    * Flat project fields (string | number | boolean) attached to every issue's

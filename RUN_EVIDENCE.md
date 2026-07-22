@@ -526,3 +526,81 @@ All phases have external, verifiable artifacts above. Final gate: `npm run type-
   (curl 200 + rendered icon + synthetic-event proof stand in; final tab/keypress glance is the user's).
 - Error relative-time in the live E2E shows "0s" (all fired within a second); distinct ages are unit-tested.
 - The `snaglist dev` server has no auth by design (local-only, README-documented).
+
+---
+---
+
+# v3 — action trail + record mode
+
+## Phase 0 — Pre-flight audit
+
+Date: 2026-07-22. `snaglist` local repo at v1.4.0.
+
+| Area | Verdict | Detail |
+|---|---|---|
+| Selector generator | **REAL / reusable** | `src/selector.ts` `generateSelector(el): {selector,strategy,unique}` + `collectElementMetadata(el)`. Action trail will log `generateSelector(el).selector` (same quality as element-mode issues) + short element text. |
+| Error capture (twin) | **REAL** | `src/errors.ts`: `ErrorRecord {ts,source,message,stack?}`, `createErrorCapture` (ring buffer via push/shift + wrapped globals + `uninstall`), `formatErrorAge(ms)` → "3s/2m/1h". Reusable primitive extracted for the trail: `formatErrorAge` (relative age) is imported directly; the buffer+listener-wrap+uninstall shape is mirrored in a new `src/actions.ts`. |
+| Frame timing (STOP gate) | **PASS** | See measurement below. |
+| Widget UI | **REAL** | Capture modes are a menu (`menuItem 1..4`); Record becomes a 5th item. The panel's `thumbs` row already renders a screenshot ribbon → reused for frame thumbnails. Recording indicator → a state on the FAB (badge/dot). |
+
+### Frame duration (html-to-image `captureFullPage`)
+
+Test page: header + nav + a 4-field form + **60 cards** (`evidence/timing-harness.html`), viewport ~900px.
+Warm-up run discarded (lazy html-to-image import), then 6 runs:
+
+```
+runs (ms): [354, 358, 361, 430, 454, 469]   median 430   min 354   max 469
+```
+
+**430ms median ≪ 1.5s STOP threshold → no STOP.** Record mode proceeds. Per the floor rule
+(`frameMinInterval` ≥ Phase-0 measure × 1.5), the default is set to **650ms** (430 × 1.5 ≈ 645, rounded)
+rather than the spec's nominal 500ms. Note: frames render the whole document (same path as the fullpage
+mode); very long/complex pages will be slower — `frameMinInterval` throttling + `maxFrames` bound the cost.
+(TruGenix not running in this session; measured on the representative harness.)
+
+## Phase 1 — Action trail
+
+New `src/actions.ts` `createActionCapture({capture,bufferSize,capturePasswords})`: a ring buffer
+(default 30, twin of errors.ts) fed by document-capture-phase listeners — `click` (resolved to the
+nearest actionable ancestor via `generateSelector`, element text ≤40), `submit`, `input` (debounced
+800ms → `type` with a **char count only**), and navigation via wrapped `history.pushState`/`replaceState`
++ `popstate`/`hashchange` (paths **without query**). Widget-own events excluded; password fields not
+logged at all unless `capturePasswords`. Exposed on `core.actions` (with `subscribe`) for record mode.
+Additive: `## Actions` (after `## Errors`) + `actions_count` frontmatter. Installed at widget init.
+
+**Hard PII rule:** the trail records the fact + place, never entered content. `type (12 chars) input#email`
+— never the value.
+
+### 1.1 Tests
+
+```
+$ npm run type-check   # clean
+$ npm test             # Test Files 13 passed (13) / Tests 117 passed (117)
+```
+`test/actions.test.ts` (13): click→actionable selector + text (+40-char truncation), widget exclusion,
+submit, type records count only (grep: value absent), password not logged (default) / count-only when on,
+pushState navigation w/o query + routing intact (history.state + location updated) + methods restored on
+uninstall, capture:false, 35→30, subscribe fires/unsubscribes, renderAction formatting.
+
+### 1.2 Browser E2E (evidence/actions-harness.html, real IIFE)
+
+Scenario: 3 clicks + 2 SPA pushState navigations + type into #email ("anna@mail.com") + type into a
+password field ("hunter2") + submit. Resulting `## Actions` ([`evidence/actions-issue.md`](evidence/actions-issue.md)),
+`actions_count: 7`:
+
+```
+## Actions
+- [1s before report] click #to-animals ("Animals")
+- [1s before report] navigate /evidence/actions-harness.html → /animals
+- [1s before report] click #to-detail ("Animal 128")
+- [1s before report] navigate /animals → /animals/128          # query ?token=… dropped
+- [1s before report] click #refresh ("Refresh")
+- [0s before report] type (13 chars) #email                    # count only, no value
+- [0s before report] submit [data-testid="animal-form"]        # password field: not logged at all
+```
+
+**PII grep on the artifact:** `anna@mail.com` → absent, `hunter2` → absent, `#pw` → absent. Routing
+intact (SPA navigated to `/animals/128?token=…`). NOTE: the URL query token appears **only** in the
+pre-existing `url:` frontmatter field (full-URL capture for reconstruction), never in the trail;
+stripping query from that existing field would be a non-additive change to an existing field → left as-is
+and flagged here.
