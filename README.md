@@ -1,8 +1,12 @@
-# sluglist
+# snaglist
 
-> Universal embeddable feedback widget for dev and staging sites.
+> Universal embeddable feedback widget for dev, staging and beta sites.
 
-**[Live demo & docs → mirawision.github.io/sluglist](https://mirawision.github.io/sluglist)**
+**[Live demo & docs → mirawision.github.io/snaglist](https://mirawision.github.io/snaglist)**
+
+> **Renamed from `sluglist`.** The package was briefly published as `sluglist`; it is now
+> **`snaglist`** (from a *snagging list* — the punch list of defects a client marks on handover).
+> Run `npm install snaglist`. The old `sluglist` package is deprecated and points here.
 
 A framework-agnostic, dependency-light widget that lets people leave visual feedback directly on
 a running web app: pick an element, grab an area or the full page, annotate the screenshot, add a
@@ -13,15 +17,15 @@ encapsulated in the connector you provide.
 ## Install
 
 ```bash
-npm install sluglist
+npm install snaglist
 ```
 
-Or drop it into any page without a build step (deps inlined, exposed as `Sluglist`):
+Or drop it into any page without a build step (deps inlined, exposed as `Snaglist`):
 
 ```html
-<script src="https://unpkg.com/sluglist"></script>
+<script src="https://unpkg.com/snaglist"></script>
 <script>
-  const { createFeedbackWidget, mountFeedbackWidget, DownloadConnector } = Sluglist;
+  const { createFeedbackWidget, mountFeedbackWidget, DownloadConnector } = Snaglist;
   const widget = createFeedbackWidget({
     project: "my-app",
     connectors: [new DownloadConnector()],
@@ -37,7 +41,7 @@ import {
   createFeedbackWidget,
   mountFeedbackWidget,
   DownloadConnector,
-} from "sluglist";
+} from "snaglist";
 
 const widget = createFeedbackWidget({
   project: "my-app",              // slug written into session.yaml

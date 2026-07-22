@@ -4,7 +4,7 @@ import {
   createFeedbackWidget,
   type FeedbackConnector,
   mountFeedbackWidget,
-} from "sluglist";
+} from "snaglist";
 
 interface DemoArtifact {
   path: string;
@@ -15,7 +15,7 @@ interface DemoArtifact {
 
 /**
  * A connector that surfaces produced artifacts to the page so visitors can see
- * exactly what sluglist generates when they capture feedback on this site.
+ * exactly what snaglist generates when they capture feedback on this site.
  */
 function createDemoConnector(
   onFiles: (files: DemoArtifact[]) => void
@@ -50,7 +50,7 @@ export function Demo() {
       setActive((prev) => prev ?? yaml?.path ?? files[0]?.path ?? null);
     });
     const widget = createFeedbackWidget({
-      project: "sluglist-demo",
+      project: "snaglist-demo",
       connectors: [connector],
       offlineQueue: false,
     });

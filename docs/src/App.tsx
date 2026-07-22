@@ -1,14 +1,14 @@
 import { CodeBlock } from "./components/CodeBlock";
 import { Demo } from "./components/Demo";
 
-const REPO = "https://github.com/MiraWision/sluglist";
-const NPM = "https://www.npmjs.com/package/sluglist";
+const REPO = "https://github.com/MiraWision/snaglist";
+const NPM = "https://www.npmjs.com/package/snaglist";
 
 const QUICK_START = `import {
   createFeedbackWidget,
   mountFeedbackWidget,
   DownloadConnector,
-} from "sluglist";
+} from "snaglist";
 
 const widget = createFeedbackWidget({
   project: "my-app",
@@ -162,7 +162,7 @@ function Logo() {
           <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
         </svg>
       </span>
-      sluglist
+      snaglist
     </span>
   );
 }
@@ -214,7 +214,7 @@ export function App() {
             <div className="flex w-full items-center justify-between gap-3 rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] px-4 py-2.5 font-mono text-[14px]">
               <span>
                 <span className="text-[var(--color-muted)]">$ </span>npm install
-                sluglist
+                snaglist
               </span>
             </div>
             <div className="flex gap-3">

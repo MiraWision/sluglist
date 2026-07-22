@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.0 — Renamed to snaglist
+
+- **Package renamed `sluglist` → `snaglist`** (from a *snagging list*, the punch list of defects a
+  client marks on handover). Install with `npm install snaglist`; import from `"snaglist"`. The
+  standalone bundle now exposes the global `Snaglist` (`dist/snaglist.global.js`). No API changes.
+- The old `sluglist` package is deprecated on npm and points here. Same code, same version line.
+
 ## 1.1.1 — Fix text annotation closing the editor
 
 - Placing text on a screenshot no longer commits and closes the annotation

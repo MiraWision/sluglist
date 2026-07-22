@@ -4,13 +4,13 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 export default defineConfig({
-  // gh-pages serves the site under /sluglist/.
-  base: "/sluglist/",
+  // gh-pages serves the site under /snaglist/.
+  base: "/snaglist/",
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
       // The demo runs the live library source.
-      sluglist: fileURLToPath(new URL("../src/index.ts", import.meta.url)),
+      snaglist: fileURLToPath(new URL("../src/index.ts", import.meta.url)),
     },
   },
 });

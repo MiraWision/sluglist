@@ -14,11 +14,11 @@ export default defineConfig([
     target: "es2022",
   },
   // Standalone browser bundle for a no-build <script> drop-in (unpkg / jsDelivr).
-  // Dependencies are inlined and exposed on a global `Sluglist`.
+  // Dependencies are inlined and exposed on a global `Snaglist`.
   {
-    entry: { sluglist: "src/index.ts" },
+    entry: { snaglist: "src/index.ts" },
     format: ["iife"],
-    globalName: "Sluglist",
+    globalName: "Snaglist",
     platform: "browser",
     minify: true,
     sourcemap: true,
