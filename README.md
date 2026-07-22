@@ -185,6 +185,56 @@ class SupabaseConnector implements FeedbackConnector {
 }
 ```
 
+## Beta feedback mode
+
+Beyond dev/staging, snaglist can power a **"Report a problem"** button for real users on a
+production MVP or beta. It stays **one-way capture** (see the scope note below); the extra pieces are
+reporter identity, per-issue custom fields, and PII masking so screenshots are safe to store.
+
+```ts
+import { createFeedbackWidget, mountFeedbackWidget } from "snaglist";
+import { HttpConnector } from "./HttpConnector"; // see examples/
+
+const widget = createFeedbackWidget({
+  project: "acme",
+  preset: "beta",                       // masks inputs + adds screenshot consent + "Report a problem" label
+  connectors: [new HttpConnector("/api/feedback", () => currentUser.token)],
+  identity: {                           // recorded once per session → reporter in artifacts
+    userId: currentUser.id,
+    email: currentUser.email,
+    name: currentUser.name,
+  },
+  custom: {                             // flat project fields → custom block per issue
+    plan: currentUser.plan,
+    appVersion: APP_VERSION,
+  },
+  privacy: {                            // any explicit option overrides the preset
+    maskSelectors: [".account-balance"],
+  },
+});
+
+mountFeedbackWidget(widget);
+```
+
+Mark anything sensitive with `data-private` and it is always redacted in screenshots, regardless of
+`maskInputs`. Values are masked only for the screenshot render; the live DOM is restored exactly.
+
+**Delivery in production:** never ship storage write-keys in the browser. Post to a thin endpoint on
+your side that owns the credentials and does the write (and rate-limiting). See
+[`examples/feedback-route.ts`](examples/feedback-route.ts) (a ~50-line Next.js route handler) and
+[`examples/HttpConnector.ts`](examples/HttpConnector.ts).
+
+### Scope — one-way capture by design
+
+snaglist captures feedback and hands it to your storage. It is **not** a support tool:
+
+- **No inbox, no statuses, no threads, no replies to the user, no email notifications.**
+- **No user accounts** and no login of its own.
+
+If you need a support loop (triage, back-and-forth, resolution states), that is a different product;
+snaglist deliberately stops at capture. Its output is a stable set of artifacts you can pipe into
+whatever tracker or workflow you already run.
+
 ## Programmatic capture
 
 The UI is optional. Produce and deliver an issue without any chrome:
@@ -222,7 +272,10 @@ are a stable contract intended as input for downstream parsers; it only changes 
 Automatically, no personal data: URL path, viewport and screen size, device pixel ratio, browser
 and OS (parsed from the user agent), UI language(s), timezone, color scheme, reduced-motion, and up
 to the last 20 `console.error` messages. Deliberately not collected: full user agent, IP, cookies,
-storage, geolocation, identity, or any DOM content beyond the screenshot pixels.
+storage, geolocation, or any DOM content beyond the screenshot pixels.
+
+Reporter **identity** and **custom** fields are collected only when you explicitly configure them
+(see [Beta feedback mode](#beta-feedback-mode)); by default neither is present in the artifacts.
 
 ## Notes and limits
 

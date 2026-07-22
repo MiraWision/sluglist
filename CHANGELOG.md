@@ -1,11 +1,28 @@
 # Changelog
 
-## 1.2.0 — Renamed to snaglist
+## 1.3.0 — Renamed to snaglist + beta feedback mode
 
-- **Package renamed `sluglist` → `snaglist`** (from a *snagging list*, the punch list of defects a
-  client marks on handover). Install with `npm install snaglist`; import from `"snaglist"`. The
-  standalone bundle now exposes the global `Snaglist` (`dist/snaglist.global.js`). No API changes.
-- The old `sluglist` package is deprecated on npm and points here. Same code, same version line.
+**Renamed `sluglist` → `snaglist`** (from a *snagging list*, the punch list of defects a client marks
+on handover). Install `npm install snaglist`; import from `"snaglist"`; the standalone bundle exposes
+the global `Snaglist` (`dist/snaglist.global.js`). The old `sluglist` package is deprecated and points
+here.
+
+New **beta feedback mode** for real users on a production beta (still one-way capture: no inbox,
+statuses or replies). All additive and backward compatible:
+
+- **Identity** — `config.identity: { userId, email, name }` → session-level `reporter` in `session.yaml`
+  and each issue's frontmatter.
+- **Custom fields** — `config.custom` (flat primitives) → `custom` block per issue. Validated at init:
+  snake_case keys, non-primitives dropped with a warning, max 20 keys, values clipped to 200 chars.
+- **PII masking** — `config.privacy.maskInputs` / `maskSelectors`; `[data-private]` is always masked.
+  Values are redacted to solid blocks before the screenshot render and the live DOM is restored exactly
+  (layout preserved). Additive `masked: true|false` in frontmatter.
+- **Screenshot consent** — `config.privacy.screenshotConsent` adds an "Attach screenshot" checkbox
+  (default checked); unchecking sends the issue with `screenshot: null`.
+- **Preset** — `config.preset: "dev" | "beta"`. `beta` defaults `maskInputs` + `screenshotConsent` on
+  and relabels the button "Report a problem"; any explicit option overrides the preset.
+- **Examples** — `examples/HttpConnector.ts` + `examples/feedback-route.ts` (thin rate-limited endpoint)
+  showing safe production delivery without exposing storage keys in the browser.
 
 ## 1.1.1 — Fix text annotation closing the editor
 

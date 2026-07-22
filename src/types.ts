@@ -32,6 +32,9 @@ export interface FeedbackIdentity {
 /** Flat, primitive-only project fields attached to every issue. */
 export type FeedbackCustom = Record<string, string | number | boolean>;
 
+/** Usage preset. "beta" enables privacy defaults + the beta button label. */
+export type FeedbackWidgetPreset = "dev" | "beta";
+
 /** Screenshot privacy controls. All optional; off by default (dev). */
 export interface FeedbackPrivacy {
   /**
@@ -75,6 +78,12 @@ export interface FeedbackWidgetConfig {
    * Default true; set false to disable the offline outbox.
    */
   offlineQueue?: boolean;
+  /**
+   * Usage preset. Default "dev". "beta" turns on privacy defaults
+   * (maskInputs + screenshotConsent) and the "Report a problem" button label
+   * for real users on a production beta. Any explicit option overrides it.
+   */
+  preset?: FeedbackWidgetPreset;
   /** Screenshot privacy: PII masking and screenshot consent. */
   privacy?: FeedbackPrivacy;
   /** Project slug, written into session.yaml. */

@@ -3,6 +3,7 @@ export { DownloadConnector } from "./connectors/download";
 export { MemoryConnector } from "./connectors/memory";
 export { applyMask } from "./mask";
 export type { MaskResult } from "./mask";
+export { resolvePrivacy } from "./preset";
 export type { BrowserInfo } from "./metadata";
 export { parseUserAgent } from "./metadata";
 export { createOfflineQueue } from "./queue";
@@ -33,6 +34,7 @@ export type {
   FeedbackIdentity,
   FeedbackPrivacy,
   FeedbackWidgetConfig,
+  FeedbackWidgetPreset,
   IssueIndexEntry,
   ReporterMeta,
   SessionMeta,

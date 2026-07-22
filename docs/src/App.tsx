@@ -72,6 +72,14 @@ created_at: 2026-07-21T14:05:10Z
 
 The save button does nothing on the animals form.`;
 
+const BETA_CODE = `createFeedbackWidget({
+  project: "acme",
+  preset: "beta",              // mask inputs + consent + "Report a problem"
+  connectors: [new HttpConnector("/api/feedback")],
+  identity: { userId, email, name },   // → reporter in artifacts
+  custom: { plan: "pro", appVersion },  // → custom block per issue
+});`;
+
 const FEATURES = [
   {
     title: "Three capture modes",
@@ -176,6 +184,9 @@ export function App() {
           <nav className="flex items-center gap-5 text-[14px] text-[var(--color-muted)]">
             <a className="hover:text-[var(--color-ink)]" href="#demo">
               Demo
+            </a>
+            <a className="hidden hover:text-[var(--color-ink)] sm:inline" href="#beta">
+              Beta
             </a>
             <a className="hidden hover:text-[var(--color-ink)] sm:inline" href="#start">
               Docs
@@ -307,6 +318,31 @@ export function App() {
             a session). Failures retry with backoff and never block the UI.
           </p>
           <CodeBlock code={CONNECTOR_CODE} />
+        </div>
+      </Section>
+
+      <Section
+        eyebrow="Beta"
+        id="beta"
+        title="A &ldquo;Report a problem&rdquo; button for real users"
+      >
+        <div className="grid gap-6 md:grid-cols-2 md:items-start">
+          <div>
+            <p className="mb-4 text-[15px] text-[var(--color-ink-2)] leading-relaxed">
+              The <code className="font-mono text-[13px]">beta</code> preset turns
+              snaglist into a feedback button for people on a production MVP: it
+              masks form inputs and anything marked{" "}
+              <code className="font-mono text-[13px]">data-private</code> in the
+              screenshot, adds a screenshot-consent checkbox, and attaches the
+              reporter&rsquo;s identity plus any custom fields you pass.
+            </p>
+            <p className="text-[14px] text-[var(--color-muted)] leading-relaxed">
+              Still one-way capture by design: no inbox, no statuses, no replies,
+              no accounts. Deliver through a thin endpoint that owns your storage
+              keys — never ship write-keys to the browser.
+            </p>
+          </div>
+          <CodeBlock code={BETA_CODE} />
         </div>
       </Section>
 

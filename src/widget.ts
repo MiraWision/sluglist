@@ -14,6 +14,7 @@ import {
   NOOP_QUEUE,
   type OfflineQueue,
 } from "./queue";
+import { resolvePrivacy } from "./preset";
 import { normalizeCustom, normalizeIdentity } from "./reporter";
 import { type KeyValueStorage, SessionManager } from "./session";
 import { slugFromComment } from "./slug";
@@ -69,6 +70,12 @@ export function createFeedbackWidget(
     );
   }
   const enabled = config.enabled !== false;
+  // Resolve the preset once so `core.config` exposes the effective privacy
+  // (the UI reads it for masking + the consent checkbox).
+  const resolvedConfig: FeedbackWidgetConfig = {
+    ...config,
+    privacy: resolvePrivacy(config),
+  };
   // Identity + custom are validated once at init and fixed for the session.
   // `undefined` means "not configured" → the fields are omitted from artifacts
   // (backward compatible); `null` means "configured but empty".
@@ -253,7 +260,7 @@ export function createFeedbackWidget(
   }
 
   return {
-    config,
+    config: resolvedConfig,
     enabled,
     // Promise-wrapped so the public API stays async while the artifact build
     // itself is synchronous.

@@ -184,17 +184,24 @@ export function mountFeedbackWidget(
   style.textContent = widgetStyles(theme);
   shadow.appendChild(style);
 
+  // The beta preset relabels the button to "Report a problem" unless the caller
+  // set an explicit buttonLabel string.
+  const buttonLabel =
+    uiConfig.strings?.buttonLabel ??
+    (core.config.preset === "beta"
+      ? strings.reportProblem
+      : strings.buttonLabel);
   const fab = el("button", "fab");
   fab.type = "button";
   fab.title = hotkey
-    ? `${strings.buttonLabel} (${prettyHotkey(hotkey)})`
-    : strings.buttonLabel;
+    ? `${buttonLabel} (${prettyHotkey(hotkey)})`
+    : buttonLabel;
   const fabIcon = el("span", "fab-icon");
   // Inline SVG (message-with-pencil) so the glyph is never a missing / empty
   // emoji box on systems without the character.
   fabIcon.innerHTML = FEEDBACK_ICON_SVG;
   const fabLabel = el("span", "fab-label");
-  fabLabel.textContent = strings.buttonLabel;
+  fabLabel.textContent = buttonLabel;
   const badge = el("span", "badge");
   fab.append(fabIcon, fabLabel);
   if (hotkey) {

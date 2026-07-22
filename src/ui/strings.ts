@@ -22,6 +22,7 @@ export interface FeedbackWidgetStrings {
   menuFullpage: string;
   menuNoScreenshot: string;
   noScreenshot: string;
+  reportProblem: string;
   retry: string;
   saved: string;
   send: string;
@@ -51,6 +52,7 @@ export const DEFAULT_STRINGS: FeedbackWidgetStrings = {
   menuFullpage: "Full page screenshot",
   menuNoScreenshot: "Comment without screenshot",
   noScreenshot: "No screenshot for this issue",
+  reportProblem: "Report a problem",
   retry: "Retry",
   saved: "Issue {id} saved",
   sending: "Sending issue {id}...",

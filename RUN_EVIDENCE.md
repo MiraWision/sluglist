@@ -220,4 +220,31 @@ and a `data-private` note) served via `evidence/serve.mjs`, driven in a real bro
 Reproduce: `node evidence/serve.mjs` → open `http://localhost:5175/` → run `window.run()`.
 
 ---
-<!-- Phase 4+ evidence appended below as work lands. -->
+## Phase 4 — Beta preset + positioning
+
+- `config.preset: "dev" | "beta"` (default dev). `src/preset.ts` `resolvePrivacy()` gives beta the
+  defaults `{ maskInputs: true, screenshotConsent: true }`; any explicit `privacy` option overrides
+  it. The resolved privacy is exposed on `core.config.privacy` (read by the UI). Beta relabels the
+  button to "Report a problem" unless `strings.buttonLabel` is set.
+- README: new **Beta feedback mode** section (config example with preset + identity + custom + the
+  "never ship storage write-keys" warning) and an explicit **Scope** paragraph (no inbox / statuses /
+  threads / replies / accounts — one-way capture by design). "Metadata collected" updated: identity
+  is collected only when configured.
+- `examples/`: `HttpConnector.ts` (client) + `feedback-route.ts` (~50-line Next.js route with per-IP
+  rate limiting + payload validation) + `examples/README.md` with the write-key warning.
+- Landing: new "Report a problem" beta section + nav link (`docs/src/App.tsx`).
+
+### 4.1 Tests + compile
+
+```
+$ npm test                                   # Test Files 9 passed (9) / Tests 75 passed (75)
+$ npx tsc --noEmit -p tsconfig.examples.json # exit 0  → examples compile
+$ npm run build                              # dist/snaglist.global.js emitted (v1.3.0)
+$ (docs) npm run build                       # ✓ built in ~23s
+```
+New `test/preset.test.ts` (7): dev→undefined privacy; beta→maskInputs+consent; explicit
+`maskInputs:false` overrides beta; `core.config.privacy` reflects the resolved preset. The live
+beta-preset UI (masking + consent checkbox + label) is exercised in Phase 5.
+
+---
+<!-- Phase 5 evidence appended below as work lands. -->
