@@ -12,6 +12,11 @@ import {
   type ElementMetadata,
 } from "../selector";
 import {
+  formatShortcut,
+  matchesShortcut,
+  resolveShortcut,
+} from "../shortcut";
+import {
   DEFAULT_STRINGS,
   type FeedbackWidgetStrings,
   formatString,
@@ -80,8 +85,7 @@ function defaultCategories(s: FeedbackWidgetStrings): IssueCategory[] {
 
 const HOST_ATTRIBUTE = "data-feedback-widget";
 const TOAST_MS = 2600;
-const DEFAULT_HOTKEY = "alt+shift+f";
-const MAC_PLATFORM = /mac|iphone|ipad/i;
+const DEFAULT_SHORTCUT = "Shift+Alt+F";
 
 // Round chat bubble (rendered in currentColor). The dot marks the visual
 // center of the bubble body so it optically centers in the round button.
@@ -110,38 +114,6 @@ function isEditableTarget(event: Event): boolean {
   );
 }
 
-function matchesHotkey(event: KeyboardEvent, hotkey: string): boolean {
-  const parts = hotkey.toLowerCase().split("+");
-  const key = parts.at(-1) ?? "";
-  return (
-    event.key.toLowerCase() === key &&
-    parts.includes("alt") === event.altKey &&
-    parts.includes("shift") === event.shiftKey &&
-    (parts.includes("ctrl") || parts.includes("cmd")) ===
-      (event.ctrlKey || event.metaKey)
-  );
-}
-
-/** Human-readable hotkey, e.g. "⌥⇧F" on Mac or "Alt+Shift+F" elsewhere. */
-function prettyHotkey(hotkey: string): string {
-  const isMac = MAC_PLATFORM.test(navigator.platform || navigator.userAgent);
-  const parts = hotkey.toLowerCase().split("+");
-  const key = (parts.at(-1) ?? "").toUpperCase();
-  if (!isMac) {
-    return parts
-      .slice(0, -1)
-      .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
-      .concat(key)
-      .join("+");
-  }
-  const mods = parts
-    .slice(0, -1)
-    .map((p) =>
-      p === "alt" ? "⌥" : p === "shift" ? "⇧" : p === "ctrl" ? "⌃" : "⌘"
-    )
-    .join("");
-  return mods + key;
-}
 
 /**
  * Mount the capture UI on the host page. Styles and markup live inside a
@@ -172,8 +144,15 @@ export function mountFeedbackWidget(
   const privacy: FeedbackPrivacy = core.config.privacy ?? {};
   const privacyConfigured = core.config.privacy !== undefined;
   const consentEnabled = privacy.screenshotConsent === true;
-  const hotkey =
-    uiConfig.hotkey === null ? null : (uiConfig.hotkey ?? DEFAULT_HOTKEY);
+  // Resolve the toggle shortcut: core `config.shortcut` (new, canonical) wins,
+  // then the legacy `uiConfig.hotkey`, then the default. `false`/`null` disable
+  // it; an invalid string warns and falls back to the default.
+  const rawShortcut: string | false | null =
+    core.config.shortcut !== undefined
+      ? core.config.shortcut
+      : (uiConfig.hotkey ?? DEFAULT_SHORTCUT);
+  const shortcut = resolveShortcut(rawShortcut);
+  const shortcutLabel = shortcut ? formatShortcut(shortcut) : "";
 
   const host = el("div");
   host.setAttribute(HOST_ATTRIBUTE, "");
@@ -193,9 +172,7 @@ export function mountFeedbackWidget(
       : strings.buttonLabel);
   const fab = el("button", "fab");
   fab.type = "button";
-  fab.title = hotkey
-    ? `${buttonLabel} (${prettyHotkey(hotkey)})`
-    : buttonLabel;
+  fab.title = shortcut ? `${buttonLabel} (${shortcutLabel})` : buttonLabel;
   const fabIcon = el("span", "fab-icon");
   // Inline SVG (message-with-pencil) so the glyph is never a missing / empty
   // emoji box on systems without the character.
@@ -204,9 +181,9 @@ export function mountFeedbackWidget(
   fabLabel.textContent = buttonLabel;
   const badge = el("span", "badge");
   fab.append(fabIcon, fabLabel);
-  if (hotkey) {
+  if (shortcut) {
     const fabHotkey = el("span", "fab-hotkey");
-    fabHotkey.textContent = prettyHotkey(hotkey);
+    fabHotkey.textContent = shortcutLabel;
     fab.appendChild(fabHotkey);
   }
   fab.appendChild(badge);
@@ -800,8 +777,8 @@ export function mountFeedbackWidget(
       }
     }
     if (
-      hotkey &&
-      matchesHotkey(event, hotkey) &&
+      shortcut &&
+      matchesShortcut(event, shortcut) &&
       !isEditableTarget(event) &&
       !isPanelOpen()
     ) {

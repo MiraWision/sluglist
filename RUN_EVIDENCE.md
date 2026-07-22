@@ -300,3 +300,61 @@ $ npm run build          # ESM + CJS + IIFE (dist/snaglist.global.js), types
   `https://mirawision.github.io/snaglist`.
 - **TruGenix:** switch the dependency `sluglist` → `snaglist` and the import string after 1.3.0 is on
   npm.
+
+---
+---
+
+# v2 — local loop + error capture + shortcut fix + favicon
+
+## Phase 0 — Pre-flight audit
+
+Date: 2026-07-22. Repo `~/Documents/dev/libs/sluglist` (package `snaglist@1.3.0`).
+
+| Area | Verdict | Detail |
+|---|---|---|
+| Error capture | **REAL-PARTIAL** | `src/ui/console-buffer.ts` patches only `console.error` (ring buffer 20, calls original, drops `[feedback-widget]` lines). Installed at UI mount; `CaptureIssueInput.consoleErrors` → body `## Console errors` (```code blocks```), fixture `test/fixtures/02-with-console-errors.md`. MISSING: `window 'error'`, `unhandledrejection`, per-record source, relative time, `errors_count` frontmatter, `## Errors` section, init-at-widget-init, `config.errors`. |
+| Shortcut | **BUG CONFIRMED** | `matchesHotkey` (`src/ui/mount.ts:117`) compares `event.key.toLowerCase() === key`. On macOS `Shift+Option+F` sets `e.key` to a dead/special char (never `"f"`) → never matches. Focus guard `isEditableTarget` exists (composedPath + input/textarea/isContentEditable). Config today is `uiConfig.hotkey` (`"alt+shift+f"`), not core `config.shortcut`. |
+| Landing head | **MISSING** | `docs/index.html` head = title + description only; no favicon/icons/OG. Vite `base: "/snaglist/"`. |
+| CLI infra | **MISSING** | No `bin` field, no CLI. `tsup.config.ts` has 2 browser-oriented entries (ESM/CJS + IIFE). Need a 3rd Node-only entry for the CLI, kept out of the browser bundle (not imported by `src/index.ts`). |
+| HttpConnector | **EXAMPLE-ONLY** | Lives in `examples/HttpConnector.ts`, not core. Core connectors: `download`, `memory`. `LocalConnector` will reuse its base64-POST pattern with a fixed `127.0.0.1:{port}` URL. |
+
+Format decisions (kept additive on the contract): frontmatter gains `errors_count` only; existing
+fields unchanged. The **body** `## Console errors` section is replaced by the spec's richer `## Errors`
+(source + relative time) — an explicit Phase 3 deliverable, not an accidental break; the one affected
+fixture is updated. `FeedbackConnector` contract is untouched.
+
+## Phase 1 — Shortcut fix + config
+
+**Cause (confirmed):** `matchesHotkey` compared `event.key.toLowerCase() === "f"`. On macOS
+`Shift+Option+F` sets `event.key` to a special char (harness log below shows `key="ƒ"`), so the
+comparison `"ƒ" === "f"` is always false and the widget never opened. Fix: match the physical key by
+`event.code === "KeyF"` (layout- and modifier-independent) + exact `shiftKey/altKey/ctrlKey/metaKey`.
+
+New `src/shortcut.ts`: `parseShortcut` (modifiers + one letter/digit → `{code, shift, alt, ctrl, meta}`,
+aliases Option/Cmd/Control, invalid → null), `matchesShortcut`, `resolveShortcut` (false/null disable,
+undefined → default, invalid string → warn + default), `formatShortcut`. Core config gains
+`shortcut?: string | false` (default `"Shift+Alt+F"`); legacy `uiConfig.hotkey` still honored. Focus
+guard (`isEditableTarget`, composedPath) unchanged.
+
+### 1.1 Tests
+
+```
+$ npm test    # Test Files 10 passed (10) / Tests 87 passed (87)
+```
+`test/shortcut.test.ts` (12): parse valid/aliases/bare/invalid; matchesShortcut on `code` ignoring
+`e.key` (incl. `key:"ƒ", code:"KeyF"` → true); exact-modifier match; resolve false/null/undefined/invalid.
+
+### 1.2 Browser proof (evidence/shortcut-harness.html, real IIFE bundle)
+
+Synthetic `keydown` dispatched at `document`:
+
+```
+opensWithMacOptionF_specialKey: true   // {code:'KeyF', key:'ƒ', shift, alt} → menu opens
+opensWithCodeKeyF:              true
+blockedWhenInputFocused:        false  // same event while a host <input> is focused → stays closed
+ignoresOtherKeys:               false  // {code:'KeyG', ...} → stays closed
+oldKeyMatcherWouldMatch:        false  // ('ƒ').toLowerCase() === 'f'  → the old bug
+```
+Screenshot: harness log line `last keydown: key="ƒ" code=KeyF shift=true alt=true` with the widget
+menu open. NOTE: the headless preview cannot inject a real OS Option+F keystroke, so the synthetic
+event carries the macOS `e.key` value; final manual macOS keypress confirmation is the user's.

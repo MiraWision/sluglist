@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>snaglist — shortcut harness</title>
+    <style>
+      body { font-family: -apple-system, system-ui, sans-serif; margin: 24px; }
+      input { padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 8px; width: 320px; }
+      pre { background: #f3f4f6; padding: 12px; border-radius: 8px; }
+    </style>
+  </head>
+  <body>
+    <h1>Shortcut harness</h1>
+    <label>Host input (focus + shortcut should NOT open):
+      <input id="host-input" placeholder="type here" />
+    </label>
+    <pre id="log">last keydown: —</pre>
+
+    <script src="../dist/snaglist.global.js"></script>
+    <script>
+      const core = Snaglist.createFeedbackWidget({
+        project: "acme",
+        connectors: [new Snaglist.MemoryConnector()],
+        // default shortcut: Shift+Alt+F
+      });
+      Snaglist.mountFeedbackWidget(core);
+      const shadow = document.querySelector("[data-feedback-widget]").shadowRoot;
+      window.__menuOpen = () => shadow.querySelector(".menu").style.display === "flex";
+
+      // Log real keydowns (for manual macOS verification: press Shift+Option+F).
+      document.addEventListener("keydown", (e) => {
+        document.getElementById("log").textContent =
+          `last keydown: key=${JSON.stringify(e.key)} code=${e.code} shift=${e.shiftKey} alt=${e.altKey}`;
+      });
+
+      // Dispatch a synthetic keydown at a target (default document).
+      window.fire = (opts, target) =>
+        (target || document).dispatchEvent(
+          new KeyboardEvent("keydown", { bubbles: true, cancelable: true, ...opts })
+        );
+      window.closeMenu = () => { if (window.__menuOpen()) shadow.querySelector(".fab").click(); };
+    </script>
+  </body>
+</html>

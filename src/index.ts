@@ -4,6 +4,12 @@ export { MemoryConnector } from "./connectors/memory";
 export { applyMask } from "./mask";
 export type { MaskResult } from "./mask";
 export { resolvePrivacy } from "./preset";
+export {
+  formatShortcut,
+  matchesShortcut,
+  parseShortcut,
+} from "./shortcut";
+export type { ParsedShortcut } from "./shortcut";
 export type { BrowserInfo } from "./metadata";
 export { parseUserAgent } from "./metadata";
 export { createOfflineQueue } from "./queue";
