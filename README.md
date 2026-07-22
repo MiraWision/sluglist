@@ -4,10 +4,6 @@
 
 **[Live demo & docs → mirawision.github.io/snaglist](https://mirawision.github.io/snaglist)**
 
-> **Renamed from `sluglist`.** The package was briefly published as `sluglist`; it is now
-> **`snaglist`** (from a *snagging list* — the punch list of defects a client marks on handover).
-> Run `npm install snaglist`. The old `sluglist` package is deprecated and points here.
-
 A framework-agnostic, dependency-light widget that lets people leave visual feedback directly on
 a running web app: pick an element, grab an area or the full page, annotate the screenshot, add a
 comment, and the widget produces a standard set of artifacts and hands them to pluggable
