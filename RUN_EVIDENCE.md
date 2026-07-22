@@ -657,3 +657,37 @@ shows the discount field redacted (maskedCount 1, live value restored). No frame
 (the Phase-1 `actions-issue.md` and demo-app issues carry no `frames_dir`). Note: under fast synthetic
 driving some frames drop (the capture serialize/throttle guard); at human pace with the 650ms default
 it is consistent.
+
+## Phase 3 — Skill update (Actions + frames)
+
+`skills/snaglist-fix/SKILL.md` now instructs the agent to read `## Actions` as the reproduction path
+(replay the chain before hunting a fix; trail selectors/paths are code entry points on par with the
+issue selector), and for `recording: true` issues to open the frames in order against the numbered
+Actions lines and find the two frames the defect appears between. New rule: trail/frames are evidence,
+not spec — if code contradicts the trail, record the contradiction, don't force the fix.
+
+## Phase 4 — Sequence-only bug E2E (record → trail/frames → fix)
+
+The Phase-2 recording (`session-2026-07-22-qov7`) is a genuine sequence-only bug: a discount is applied,
+survives navigation to Checkout, then is **lost** when navigating back to Cart — invisible in any single
+screenshot. Acting as the skill:
+
+- **Localized from the trail + frames:** frame 02 = Cart $80 (Apply), frame 03 = Checkout $80, then
+  `click #to-cart` + `navigate /checkout → /cart` → total back to $100. The defect is on the return-nav
+  step → the `#to-cart` handler, which reset `discount = 0` on navigation.
+- **Fixed** `record-harness.html`: removed `discount = 0` from the `#to-cart` handler.
+- **`.done`** written ([`…/session-2026-07-22-qov7/.done`](evidence/record-e2e/.snaglist/session-2026-07-22-qov7/.done)),
+  citing the frames/Actions as the localization basis.
+- **Verified:** replaying apply → checkout → back-to-cart now keeps *Total $80* (`fixed: true`); before
+  the fix it reverted to $100.
+
+Loop closed on a sequence bug: record → `.snaglist` artifacts (trail + frames) → agent localized and
+fixed via the trail/frames → `.done` → bug gone.
+
+### Known limitations
+- Frame capture renders the whole document (same path as fullpage mode); on very long/complex pages
+  frames are slower — `frameMinInterval` (default 650ms = Phase-0 measure ×1.5) and `maxFrames` bound it.
+- Under fast *synthetic* driving, back-to-back actions during an in-flight capture drop their frame (the
+  serialize/throttle guard); at human pace this is not observed.
+- The issue `url` frontmatter field still carries the query string (pre-existing full-URL capture); the
+  action trail itself never records query strings.

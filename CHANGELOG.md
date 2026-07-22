@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.5.0 — Action trail + record mode
+
+### Action trail (new)
+
+- `config.actions` — a background ring buffer of the user's recent actions (clicks, SPA navigations,
+  submits, typing), attached to each issue as a `## Actions` section (relative time) plus an additive
+  `actions_count` frontmatter field. The twin of the error capture.
+- **Hard PII rule (all modes):** the trail records the fact and place of an action, never entered
+  content. `type` logs only a character count; password fields are not logged at all by default.
+  Navigation paths drop the query string.
+
+### Record mode (new)
+
+- A `Record steps` menu item captures a frame (masked full-page screenshot) at the start and on each
+  click / navigate / submit (not typing), throttled and capped. Frames link to the trail: `## Actions`
+  lines gain a `— frame NN` suffix, turning an issue into automatic steps-to-reproduce with images.
+- Additive format: `NN-slug-frames/NN.png` + `recording`/`frames_count`/`frames_dir` frontmatter +
+  `frames: N` in the session index. `config.recording {enabled, maxFrames, frameMinInterval}`.
+- The `snaglist dev` sidecar / `LocalConnector` accept a single `frames/` subfolder (still
+  traversal-safe). The `snaglist-fix` skill now reads Actions as steps-to-reproduce and lines frames up
+  with them.
+
+No breaking changes; all artifact additions are additive. `FeedbackConnector` unchanged.
+
 ## 1.4.0 — Local feedback loop, error capture, shortcut fix, brand logo
 
 ### Local feedback loop (new)

@@ -27,8 +27,29 @@ locally, `snaglist dev` wrote it into `.snaglist/`, and now you read those issue
 ```
 
 Issue frontmatter fields you rely on: `url` (route/page), `selector` + `selector_strategy`,
-`element_text` (the visible text of the clicked element), `screen`, `mode`, `errors_count`, and the
-body's `## Errors` section (recent page errors with relative time + source).
+`element_text` (the visible text of the clicked element), `screen`, `mode`, `errors_count`,
+`actions_count`, and (for recordings) `recording: true` + `frames_count` + `frames_dir`. The body has
+a `## Errors` section (recent page errors) and a `## Actions` section (what the user did before
+reporting, with relative time).
+
+### `## Actions` — steps to reproduce
+
+Read `## Actions` as the reproduction path. Before hunting for a fix, replay the chain in your head (or
+against the code): a bug that only appears after a sequence (e.g. a value lost after navigating away and
+back) is invisible from a single screenshot but obvious from the trail. The selectors and paths in the
+trail are code entry points **on par with** the issue's own `selector`:
+
+- `click <selector> ("text")` → find that control's handler.
+- `navigate <from> → <to>` → the route change; look at what runs on enter/leave (state reset, refetch).
+- `submit <selector>` → the form's submit handler.
+- `type (N chars) <selector>` → a field was edited (only the count is recorded, never the value).
+
+### Recording issues (`recording: true`)
+
+Open the frames in `<frames_dir>/` **in order** and line them up with the numbered `## Actions` lines
+(`— frame NN` ↔ `NN.png`; `01.png` is the initial state). Find the two consecutive frames **between
+which the defect appears** — that narrows the buggy code to whatever ran on that step. Frame `NN.png`
+shows the state *after* action `NN`.
 
 ## Algorithm
 
@@ -49,7 +70,11 @@ body's `## Errors` section (recent page errors with relative time + source).
 
 ## Rules
 
-- **Look at the screenshot before fixing.** The comment alone is often ambiguous.
+- **Use `## Actions` as the reproduction, and frames as evidence — not as spec.** Replay the steps
+  against the code before searching for a fix. If your reading of the code contradicts the trail/frames
+  (the sequence can't produce the reported state), record the contradiction in `.done` rather than
+  forcing a fix to match the trail.
+- **Look at the screenshot (and frames) before fixing.** The comment alone is often ambiguous.
 - **Never guess a location.** If an issue can't be localized to a specific place with confidence, do
   NOT change code — record it in `.done` as `needs clarification` with what you'd need to proceed.
 - **Only fix what was reported.** If you spot other problems while in the code, note them in the

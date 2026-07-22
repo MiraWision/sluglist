@@ -345,6 +345,42 @@ createFeedbackWidget({
 > Production stack traces are usually minified. Treat captured errors as diagnostic hints, not ground
 > truth; snaglist stores them verbatim and does not resolve source maps.
 
+## Action trail & record mode
+
+Some bugs need a sequence, not a single screenshot. snaglist has two layers for that.
+
+**Action trail** (always on) keeps a small ring buffer of recent actions — clicks, SPA navigations,
+submits, typing — and attaches them to every issue as a `## Actions` section (plus `actions_count`):
+
+```markdown
+## Actions
+- [45s before report] navigate /animals → /animals/128
+- [12s before report] click button[aria-label="Save"] ("Save")
+- [11s before report] type (12 chars) input#email
+- [10s before report] submit form[data-testid="animal-form"]
+```
+
+**PII rule (independent of any privacy setting):** the trail records the *fact and place* of an action,
+never the entered content. `type` logs only a character count; password fields aren't logged at all by
+default; navigation paths drop the query string.
+
+**Record mode** turns a sequence into steps-to-reproduce *with images*. Click **Record steps**, do the
+thing, then **Stop & describe**. A frame is captured at the start and on each click / navigation /
+submit (not typing), so the issue gets a `NN-slug-frames/` folder of numbered screenshots and the
+matching `## Actions` lines are tagged `— frame NN`. Frames respect PII masking.
+
+```ts
+createFeedbackWidget({
+  project: "my-app",
+  connectors: [/* ... */],
+  actions: { capture: true, bufferSize: 30, capturePasswords: false }, // defaults
+  recording: { enabled: true, maxFrames: 30, frameMinInterval: 650 },  // defaults
+});
+```
+
+Deliberately **not** built: session replay (rrweb), real video (`getDisplayMedia`/`MediaRecorder`), or
+network capture. The output is artifacts for an agent to read, not a replay a human scrubs.
+
 ## Notes and limits
 
 - Desktop-first. Area selection and annotation use pointer events and work on touch; element mode

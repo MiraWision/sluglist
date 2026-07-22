@@ -1,0 +1,23 @@
+# snaglist-fix report — session-2026-07-22-qov7
+
+App: `evidence/record-harness.html`. 1 issue (recording), fixed.
+
+## 01 — Discount is lost after navigating cart → checkout → cart
+
+**Reproduction (from `## Actions` + frames).** The recording gave the exact sequence:
+- `click #apply ("Apply")` — **frame 02** shows *Cart · Total $80* (discount applied).
+- `click #to-checkout` — **frame 03** shows *Checkout · Total $80* (discount still applied).
+- `click #to-cart` then `navigate /checkout → /cart` — no frame here, but the reporter's comment and
+  the sequence say the total is back to **$100** on Cart, i.e. the discount is lost.
+
+**Localization.** The defect appears *between the Checkout state (frame 03, $80) and returning to Cart*.
+The only code on that step is the `#to-cart` navigation handler. It reset the value on navigation:
+`go("/cart"); discount = 0; render();`.
+
+**Fix.** `record-harness.html` — removed `discount = 0` from the `#to-cart` handler so navigating back to
+the cart keeps the applied discount: `go("/cart"); render();`.
+
+**Verification.** Re-ran the sequence (apply → checkout → cart): Cart now shows *Total $80* after the
+round-trip (discount retained).
+
+Localization basis: the `## Actions` trail + numbered frames (02/03), not guesswork.

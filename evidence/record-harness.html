@@ -36,7 +36,7 @@
         document.getElementById("total").textContent = `Total: $${100 - discount}`;
       }
       function go(path) { history.pushState({}, "", path); document.getElementById("title").textContent = path.includes("checkout") ? "Checkout" : "Cart"; }
-      document.getElementById("to-cart").addEventListener("click", (e) => { e.preventDefault(); go("/cart"); discount = 0; render(); }); // BUG: nav resets discount
+      document.getElementById("to-cart").addEventListener("click", (e) => { e.preventDefault(); go("/cart"); render(); }); // fix: navigating back keeps the discount
       document.getElementById("to-checkout").addEventListener("click", (e) => { e.preventDefault(); go("/checkout"); });
       document.getElementById("apply").addEventListener("click", () => { discount = 20; render(); });
 
