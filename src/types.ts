@@ -125,10 +125,10 @@ export interface FeedbackWidgetConfig {
   /** Record mode (frames captured per action). Default enabled. */
   recording?: FeedbackRecordingConfig;
   /**
-   * Global shortcut that toggles the widget, e.g. "Shift+Alt+F" (modifiers +
-   * one letter/digit; the key is matched by physical `event.code`, so it is
-   * layout-independent). `false` disables it. Default "Shift+Alt+F". Ignored
-   * while focus is in an input/textarea/contenteditable outside the widget.
+   * Global shortcut that toggles the widget, e.g. "Shift+F" (modifiers + one
+   * letter/digit; the key is matched by physical `event.code`, so it is
+   * layout-independent). `false` disables it. Default "Shift+F". Ignored while
+   * focus is in an input/textarea/contenteditable outside the widget.
    */
   shortcut?: string | false;
 }

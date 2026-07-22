@@ -87,7 +87,7 @@ export function parseShortcut(input: string): ParsedShortcut | null {
   return result;
 }
 
-export const DEFAULT_SHORTCUT = "Shift+Alt+F";
+export const DEFAULT_SHORTCUT = "Shift+F";
 
 /**
  * Resolve a config value into a parsed shortcut (or null = disabled).

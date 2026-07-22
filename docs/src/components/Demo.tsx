@@ -53,9 +53,9 @@ export function Demo() {
       project: "snaglist-demo",
       connectors: [connector],
       offlineQueue: false,
+      shortcut: "Shift+F",
     });
     const ui = mountFeedbackWidget(widget, {
-      hotkey: "alt+shift+f",
       categories: [
         { key: "bug", label: "Bug" },
         { key: "design", label: "Design" },

@@ -14,10 +14,10 @@ const widget = createFeedbackWidget({
   project: "my-app",
   connectors: [new DownloadConnector()],
   enabled: import.meta.env.DEV,
+  shortcut: "Shift+F",
 });
 
 mountFeedbackWidget(widget, {
-  hotkey: "alt+shift+f",
   categories: [
     { key: "bug", label: "Bug" },
     { key: "design", label: "Design" },
@@ -120,7 +120,7 @@ const CONFIG = [
   ["enabled", "boolean", "Gate on env; skip in production."],
   ["offlineQueue", "boolean", "IndexedDB outbox + retry (default on)."],
   ["container", "HTMLElement", "Mount target (default document.body)."],
-  ["hotkey", "string | null", "Menu toggle, e.g. \"alt+shift+f\"."],
+  ["shortcut", "string | false", "Toggle key (default \"Shift+F\")."],
   ["position", "\"bottom-left\" | \"bottom-right\"", "Button corner."],
   ["accentColor", "string", "Accent for primary actions."],
   ["categories", "{ key, label }[]", "Triage chips; [] hides them."],

@@ -22,6 +22,12 @@
   traversal-safe). The `snaglist-fix` skill now reads Actions as steps-to-reproduce and lines frames up
   with them.
 
+### Other
+
+- Default shortcut changed to **`Shift+F`** (was `Shift+Alt+F`). The focus guard still ignores it
+  while typing in an input/textarea/contenteditable; override via `config.shortcut`.
+- Updated the brand logo (favicon + docs). The widget button keeps its existing mark.
+
 No breaking changes; all artifact additions are additive. `FeedbackConnector` unchanged.
 
 ## 1.4.0 — Local feedback loop, error capture, shortcut fix, brand logo

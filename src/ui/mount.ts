@@ -86,7 +86,7 @@ function defaultCategories(s: FeedbackWidgetStrings): IssueCategory[] {
 
 const HOST_ATTRIBUTE = "data-feedback-widget";
 const TOAST_MS = 2600;
-const DEFAULT_SHORTCUT = "Shift+Alt+F";
+const DEFAULT_SHORTCUT = "Shift+F";
 
 // snaglist brand mark: chat bubble + center dot (rendered in currentColor).
 // viewBox is cropped to the mark from the 512x512 logo so it fills the button.

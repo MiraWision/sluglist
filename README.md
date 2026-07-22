@@ -47,10 +47,10 @@ const widget = createFeedbackWidget({
   project: "my-app",              // slug written into session.yaml
   connectors: [new DownloadConnector()],
   enabled: process.env.NODE_ENV !== "production",
+  shortcut: "Shift+F",            // toggle key (default); false disables it
 });
 
 mountFeedbackWidget(widget, {
-  hotkey: "alt+shift+f",          // menu toggle; "" or null disables it
   position: "bottom-right",
   accentColor: "#18181b",
   container: document.body,       // mount anywhere (e.g. an extension content root)
