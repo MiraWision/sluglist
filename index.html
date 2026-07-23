@@ -3,19 +3,84 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" href="/snaglist/favicon.ico" sizes="32x32" />
-    <link rel="icon" type="image/svg+xml" href="/snaglist/icon.svg" />
-    <link rel="apple-touch-icon" href="/snaglist/apple-touch-icon.png" />
+    <link rel="icon" href="/sluglist/favicon.ico" sizes="32x32" />
+    <link rel="icon" type="image/svg+xml" href="/sluglist/icon.svg" />
+    <link rel="apple-touch-icon" href="/sluglist/apple-touch-icon.png" />
     <meta name="theme-color" content="#18181b" />
-    <title>snaglist — embeddable visual feedback widget</title>
+
+    <title>sluglist — visual feedback that your agent fixes</title>
     <meta
       name="description"
-      content="Drop-in visual feedback widget for dev and staging sites: pick an element, screenshot, annotate, and deliver artifacts through pluggable connectors."
+      content="Drop-in visual feedback widget for dev and staging sites: pick an element, screenshot, annotate, and deliver clean artifacts. Feedback lands in a local folder that Claude Code reads and fixes."
     />
-    <script type="module" crossorigin src="/snaglist/assets/index-BSLRhpe1.js"></script>
-    <link rel="stylesheet" crossorigin href="/snaglist/assets/index-DcvKKil5.css">
+    <link rel="canonical" href="https://mirawision.github.io/sluglist/" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="sluglist" />
+    <meta property="og:title" content="sluglist — visual feedback that your agent fixes" />
+    <meta
+      property="og:description"
+      content="Pick an element, screenshot, annotate. Feedback lands in a local folder as clean artifacts that a coding agent reads and fixes."
+    />
+    <meta property="og:url" content="https://mirawision.github.io/sluglist/" />
+    <meta property="og:image" content="https://mirawision.github.io/sluglist/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="sluglist — visual feedback that your agent fixes" />
+    <meta
+      name="twitter:description"
+      content="Pick an element, screenshot, annotate. Feedback lands in a local folder as clean artifacts that a coding agent reads and fixes."
+    />
+    <meta name="twitter:image" content="https://mirawision.github.io/sluglist/og-image.png" />
+    <script type="module" crossorigin src="/sluglist/assets/index-BIg_ItT3.js"></script>
+    <link rel="stylesheet" crossorigin href="/sluglist/assets/index-DJ34cSEq.css">
   </head>
   <body>
-    <div id="root"></div>
+    <!--
+      Static pre-render: crawlers and link-preview bots get meaningful hero text
+      and nav before the JS bundle runs. React client-renders into #root and
+      replaces this placeholder on mount.
+    -->
+    <div id="root">
+      <header
+        class="border-[var(--color-line)] border-b"
+        data-prerender="true"
+      >
+        <div class="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
+          <span class="inline-flex items-center gap-2 font-semibold tracking-tight">
+            <img
+              alt=""
+              class="h-7 w-7"
+              height="28"
+              width="28"
+              src="/sluglist/icon.svg"
+            />
+            sluglist
+          </span>
+          <nav class="flex items-center gap-5 text-[14px] text-[var(--color-muted)]">
+            <a href="#agents">Agents</a>
+            <a href="#demo">Demo</a>
+            <a href="#start">Docs</a>
+          </nav>
+        </div>
+      </header>
+      <main class="mx-auto max-w-5xl px-6 pt-20 pb-16 text-center">
+        <h1 class="mx-auto max-w-3xl font-bold text-4xl tracking-tight md:text-6xl">
+          Visual feedback, one line in.
+        </h1>
+        <p class="mx-auto mt-5 max-w-xl text-[17px] text-[var(--color-ink-2)]">
+          A drop-in widget for dev and staging sites. Pick an element,
+          screenshot, annotate, and deliver clean artifacts through your own
+          connectors — or let Claude Code read the feedback and fix it.
+        </p>
+        <p class="mx-auto mt-8 max-w-md font-mono text-[14px] text-[var(--color-muted)]">
+          $ npm install sluglist
+        </p>
+      </main>
+    </div>
   </body>
 </html>
