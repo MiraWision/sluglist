@@ -172,8 +172,8 @@ const BETA_CODE = `createFeedbackWidget({
 
 const FEATURES = [
   {
-    title: "Three capture modes",
-    body: "Pick an element (with a smart CSS selector), drag an area, or grab the full scrollable page.",
+    title: "Flexible capture",
+    body: "Pick an element (with a smart CSS selector), drag an area, grab the full scrollable page, or record a flow.",
   },
   {
     title: "Built-in annotation",
@@ -182,6 +182,14 @@ const FEATURES = [
   {
     title: "Smart selectors",
     body: "data-testid → id → aria → landmark path. Never emits Tailwind utility or hashed CSS-Modules classes.",
+  },
+  {
+    title: "Error capture",
+    body: "A ring buffer of recent console errors, uncaught exceptions and promise rejections attaches to each issue as a ## Errors section, with a relative timestamp per entry.",
+  },
+  {
+    title: "Action trail & record mode",
+    body: "Every issue carries a ## Actions trail — recent clicks, navigations and typing (never the content). Record mode adds a screenshot frame per step.",
   },
   {
     title: "Pluggable connectors",
@@ -201,6 +209,7 @@ const MODES = [
   { name: "Element", desc: "Hover to highlight, click to capture; records a descriptive CSS selector + text + DOM path." },
   { name: "Area", desc: "Drag a rectangle and crop the page to it." },
   { name: "Full page", desc: "The entire scrollable document, top to bottom." },
+  { name: "Record steps", desc: "Capture a frame on each click, navigation and submit — automatic steps-to-reproduce as numbered screenshots." },
   { name: "Comment only", desc: "No screenshot — just a note with all the page metadata." },
 ];
 
@@ -451,7 +460,7 @@ export function App() {
         </div>
       </Section>
 
-      <Section eyebrow="Capture" id="modes" title="Four ways to report">
+      <Section eyebrow="Capture" id="modes" title="Five ways to report">
         <div className="grid gap-4 sm:grid-cols-2">
           {MODES.map((m) => (
             <div
