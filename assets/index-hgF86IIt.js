@@ -124,6 +124,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   width: 20px;
   height: 20px;
 }
+/* Optically nudge the slug mark up a couple pixels so it sits centered. */
+.fab-icon svg {
+  transform: translateY(-2px);
+}
 /*
  * Collapsed labels must take zero width (not just opacity 0), otherwise the
  * flex row is wider than the collapsed button and overflow:hidden clips the
