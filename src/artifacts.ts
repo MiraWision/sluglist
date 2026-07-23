@@ -43,8 +43,18 @@ function yamlBlock(
   return `${indent}${key}:\n${sub}`;
 }
 
+/**
+ * Artifact format version. Bumped only on a breaking (non-additive) change;
+ * additive fields keep the same major. Written as the first line of every
+ * session.yaml; parsers treat a missing field as "1.0" (pre-versioning
+ * artifacts). See SPEC.md.
+ */
+export const FORMAT_VERSION = "1.0";
+
 export function buildSessionYaml(state: SessionState): string {
   const headEntries: [string, YamlValue][] = [
+    // First line: the format version, so parsers can branch before anything else.
+    ["format_version", FORMAT_VERSION],
     ["project", state.project],
     ["session_id", state.session_id],
     ["created_at", state.created_at],
@@ -131,6 +141,10 @@ export interface IssueMarkdownInput {
   actionsCount?: number;
   category?: string;
   comment: string;
+  /** Nearest named React component of the captured element; null when unknown. */
+  component?: string | null;
+  /** Runtime host context (sluglist.setContext); `context:` block (null empty). */
+  context?: Record<string, YamlScalar> | null;
   createdAt: string;
   /** Record mode: emitted as `recording`/`frames_count`/`frames_dir`. */
   recording?: boolean;
@@ -188,6 +202,10 @@ export function buildIssueMarkdown(input: IssueMarkdownInput): string {
   if (input.domPath !== undefined) {
     lines.push(yamlLine("dom_path", input.domPath));
   }
+  // Additive: nearest named React component (element mode); null when unknown.
+  if (input.component !== undefined) {
+    lines.push(yamlLine("component", input.component));
+  }
   if (input.screen !== undefined) {
     lines.push(yamlLine("screen", input.screen));
   }
@@ -228,6 +246,10 @@ export function buildIssueMarkdown(input: IssueMarkdownInput): string {
   }
   if (input.custom !== undefined) {
     lines.push(yamlBlock("custom", input.custom));
+  }
+  // Additive: runtime host context (sluglist.setContext); block, null when empty.
+  if (input.context !== undefined) {
+    lines.push(yamlBlock("context", input.context));
   }
   const frontmatter = lines.join("\n");
 

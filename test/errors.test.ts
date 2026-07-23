@@ -121,3 +121,103 @@ describe("formatErrorAge", () => {
     expect(formatErrorAge(-50)).toBe("0s");
   });
 });
+
+describe("network capture", () => {
+  it("records failed fetch (>=400) and network errors; path has no query", async () => {
+    const savedFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn((url: unknown) =>
+      String(url).includes("boom")
+        ? Promise.reject(new TypeError("failed to fetch"))
+        : Promise.resolve({ status: 500 } as Response)
+    ) as typeof fetch;
+    const cap = createErrorCapture();
+    try {
+      await globalThis.fetch("/api/animals?token=secret").catch(() => undefined);
+      await globalThis.fetch("/api/boom").catch(() => undefined);
+      const snap = cap.snapshot();
+      expect(snap.map((r) => r.source)).toEqual(["network", "network"]);
+      expect(snap[0].message).toMatch(/^GET \/api\/animals → 500 \(\d+ms\)$/);
+      expect(snap[0].message).not.toContain("token");
+      expect(snap[1].message).toMatch(
+        /^GET \/api\/boom → network error \(\d+ms\)$/
+      );
+    } finally {
+      cap.uninstall();
+      globalThis.fetch = savedFetch;
+    }
+  });
+
+  it("ignores successful (2xx) fetch and respects the request method", async () => {
+    const savedFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn((url: unknown) =>
+      Promise.resolve({ status: String(url).includes("bad") ? 404 : 200 } as Response)
+    ) as typeof fetch;
+    const cap = createErrorCapture();
+    try {
+      await globalThis.fetch("/ok");
+      await globalThis.fetch("/bad", { method: "post" });
+      const snap = cap.snapshot();
+      expect(snap).toHaveLength(1);
+      expect(snap[0].message).toMatch(/^POST \/bad → 404 \(\d+ms\)$/);
+    } finally {
+      cap.uninstall();
+      globalThis.fetch = savedFetch;
+    }
+  });
+
+  it("captureNetwork:false leaves fetch unwrapped", async () => {
+    const savedFetch = globalThis.fetch;
+    const spy = vi.fn(() => Promise.resolve({ status: 500 } as Response));
+    globalThis.fetch = spy as unknown as typeof fetch;
+    const cap = createErrorCapture({ captureNetwork: false });
+    try {
+      expect(globalThis.fetch).toBe(spy);
+      await globalThis.fetch("/x");
+      expect(cap.snapshot()).toHaveLength(0);
+    } finally {
+      cap.uninstall();
+      globalThis.fetch = savedFetch;
+    }
+  });
+
+  it("restores the original fetch on uninstall", () => {
+    const savedFetch = globalThis.fetch;
+    const ref = vi.fn() as unknown as typeof fetch;
+    globalThis.fetch = ref;
+    const cap = createErrorCapture();
+    expect(globalThis.fetch).not.toBe(ref);
+    cap.uninstall();
+    expect(globalThis.fetch).toBe(ref);
+    globalThis.fetch = savedFetch;
+  });
+
+  it("wraps XHR and records failed status (query stripped)", () => {
+    const savedXHR = globalThis.XMLHttpRequest;
+    class FakeXHR extends EventTarget {
+      status = 0;
+      open(_method: string, _url: string): void {
+        // no-op
+      }
+      send(): void {
+        // no-op
+      }
+    }
+    globalThis.XMLHttpRequest = FakeXHR as unknown as typeof XMLHttpRequest;
+    const cap = createErrorCapture();
+    try {
+      const x = new globalThis.XMLHttpRequest() as unknown as FakeXHR;
+      x.open("POST", "/api/save?secret=1");
+      x.send();
+      x.status = 503;
+      x.dispatchEvent(new Event("loadend"));
+      const snap = cap.snapshot();
+      expect(snap).toHaveLength(1);
+      expect(snap[0].source).toBe("network");
+      expect(snap[0].message).toMatch(/^POST \/api\/save → 503 \(\d+ms\)$/);
+      expect(snap[0].message).not.toContain("secret");
+    } finally {
+      cap.uninstall();
+      globalThis.XMLHttpRequest = savedXHR;
+    }
+  });
+});

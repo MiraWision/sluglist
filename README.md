@@ -2,7 +2,7 @@
 
 > Universal embeddable feedback widget for dev, staging and beta sites.
 
-**[Live demo & docs → mirawision.github.io/sluglist](https://mirawision.github.io/sluglist)**
+**[Live demo & docs → sluglist.dev](https://sluglist.dev)**
 
 > **Name:** briefly published as `snaglist`; the permanent name is `sluglist`.
 
@@ -310,7 +310,11 @@ session.yaml            # upserted on every issue, always consistent
 `session.yaml` carries the environment (browser, OS, viewport, screen, DPR, language(s),
 timezone, color scheme, reduced-motion) plus an index of issues. Each `NN-{slug}.md` repeats the
 per-issue metadata in frontmatter followed by the free-text comment. The structure and frontmatter
-are a stable contract intended as input for downstream parsers; it only changes additively.
+are a stable contract intended as input for downstream parsers; **it only changes additively**.
+
+The full field dictionary, section rules and versioning policy live in **[SPEC.md](SPEC.md)** — safe
+to build parsers against. `session.yaml` starts with `format_version: "1.0"`; a missing version means
+`"1.0"`. Within a major version, new fields are only ever added, never removed or repurposed.
 
 ## Metadata collected
 
@@ -322,13 +326,40 @@ storage, geolocation, or any DOM content beyond the screenshot pixels.
 Reporter **identity** and **custom** fields are collected only when you explicitly configure them
 (see [Beta feedback mode](#beta-feedback-mode)); by default neither is present in the artifacts.
 
+**Component hint (React).** In element mode, sluglist makes a best-effort read of the nearest named
+React component from the element's fiber and records it as `component` in the frontmatter (e.g.
+`component: AnimalCard`) — a strong localization hint for an agent. It needs no React dependency, is
+fully guarded, and is `null` when React is absent, the component is anonymous, or names are minified in
+production.
+
+**Runtime context (`setContext`).** Attach live host state (tenant, feature flags, build version) to
+every subsequent issue:
+
+```ts
+const widget = createFeedbackWidget({ project: "my-app", connectors: [/* … */] });
+widget.setContext({ tenantId: "acme", featureFlags: "new-nav", buildVersion: APP_VERSION });
+```
+
+It lands as a `context` block in each issue's frontmatter. Same rules as `custom` (flat primitives,
+snake_case keys, ≤ 20 keys, values clipped to 200 chars); repeat calls merge. Unlike `config.custom`
+(fixed at init), `setContext` reflects state at capture time.
+
 ## Error capture
 
 From the moment the widget initializes, sluglist keeps a small ring buffer of recent page errors from
-three sources — `console.error`, uncaught `error` events, and `unhandledrejection` — and attaches a
-snapshot to each issue as a `## Errors` section (with a relative timestamp per entry) plus an
-`errors_count` field in the frontmatter. The original `console.error` still runs, so nothing is
-swallowed.
+four sources — `console.error`, uncaught `error` events, `unhandledrejection`, and **failed network
+calls** — and attaches a snapshot to each issue as a `## Errors` section (with a relative timestamp per
+entry) plus an `errors_count` field in the frontmatter. The original `console.error` still runs, so
+nothing is swallowed.
+
+Network capture wraps `fetch` and `XMLHttpRequest` and records **only** requests that finish with a
+status ≥ 400 or a network error — method, path (no query), status and duration, never bodies, headers
+or query strings:
+
+```
+## Errors
+- [4s before report] network: POST /api/animals → 500 (240ms)
+```
 
 ```ts
 createFeedbackWidget({
@@ -338,6 +369,7 @@ createFeedbackWidget({
     capture: true,          // default; set false to disable entirely
     bufferSize: 20,         // default
     captureWarnings: false, // default; true also captures console.warn
+    captureNetwork: true,   // default; wrap fetch/XHR for failed-request facts
   },
 });
 ```

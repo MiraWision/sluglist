@@ -46,6 +46,7 @@ describe("buildSessionYaml", () => {
   it("produces valid YAML that round-trips to the same data", () => {
     const parsed = parse(buildSessionYaml(state));
     expect(parsed).toEqual({
+      format_version: "1.0",
       project: "trugenix",
       session_id: "session-2026-07-20-a1b2",
       created_at: "2026-07-20T14:03:22Z",
@@ -473,5 +474,89 @@ describe("buildIssueMarkdown", () => {
       screenshot: "03-issue.png",
       created_at: "2026-07-20T15:00:00Z",
     });
+  });
+});
+
+describe("format version + agent-context fields", () => {
+  it("writes format_version as the first line of session.yaml", () => {
+    const yaml = buildSessionYaml(state);
+    expect(yaml.startsWith('format_version: "1.0"\n')).toBe(true);
+    expect(parse(yaml).format_version).toBe("1.0");
+  });
+
+  it("emits component (element mode) and a context block additively", () => {
+    const md = buildIssueMarkdown({
+      id: "01",
+      url: "/dashboard/animals",
+      selector: 'button[aria-label="Save"]',
+      mode: "element",
+      viewport: "1512x982",
+      screenshot: null,
+      createdAt: "2026-07-20T14:05:10Z",
+      comment: "Save does nothing.",
+      component: "AnimalCard",
+      context: { tenant_id: "acme", dark_mode: true },
+    });
+    const fm = parse(md.split("---\n")[1]);
+    expect(fm.component).toBe("AnimalCard");
+    expect(fm.context).toEqual({ tenant_id: "acme", dark_mode: true });
+  });
+
+  it("emits component: null / context: null when configured but empty", () => {
+    const md = buildIssueMarkdown({
+      id: "01",
+      url: "/x",
+      selector: null,
+      mode: "fullpage",
+      viewport: "1x1",
+      screenshot: null,
+      createdAt: "t",
+      comment: "c",
+      component: null,
+      context: null,
+    });
+    expect(md).toContain("component: null");
+    expect(md).toContain("context: null");
+  });
+
+  it("omits component and context entirely when not provided (back-compat)", () => {
+    const md = buildIssueMarkdown({
+      id: "01",
+      url: "/x",
+      selector: null,
+      mode: "fullpage",
+      viewport: "1x1",
+      screenshot: null,
+      createdAt: "t",
+      comment: "c",
+    });
+    expect(md).not.toContain("component:");
+    expect(md).not.toContain("context:");
+  });
+
+  it("renders a network failure line in ## Errors", () => {
+    const at = 100_000;
+    const md = buildIssueMarkdown({
+      id: "03",
+      url: "/x",
+      selector: null,
+      mode: "fullpage",
+      viewport: "1x1",
+      screenshot: null,
+      createdAt: "t",
+      comment: "c",
+      errorsAt: at,
+      errorsCount: 1,
+      errors: [
+        {
+          ts: at - 4000,
+          source: "network",
+          message: "POST /api/animals → 500 (240ms)",
+        },
+      ],
+    });
+    expect(md).toContain(
+      "- [4s before report] network: POST /api/animals → 500 (240ms)"
+    );
   });
 });

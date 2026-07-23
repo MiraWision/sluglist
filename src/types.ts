@@ -63,6 +63,13 @@ export interface FeedbackErrorConfig {
   bufferSize?: number;
   /** Also capture console.warn. Default false. */
   captureWarnings?: boolean;
+  /**
+   * Record failed network calls (fetch + XHR) that finish with status >= 400 or
+   * a network error, as `## Errors` lines. Only method, path (no query), status
+   * and duration are recorded — never bodies, headers or query strings.
+   * Default true.
+   */
+  captureNetwork?: boolean;
 }
 
 /** Screenshot privacy controls. All optional; off by default (dev). */
@@ -139,6 +146,8 @@ export interface CaptureIssueInput {
   /** Optional triage category, e.g. "bug" | "design" | "idea". */
   category?: string;
   comment: string;
+  /** Nearest named React component of the captured element (element mode); null when unknown. */
+  component?: string | null;
   /** Full tag path with no classes (element mode). */
   domPath?: string | null;
   /** Record-mode frames, in order (start + per-action). */

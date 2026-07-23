@@ -29,9 +29,12 @@ locally, `sluglist dev` wrote it into `.sluglist/`, and now you read those issue
 ```
 
 Issue frontmatter fields you rely on: `url` (route/page), `selector` + `selector_strategy`,
-`element_text` (the visible text of the clicked element), `screen`, `mode`, `errors_count`,
-`actions_count`, and (for recordings) `recording: true` + `frames_count` + `frames_dir`. The body has
-a `## Errors` section (recent page errors) and a `## Actions` section (what the user did before
+`element_text` (the visible text of the clicked element), `component` (nearest named React component,
+when known — a direct pointer to the source file), `screen`, `mode`, `errors_count`, `actions_count`,
+and (for recordings) `recording: true` + `frames_count` + `frames_dir`. There may also be a `context`
+block (runtime host state: tenant, feature flags, build version) — useful for reproducing under the
+same conditions. The body has a `## Errors` section (recent page errors, including failed network
+calls as `network: METHOD /path → status`) and a `## Actions` section (what the user did before
 reporting, with relative time).
 
 ### `## Actions` — steps to reproduce
@@ -59,15 +62,18 @@ shows the state *after* action `NN`.
    `.snaglist/` does (the pre-rename folder name), use that folder instead and add a "legacy folder
    name (`.snaglist/`)" line to your `.done` report. Skip any session that already contains a `.done`
    file. Process the rest oldest-first.
-2. **Read the index.** Open `session.yaml` for the ordered list of issues and their `base_url`.
+2. **Read the index.** Open `session.yaml` for the ordered list of issues and their `base_url`. Its
+   first line is `format_version` (e.g. `"1.0"`); a missing field means `"1.0"`. This document
+   describes the 1.x format — read fields you don't recognize leniently and ignore unknown ones (the
+   format only grows additively within a major version).
 3. **Per issue:**
    a. Read `NN-<slug>.md` — the comment is the primary signal; also note `selector`, `element_text`,
       `screen`, `url`, and the `## Errors` section.
    b. **Look at `NN-<slug>.png`.** Always view the screenshot before changing code — the comment plus
       the picture together tell you what's actually wrong.
-   c. **Localize the code.** Use, in order: `selector` (map to the component/markup), `element_text`
-      (grep the codebase for the visible string), and `url` (map to the route/page/file). The
-      `screen` field narrows the area.
+   c. **Localize the code.** Use, in order: `component` (grep for the component name — the most direct
+      pointer when present), `selector` (map to the markup), `element_text` (grep for the visible
+      string), and `url` (map to the route/page/file). The `screen` field narrows the area.
    d. **Fix** the smallest change that resolves the report.
 4. **Report.** After handling a session, write `.sluglist/{session}/.done` — a short markdown report:
    per issue, `issue → file(s) touched → what you did` (or `needs clarification → why`).

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  normalizeContext,
   normalizeCustom,
   normalizeIdentity,
   toSnakeCase,
@@ -107,5 +108,50 @@ describe("normalizeCustom", () => {
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     // @ts-expect-error — testing runtime rejection
     expect(normalizeCustom({ bad: { a: 1 } })).toBeNull();
+  });
+});
+
+describe("normalizeContext", () => {
+  it("merges across calls: updates existing keys, adds new, snake_cases", () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const first = normalizeContext({ tenantId: "acme", buildVersion: "2.4.1" });
+    expect(first).toEqual({ tenant_id: "acme", build_version: "2.4.1" });
+    const second = normalizeContext({ tenantId: "beta", darkMode: true }, first);
+    expect(second).toEqual({
+      tenant_id: "beta",
+      build_version: "2.4.1",
+      dark_mode: true,
+    });
+  });
+
+  it("drops non-primitive / non-finite values with a warning", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const out = normalizeContext({
+      ok: 1,
+      nested: { x: 1 },
+      nan: Number.NaN,
+    });
+    expect(out).toEqual({ ok: 1 });
+    expect(warn).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns null when empty or nothing valid survives", () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    expect(normalizeContext({})).toBeNull();
+    expect(normalizeContext({ "***": "x" })).toBeNull();
+  });
+
+  it("caps at 20 keys across the merged result", () => {
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const big: Record<string, number> = {};
+    for (let i = 0; i < 25; i++) {
+      big[`k${i}`] = i;
+    }
+    expect(Object.keys(normalizeContext(big) ?? {})).toHaveLength(20);
+  });
+
+  it("clips string values to 200 chars", () => {
+    const out = normalizeContext({ note: "x".repeat(250) });
+    expect((out?.note as string).length).toBe(200);
   });
 });

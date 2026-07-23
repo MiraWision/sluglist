@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://mirawision.github.io/sluglist/
+Sitemap: https://sluglist.dev/sitemap.xml

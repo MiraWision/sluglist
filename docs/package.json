@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "homepage": "https://mirawision.github.io/sluglist",
+  "homepage": "https://sluglist.dev",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

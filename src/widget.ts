@@ -17,7 +17,12 @@ import {
   type OfflineQueue,
 } from "./queue";
 import { resolvePrivacy } from "./preset";
-import { normalizeCustom, normalizeIdentity } from "./reporter";
+import {
+  normalizeContext,
+  normalizeCustom,
+  normalizeIdentity,
+} from "./reporter";
+import type { YamlScalar } from "./yaml";
 import { type KeyValueStorage, SessionManager } from "./session";
 import { slugFromComment } from "./slug";
 import type {
@@ -47,6 +52,13 @@ export interface FeedbackWidgetCore {
   redeliver(
     capture: Pick<CaptureResult, "files" | "sessionId">
   ): Promise<DeliveryReport>;
+  /**
+   * Attach runtime host state (tenant, feature flags, build version, …) to every
+   * subsequent issue as a `context` block. Flat primitives only; validated like
+   * `custom` (snake_case, ≤ 20 keys, 200-char values). Merges on repeat calls.
+   * Unlike `config.custom` (static at init), this reflects state at capture time.
+   */
+  setContext(context: Record<string, string | number | boolean>): void;
 }
 
 export interface CreateFeedbackWidgetOptions {
@@ -89,6 +101,9 @@ export function createFeedbackWidget(
   // (backward compatible); `null` means "configured but empty".
   const reporter = normalizeIdentity(config.identity);
   const custom = normalizeCustom(config.custom);
+  // Runtime host context (setContext). `undefined` until the host calls it →
+  // omitted from artifacts (back-compat); `null`/map once configured.
+  let context: Record<string, YamlScalar> | null | undefined;
   // Error capture starts at widget init (not on panel open) so errors that
   // happen before the reporter opens the widget are still recorded.
   const errorCapture =
@@ -274,6 +289,10 @@ export function createFeedbackWidget(
         // configured), so an issue file is self-contained.
         ...(reporter !== undefined ? { reporter } : {}),
         ...(custom !== undefined ? { custom } : {}),
+        // Runtime context, mirrored per issue (present only once setContext ran).
+        ...(context !== undefined ? { context } : {}),
+        // Nearest named React component (element mode); null when unknown.
+        ...(input.component !== undefined ? { component: input.component } : {}),
         // Captured page errors: `errors_count` is always present once capture is
         // engaged (0 when off/none); the `## Errors` section only when non-empty.
         errors: errorSnapshot,
@@ -318,5 +337,8 @@ export function createFeedbackWidget(
     getIssueCount: () => sessions.read()?.issues.length ?? 0,
     getPendingDeliveries: () => pendingDeliveries,
     redeliver: (capture) => enqueueDelivery(capture.sessionId, capture.files),
+    setContext: (next) => {
+      context = normalizeContext(next ?? {}, context ?? null);
+    },
   };
 }

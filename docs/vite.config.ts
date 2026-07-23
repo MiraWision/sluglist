@@ -4,8 +4,8 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 export default defineConfig({
-  // gh-pages serves the site under /sluglist/.
-  base: "/sluglist/",
+  // Served at the root of the custom domain sluglist.dev (see public/CNAME).
+  base: "/",
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {

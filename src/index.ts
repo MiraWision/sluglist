@@ -37,6 +37,7 @@ export type { KeyValueStorage } from "./session";
 export { createMemoryStorage, SessionManager } from "./session";
 export { slugFromComment } from "./slug";
 export {
+  normalizeContext,
   normalizeCustom,
   normalizeIdentity,
   toSnakeCase,
@@ -81,6 +82,7 @@ export type {
 export { mountFeedbackWidget } from "./ui/mount";
 export {
   collectElementMetadata,
+  componentName,
   domPath,
   generateSelector,
   isHashLike,

@@ -1,3 +1,88 @@
+# RUN_EVIDENCE — sluglist.dev + format versioning + agent context
+
+Date: 2026-07-23. Additive-only; `FeedbackConnector` unchanged. Version bumped 1.6.0 → **1.7.0**.
+150 unit/integration tests pass, type-check clean, lib + docs build clean.
+
+## Phase 1 — Domain sluglist.dev (repo changes; DNS/Pages are the maintainer's)
+
+- `docs/public/CNAME` = `sluglist.dev` → copied to the gh-pages **root** on every deploy (survives the
+  "Pages resets custom domain" gotcha). Verified `dist/CNAME` after build.
+- Vite `base: "/"` (custom domain serves at root, not `/sluglist/`). Built `dist/index.html` assets are
+  root-relative (`/assets/…`, `/favicon.ico`, `/icon.svg`).
+- `canonical` + `og:url` = `https://sluglist.dev/`, `og:image` = `https://sluglist.dev/og-image.png`.
+- `docs/public/sitemap.xml` (one entry `https://sluglist.dev/`) + `robots.txt` → `Sitemap:
+  https://sluglist.dev/sitemap.xml`. Both land in `dist/` root.
+- `package.json` + `docs/package.json` `homepage` = `https://sluglist.dev`; README link updated.
+
+```
+$ ls dist/                     → CNAME  sitemap.xml  robots.txt  og-image.png  favicon.ico  …
+$ cat dist/CNAME               → sluglist.dev
+$ grep dist/index.html         → canonical/og:url https://sluglist.dev/ ; assets href="/assets/…"
+$ git ls-files | grep -v CHANGELOG | xargs grep -l mirawision.github.io   → 0
+```
+
+**Pending (maintainer, manual):** point DNS to GitHub Pages + set the custom domain, then deploy. Live
+acceptance to paste here once DNS is up: `curl -sI https://sluglist.dev` → 200 HTTPS; `curl -sI
+https://mirawision.github.io/sluglist/` → 301 → sluglist.dev; two consecutive deploys keep the CNAME.
+> Note: deploying `base:"/"` publishes the site at the domain root; the old `github.io/sluglist/` URL
+> only resolves once the custom domain is configured (Pages redirects it then). See checkpoint.
+
+## Phase 2 — Format versioning + SPEC.md
+
+- `session.yaml` first line is `format_version: "1.0"` (quoted string via the serializer's numeric-like
+  rule). Generator always writes it; skill + SPEC treat a missing field as `"1.0"`.
+- **SPEC.md** — full dictionary for `session.yaml`, the issue index, issue frontmatter, and the
+  `## Errors` / `## Actions` rules + versioning policy. Parity check (SPEC ↔ generator): every field in
+  SPEC is emitted by `src/artifacts.ts` —
+
+  `format_version, project, session_id, created_at, base_url, browser, os, viewport,
+  device_pixel_ratio, screen, language, languages, timezone, color_scheme, reduced_motion, reporter,
+  issues[id,file,screenshot,category,screenshots,screen,frames,url,selector,created_at]; frontmatter
+  id,url,selector,selector_strategy,selector_unique,mode,category,element_text,dom_path,component,
+  screen,viewport,screenshot,screenshots,masked,errors_count,actions_count,recording,frames_count,
+  frames_dir,created_at,reporter,custom,context` — all present in the generator (grep above).
+
+- Unit test: `session.yaml` starts with `format_version: "1.0"` and round-trips; skill run tolerates a
+  missing field (documented as "= 1.0").
+
+## Phase 3 — Agent context (real-browser evidence, live React app + real fetch)
+
+Driven in the browser against the docs React app via the real library (`/@fs/…/src/index.ts`):
+
+```
+component:          "App"                                   // read from a real React fiber
+mdComponentLine:    component: App                          // → issue frontmatter
+network:            ["network: GET /api/nope → network error (2ms)"]   // real fetch wrapper
+networkHasNoToken:  true                                    // ?token=secret stripped — no query/body
+mdContextBlock:     context:\n  tenant_id: acme\n  build_version: 2.4.1   // setContext → snake_case
+formatVersionLine:  format_version: "1.0"
+```
+
+- **component** — best-effort fiber walk (`__reactFiber$*` → up `.return`, skip host/anonymous/minified,
+  PascalCase heuristic). Null-safe: no React / anonymous / prod-minified → `null`, no throw.
+- **network** — `fetch` + `XHR` wrappers record only status ≥ 400 or network errors as
+  `network: METHOD /path → status (Nms)`. `grep body|headers|json|text src/errors.ts` → only a comment;
+  **no request/response bodies, headers or query strings** are ever read (query stripped by `pathOf`).
+  `errors.captureNetwork` default true; `false` leaves fetch unwrapped (test).
+- **setContext** — flat primitives, snake_case, ≤ 20 keys / 200 chars, merges on repeat calls; distinct
+  from static `config.custom`. Omitted from artifacts until first call (back-compat).
+
+Tests added (150 total, was 128): `reporter` normalizeContext (merge/cap/clip/invalid), `errors`
+network (fetch 4xx + network error + query-stripped + captureNetwork:false + restore + XHR),
+`selector` componentName (fiber/host-skip/wrapper/minified), `capture` setContext (merge + invalid +
+omitted), `artifacts` format_version-first-line + component/context additive + network `## Errors` line.
+
+## Known limitations
+
+- Component names are **minified in production** React builds → `component: null` there (best-effort by
+  design; no internals hacks). Dev/staging (the primary sluglist use) keep names.
+- Network capture is failure-facts only (no success timing, no bodies) — deliberately not a monitor.
+- Domain live checks (curl 200 / 301, CNAME-survives-deploy) are gated on the maintainer's DNS + Pages
+  setup and will be filled in post-cutover.
+
+---
+---
+
 # RUN_EVIDENCE — reverse rename `snaglist → sluglist` + landing overhaul
 
 Date: 2026-07-23. Two tasks executed together (the landing depends on the final name). The name is

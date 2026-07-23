@@ -927,6 +927,7 @@ export function mountFeedbackWidget(
         elementText: meta?.elementText ?? null,
         domPath: meta?.domPath ?? null,
         screen: meta?.screen ?? null,
+        component: meta?.component ?? null,
       });
       closePanel();
       refreshBadge();

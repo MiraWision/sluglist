@@ -5,7 +5,7 @@
  * snapshotted into each issue as a `## Errors` section with relative time.
  */
 
-export type ErrorSource = "console" | "exception" | "rejection";
+export type ErrorSource = "console" | "exception" | "rejection" | "network";
 
 export interface ErrorRecord {
   /** epoch ms when captured */
@@ -27,8 +27,24 @@ export interface ErrorCaptureOptions {
   bufferSize?: number;
   /** Also wrap console.warn. Default false. */
   captureWarnings?: boolean;
+  /**
+   * Record failed fetch/XHR calls (status >= 400 or network error) as `network`
+   * entries: method, path (no query), status and duration only. Default true.
+   */
+  captureNetwork?: boolean;
   /** Test seam. */
   now?: () => number;
+}
+
+/** Extract the path (no query, no origin) from a request URL for a network log. */
+function pathOf(url: string): string {
+  try {
+    const base =
+      typeof location !== "undefined" ? location.href : "http://localhost/";
+    return new URL(url, base).pathname || "/";
+  } catch {
+    return url.split("?")[0] || url;
+  }
 }
 
 const DEFAULT_SIZE = 20;
@@ -151,6 +167,101 @@ export function createErrorCapture(
     window.addEventListener("unhandledrejection", onRejection);
   }
 
+  // Network-failure capture (fetch + XHR). Records only the FACT of a failure —
+  // method, path (no query), status, duration — never bodies, headers or query.
+  const pushNetwork = (
+    method: string,
+    url: string,
+    status: number | "network error",
+    startedAt: number
+  ): void => {
+    const ms = Math.max(0, Math.round(now() - startedAt));
+    push({
+      ts: now(),
+      source: "network",
+      message: `${method} ${pathOf(url)} → ${status} (${ms}ms)`,
+    });
+  };
+
+  const teardowns: Array<() => void> = [];
+  const captureNetwork =
+    options.captureNetwork !== false &&
+    typeof globalThis !== "undefined";
+
+  if (captureNetwork && typeof globalThis.fetch === "function") {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = function patchedFetch(
+      this: unknown,
+      input: RequestInfo | URL,
+      init?: RequestInit
+    ): Promise<Response> {
+      const startedAt = now();
+      const method = (
+        init?.method ||
+        (typeof input === "object" && "method" in input ? input.method : "") ||
+        "GET"
+      ).toUpperCase();
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
+      return originalFetch.call(this, input as RequestInfo, init).then(
+        (res) => {
+          if (res.status >= 400) {
+            pushNetwork(method, url, res.status, startedAt);
+          }
+          return res;
+        },
+        (err: unknown) => {
+          pushNetwork(method, url, "network error", startedAt);
+          throw err;
+        }
+      );
+    };
+    teardowns.push(() => {
+      globalThis.fetch = originalFetch;
+    });
+  }
+
+  if (captureNetwork && typeof XMLHttpRequest !== "undefined") {
+    const proto = XMLHttpRequest.prototype;
+    const originalOpen = proto.open;
+    const originalSend = proto.send;
+    type Tracked = XMLHttpRequest & { __sl?: { method: string; url: string } };
+    proto.open = function open(
+      this: Tracked,
+      method: string,
+      url: string | URL,
+      ...rest: unknown[]
+    ) {
+      this.__sl = { method: (method || "GET").toUpperCase(), url: String(url) };
+      // biome-ignore lint/suspicious/noExplicitAny: passthrough to native signature
+      return (originalOpen as any).call(this, method, url, ...rest);
+    };
+    proto.send = function send(this: Tracked, ...args: unknown[]) {
+      const info = this.__sl;
+      if (info) {
+        const startedAt = now();
+        this.addEventListener("loadend", () => {
+          // status 0 → network error / abort; otherwise the HTTP status.
+          if (this.status === 0) {
+            pushNetwork(info.method, info.url, "network error", startedAt);
+          } else if (this.status >= 400) {
+            pushNetwork(info.method, info.url, this.status, startedAt);
+          }
+        });
+      }
+      // biome-ignore lint/suspicious/noExplicitAny: passthrough to native signature
+      return (originalSend as any).apply(this, args);
+    };
+    teardowns.push(() => {
+      proto.open = originalOpen;
+      proto.send = originalSend;
+    });
+  }
+
   return {
     snapshot: () => [...buffer],
     uninstall: () => {
@@ -161,6 +272,9 @@ export function createErrorCapture(
       if (hasWindow) {
         window.removeEventListener("error", onError);
         window.removeEventListener("unhandledrejection", onRejection);
+      }
+      for (const teardown of teardowns) {
+        teardown();
       }
     },
   };

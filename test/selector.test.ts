@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   collectElementMetadata,
+  componentName,
   domPath,
   generateSelector,
   isHashLike,
@@ -171,5 +172,44 @@ describe("element metadata", () => {
     expect(domPath(document.querySelector("p") as HTMLElement)).toBe(
       "body > main > section > article > p"
     );
+  });
+});
+
+describe("componentName (React fiber, best-effort)", () => {
+  const KEY = "__reactFiber$abc123";
+  function setFiber(el: Element, fiber: unknown): void {
+    (el as unknown as Record<string, unknown>)[KEY] = fiber;
+  }
+
+  it("returns null when there is no React fiber", () => {
+    document.body.innerHTML = '<button id="b">Save</button>';
+    expect(componentName(document.getElementById("b") as Element)).toBeNull();
+  });
+
+  it("returns the nearest named component, skipping host fibers", () => {
+    document.body.innerHTML = '<button id="b">Save</button>';
+    const btn = document.getElementById("b") as Element;
+    function AnimalCard() {
+      return null;
+    }
+    const cardFiber = { type: AnimalCard, return: null };
+    const hostFiber = { type: "button", return: cardFiber };
+    setFiber(btn, hostFiber);
+    expect(componentName(btn)).toBe("AnimalCard");
+  });
+
+  it("reads displayName on memo/forwardRef-style wrappers", () => {
+    document.body.innerHTML = '<button id="b">x</button>';
+    const btn = document.getElementById("b") as Element;
+    setFiber(btn, { type: { displayName: "FancyButton" }, return: null });
+    expect(componentName(btn)).toBe("FancyButton");
+  });
+
+  it("skips anonymous / minified-looking names", () => {
+    document.body.innerHTML = '<button id="b">x</button>';
+    const btn = document.getElementById("b") as Element;
+    // single lowercase letter (minified) → not a usable name
+    setFiber(btn, { type: function a() {}, return: { type: "div", return: null } });
+    expect(componentName(btn)).toBeNull();
   });
 });

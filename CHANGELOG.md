@@ -1,5 +1,32 @@
 # Changelog
 
+## 1.7.0 — Format versioning + agent context
+
+### Artifact format is now versioned + specified
+
+- `session.yaml` starts with `format_version: "1.0"` (always the first line). Parsers treat a missing
+  field as `"1.0"`. Within a major version the format only ever changes additively.
+- New **[SPEC.md](SPEC.md)**: the full field dictionary (session.yaml + issue frontmatter), the
+  `## Errors` / `## Actions` rules, and the versioning policy — every field verified against the
+  generator. Safe to build parsers against.
+
+### Agent context (three additive frontmatter signals)
+
+- **`component`** — in element mode, a best-effort read of the nearest named React component from the
+  element's fiber (no React dependency, fully guarded; `null` when absent/anonymous/minified). A direct
+  pointer from a report to the source file.
+- **Network failures in `## Errors`** — `fetch`/`XHR` wrappers record *only* requests that finish with
+  status ≥ 400 or a network error: `network: POST /api/animals → 500 (240ms)`. Never bodies, headers or
+  query strings. New `errors.captureNetwork` option (default true).
+- **`sluglist.setContext({...})`** — attach runtime host state (tenant, feature flags, build version)
+  to every subsequent issue as a `context` block. Same validation as `custom`; merges on repeat calls.
+  Unlike `config.custom` (static at init), it reflects state at capture time.
+
+### Domain
+
+- Canonical site is now **sluglist.dev** (GitHub Pages via a `CNAME`); canonical/OG URLs, sitemap and
+  package `homepage` updated. No breaking format or connector changes.
+
 ## 1.6.0 — Record mode: manual frames + recording attaches to the open draft
 
 ### Renamed back to `sluglist` (permanent)

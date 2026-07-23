@@ -202,9 +202,85 @@ export interface ElementMetadata {
   domPath: string;
   /** Nearest data-screen | data-page ancestor value, or null. */
   screen: string | null;
+  /** Nearest named React component, or null (no React / anonymous / minified). */
+  component: string | null;
 }
 
 const MAX_TEXT = 80;
+
+// Wrapper / internal names that are never a useful localization hint.
+const GENERIC_COMPONENTS = new Set([
+  "Unknown",
+  "Anonymous",
+  "ForwardRef",
+  "Memo",
+  "Fragment",
+  "Suspense",
+  "Profiler",
+  "StrictMode",
+]);
+
+/** Best-effort readable name for a fiber `type` (function/class/memo/forwardRef). */
+function displayNameOf(type: unknown, depth = 0): string | null {
+  if (!type || depth > 4) {
+    return null;
+  }
+  if (typeof type === "function") {
+    return (type as { displayName?: string }).displayName || type.name || null;
+  }
+  if (typeof type === "object") {
+    const t = type as {
+      displayName?: string;
+      render?: unknown;
+      type?: unknown;
+    };
+    // memo(Comp) → .type; forwardRef(render) → .render
+    return (
+      t.displayName ||
+      displayNameOf(t.render, depth + 1) ||
+      displayNameOf(t.type, depth + 1)
+    );
+  }
+  return null;
+}
+
+/**
+ * Best-effort nearest named React component for an element, read from the React
+ * fiber attached to the DOM node (`__reactFiber$*` / `__reactInternalInstance$*`).
+ * No React dependency; returns null when React is absent, the component is
+ * anonymous, or names are minified away in production. Fully guarded — never
+ * throws and never touches anything but these well-known keys.
+ */
+export function componentName(element: Element): string | null {
+  try {
+    const key = Object.keys(element).find(
+      (k) =>
+        k.startsWith("__reactFiber$") ||
+        k.startsWith("__reactInternalInstance$")
+    );
+    if (!key) {
+      return null;
+    }
+    let fiber = (element as unknown as Record<string, { type?: unknown; elementType?: unknown; return?: unknown } | null>)[key];
+    let hops = 0;
+    while (fiber && hops < 80) {
+      // Host components (div, span, …) have a string `type` → skip them.
+      const type = fiber.type ?? fiber.elementType;
+      if (type && typeof type !== "string") {
+        const name = displayNameOf(type);
+        // PascalCase heuristic: filters minified single letters and wrappers.
+        if (name && name.length >= 2 && /^[A-Z]/.test(name) && !GENERIC_COMPONENTS.has(name)) {
+          return name;
+        }
+      }
+      fiber = (fiber.return ?? null) as typeof fiber;
+      hops++;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 /** Full tag path (no classes) from body down to the element. */
 export function domPath(element: Element): string {
@@ -243,5 +319,6 @@ export function collectElementMetadata(element: Element): ElementMetadata {
     elementText: text.length > 0 ? text : null,
     domPath: domPath(element),
     screen: screenOf(element),
+    component: componentName(element),
   };
 }

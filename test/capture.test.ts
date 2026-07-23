@@ -312,3 +312,60 @@ describe("captureIssue", () => {
     expect(second.getIssueCount()).toBe(2);
   });
 });
+
+describe("setContext (runtime host context)", () => {
+  async function mdText(memory: MemoryConnector, id: string): Promise<string> {
+    const sessionId = memory.getSessionIds()[0];
+    const file = memory
+      .getFiles(sessionId)
+      .find((f) => f.path.startsWith(`${id}-`) && f.path.endsWith(".md"));
+    return (await file?.blob.text()) ?? "";
+  }
+
+  it("attaches context to issues and merges on repeat calls", async () => {
+    const memory = new MemoryConnector();
+    const widget = makeWidget([memory]);
+    widget.setContext({ tenantId: "acme", buildVersion: "2.4.1" });
+    const first = await widget.captureIssue({
+      comment: "Alpha issue here",
+      mode: "fullpage",
+    });
+    await first?.delivered;
+    widget.setContext({ tenantId: "beta", darkMode: true }); // update + add
+    const second = await widget.captureIssue({
+      comment: "Bravo issue here",
+      mode: "fullpage",
+    });
+    await second?.delivered;
+
+    const ctx1 = parse((await mdText(memory, "01")).split("---\n")[1]).context;
+    expect(ctx1).toEqual({ tenant_id: "acme", build_version: "2.4.1" });
+    const ctx2 = parse((await mdText(memory, "02")).split("---\n")[1]).context;
+    expect(ctx2).toEqual({
+      tenant_id: "beta",
+      build_version: "2.4.1",
+      dark_mode: true,
+    });
+  });
+
+  it("drops invalid context values with a warning", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const memory = new MemoryConnector();
+    const widget = makeWidget([memory]);
+    // @ts-expect-error — testing runtime rejection of a nested object
+    widget.setContext({ ok: "yes", nested: { a: 1 } });
+    const r = await widget.captureIssue({ comment: "Ctx issue", mode: "fullpage" });
+    await r?.delivered;
+    const ctx = parse((await mdText(memory, "01")).split("---\n")[1]).context;
+    expect(ctx).toEqual({ ok: "yes" });
+    expect(warn).toHaveBeenCalled();
+  });
+
+  it("omits context entirely when setContext was never called", async () => {
+    const memory = new MemoryConnector();
+    const widget = makeWidget([memory]);
+    const r = await widget.captureIssue({ comment: "No context", mode: "fullpage" });
+    await r?.delivered;
+    expect(await mdText(memory, "01")).not.toContain("context:");
+  });
+});

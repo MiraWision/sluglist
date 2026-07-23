@@ -96,3 +96,46 @@ export function normalizeCustom(
   }
   return count > 0 ? out : null;
 }
+
+/**
+ * Runtime host context (`sluglist.setContext`) → validated flat map, merged onto
+ * the previous context. Same rules as `custom` (snake_case keys, primitives only,
+ * ≤ 20 keys, values clipped to 200 chars), but callable repeatedly: later calls
+ * update existing keys and add new ones. Unlike `custom` (static at init),
+ * context can change during the session. Returns the merged map, or null when it
+ * is empty (emitted as `context: null`).
+ */
+export function normalizeContext(
+  incoming: Record<string, unknown>,
+  prev: Record<string, YamlScalar> | null = null
+): Record<string, YamlScalar> | null {
+  const out: Record<string, YamlScalar> = { ...(prev ?? {}) };
+  for (const [rawKey, value] of Object.entries(incoming ?? {})) {
+    const type = typeof value;
+    if (!(type === "string" || type === "number" || type === "boolean")) {
+      console.warn(
+        `[sluglist] context: dropping "${rawKey}" — only string, number or boolean allowed (got ${type})`
+      );
+      continue;
+    }
+    if (type === "number" && !Number.isFinite(value as number)) {
+      console.warn(`[sluglist] context: dropping "${rawKey}" — non-finite number`);
+      continue;
+    }
+    const key = toSnakeCase(rawKey);
+    if (!key) {
+      console.warn(
+        `[sluglist] context: dropping "${rawKey}" — empty key after normalization`
+      );
+      continue;
+    }
+    if (!(key in out) && Object.keys(out).length >= MAX_CUSTOM_KEYS) {
+      console.warn(
+        `[sluglist] context: dropping "${rawKey}" — over the ${MAX_CUSTOM_KEYS}-key limit`
+      );
+      continue;
+    }
+    out[key] = typeof value === "string" ? clip(value as string) : (value as YamlScalar);
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
