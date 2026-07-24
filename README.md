@@ -4,8 +4,6 @@
 
 **[Live demo & docs → sluglist.dev](https://sluglist.dev)**
 
-> **Name:** briefly published as `snaglist`; the permanent name is `sluglist`.
-
 A framework-agnostic, dependency-light widget that lets people leave visual feedback directly on
 a running web app: pick an element, grab an area or the full page, annotate the screenshot, add a
 comment, and the widget produces a standard set of artifacts and hands them to pluggable
