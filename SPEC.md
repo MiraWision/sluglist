@@ -1,4 +1,4 @@
-# sluglist artifact format — v1.1
+# sluglist artifact format — v1.2
 
 This is the on-disk contract sluglist produces for each feedback session. It is stable and safe to
 build parsers against: **within a major version the format only ever changes additively** (new optional
@@ -9,10 +9,13 @@ Source of truth: `src/artifacts.ts` (`buildSessionYaml`, `buildIssueMarkdown`, `
 
 ## Versioning
 
-- `session.yaml` starts with `format_version: "1.1"` (a quoted string, always the first line).
+- `session.yaml` starts with `format_version: "1.2"` (a quoted string, always the first line).
 - **Missing `format_version` ⇒ treat as `"1.0"`** (artifacts written before versioning was added).
 - **1.1** added the additive `checklist:` block (acceptance checklist verdicts) and the
   `checklist_item` issue field; everything from 1.0 is unchanged.
+- **1.2** added the additive `clips:` issue frontmatter (a per-clip breakdown of a recording) and the
+  `<frames_dir>/<clip-id>/NN.png` frame layout it discriminates. Recordings written before 1.2 have no
+  `clips:` and use the flat `<frames_dir>/NN.png` layout — both are readable (see the frames note below).
 - The number is `MAJOR.MINOR`:
   - **MINOR** bumps for additive changes (a new optional field/section). Parsers must ignore unknown
     fields and keep working.
@@ -31,7 +34,10 @@ Delivered per session, one folder:
   01-{slug}.png                    # the issue screenshot (absent when none)
   01-{slug}-2.png                  # extra screenshots (2..n), only if multiple
   01-{slug}-frames/                # record mode only
-    01.png  02.png  …
+    clip-01/                       # one folder per clip (a Record→Stop cycle)
+      01.png  02.png  …            # per-clip, 1-based; 01.png = clip's start state
+    clip-02/
+      01.png  …
   02-{slug}.md
   …
 ```
@@ -80,13 +86,19 @@ Each `items[]` entry:
 | `id` | string | yes | 1.1 | Item id (unique within the checklist). |
 | `section` | string | yes | 1.1 | Section title the item belongs to (may be `""`). |
 | `title` | string | yes | 1.1 | The client-facing check. |
-| `verdict` | string \| null | yes | 1.1 | `pass` \| `fail` \| `skip`, or `null` when not yet checked. |
-| `issue` | string \| null | yes | 1.1 | For a `fail`, the id of the issue that documents it; else `null`. |
+| `verdict` | string \| null | yes | 1.1 | `pass` \| `fail` \| `skip`, or `null` when not yet checked. See note on `skip`. |
+| `issue` | string \| null | yes | 1.1 | The id of the issue that documents a flag; else `null`. See note. |
 | `ts` | string \| null | yes | 1.1 | ISO time the verdict was set; `null` when unset. |
 
-Verdicts are written **put-per-verdict**: every click upserts `session.yaml` (same idempotent path as
-per-issue writes). A `fail` opens the normal issue flow; that issue's frontmatter carries
+Verdicts are written **put-per-verdict**: every action upserts `session.yaml` (same idempotent path as
+per-issue writes). In the widget the client either **checks a row off** (`verdict: pass`) or **flags a
+problem** on it (`verdict: fail`), which opens the normal issue flow; that issue's frontmatter carries
 `checklist_item` pointing back at the item.
+
+- **`skip`** remains a valid value **on read** (older artifacts may carry it), but the current widget UI no
+  longer generates it — a v1.2 session will only ever write `pass`, `fail`, or `null`.
+- A `null` verdict may still carry a non-null `issue`: the client checked an item, flagged it, then withdrew
+  their verdict. The filed issue is not retractable, so the link is preserved even though the sign-off is not.
 
 ### `issues[]` (session index entry)
 
@@ -128,8 +140,9 @@ YAML frontmatter between `---` fences, then the reporter's comment, then optiona
 | `errors_count` | number | optional | 1.0 | Present once error capture is engaged (0 when none). |
 | `actions_count` | number | optional | 1.0 | Present once the action trail is engaged. |
 | `recording` | boolean (`true`) | optional | 1.0 | Record mode only. |
-| `frames_count` | number | optional | 1.0 | Record mode only. |
-| `frames_dir` | string | optional | 1.0 | Record mode only. |
+| `frames_count` | number | optional | 1.0 | Record mode only. Total frames across all clips. |
+| `frames_dir` | string | optional | 1.0 | Record mode only. Parent dir; frames live under `<frames_dir>/<clip-id>/NN.png`. |
+| `clips` | list | optional | 1.2 | Record mode only. One entry per clip: `{ id, frames }`. See below. |
 | `created_at` | string (ISO 8601) | yes | 1.0 | |
 | `reporter` | map \| null | optional | 1.0 | Mirrors the session reporter; present only when `identity` configured. |
 | `custom` | map \| null | optional | 1.0 | Static project fields (`config.custom`). Present only when configured. |
@@ -161,7 +174,7 @@ bodies, headers or query strings:
 **`## Actions`** — one line per recent user action (the reproduction trail):
 
 ```
-- [<age> before report] <action>[ — frame NN]
+- [<age> before report] <action>[ — clip N, frame NN]
 ```
 
 `<action>` is one of:
@@ -171,7 +184,54 @@ bodies, headers or query strings:
 - `submit <selector>`
 - `type (<n> chars) <selector>` (character count only — never the typed value)
 
-`— frame NN` is appended when record mode captured a frame for that action (matching `frames_dir/NN.png`).
+`— clip N, frame NN` is appended when record mode captured a frame for that action, matching
+`<frames_dir>/clip-0N/NN.png`. Older (pre-1.2) artifacts instead append `— frame NN` matching the flat
+`<frames_dir>/NN.png`; a reader should accept both.
+
+### `clips` (record-mode breakdown, 1.2)
+
+Present in a recording issue's frontmatter, one entry per clip (a Record→Stop cycle), in order:
+
+| Field | Type | Required | Since | Notes |
+|---|---|---|---|---|
+| `id` | string | yes | 1.2 | `clip-01`, `clip-02`, … — also the subfolder name under `frames_dir`. |
+| `frames` | number | yes | 1.2 | Frame count in this clip (files `01.png … NN.png` inside `<frames_dir>/<id>/`). |
+
+Read each clip as its own sequence — clips are separate recordings on the same issue, not one continuous
+timeline; frame numbering restarts at `01` per clip. A recording always has at least `clip-01` (a single
+recording is one clip). An artifact with `recording: true`, `frames_count`/`frames_dir`, and **no** `clips`
+is a pre-1.2 recording with the flat `<frames_dir>/NN.png` layout.
+
+## Checklist config (input — the shape the generator emits)
+
+Not an on-disk artifact, but the contract between the `sluglist-checklist` generator skill and the widget:
+the developer authors this JSON (inline or served at a URL) and the widget renders it. Documented here so
+the generator and the reader agree on one source of truth.
+
+```ts
+interface Checklist {
+  id: string;                    // kebab-case slug
+  title: string;                 // document-style heading
+  description?: string;          // 1–2 sentence instruction shown in the panel header (≤ 280 chars)
+  sections: { title: string; items: ChecklistItem[] }[];
+}
+interface ChecklistItem {
+  id: string;                    // unique kebab-case slug
+  title: string;                 // client-voice check (≤ 120 chars, no code terms)
+  hint?: string;                 // one-line human navigation ("Open the dashboard and pick any assessment")
+  url?: string;                  // STATIC route only → rendered as an "Open ↗" navigation chip
+  url_match?: string;            // wildcard pattern for DYNAMIC routes ("/assessments/*") → "you're here"
+                                 //   highlight only, never navigated. Must contain `*`.
+}
+```
+
+Rules the widget enforces (invalid input is dropped with a `console.warn`, never thrown — a bad checklist
+must not block plain capture): ≤ 20 sections, ≤ 50 items total, titles clipped to 120 chars, description to
+280, unique item ids. **`url` is for static routes only**; a dynamic route (an id/uuid segment) uses `hint`
++ a **wildcard** `url_match` and never a guessed `url`. A `url_match` without a `*` is not a pattern (it is a
+static path) and is dropped with a warning. `url` and `url_match` may coexist (a list `url` + a detail
+`url_match`). The widget maps a check to `verdict: pass`, a flag to `verdict: fail` + an issue; it never
+emits `skip`.
 
 ## Privacy invariants (part of the contract)
 

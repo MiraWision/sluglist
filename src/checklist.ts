@@ -15,10 +15,22 @@
 export interface ChecklistItem {
   id: string;
   title: string;
-  /** Optional one-line hint shown under the item. */
+  /** Optional one-line hint shown under the item (human navigation step). */
   hint?: string;
-  /** Optional page where the item is verified; the UI shows an "open" link. */
+  /**
+   * Optional STATIC page where the item is verified; the UI shows an "open"
+   * link that navigates there. Never a dynamic path (an id/uuid in the route) —
+   * use {@link ChecklistItem.url_match} for those. `url` and `url_match` may
+   * coexist (url → the list page, url_match → the detail page).
+   */
   url?: string;
+  /**
+   * Optional wildcard path pattern for DYNAMIC pages, e.g. `/assessments/*`.
+   * NOT used for navigation — only to highlight the item as "you're here" when
+   * the current path matches. Must contain a `*`; non-wildcard values are
+   * dropped with a warning (a static path belongs in {@link ChecklistItem.url}).
+   */
+  url_match?: string;
 }
 
 export interface ChecklistSection {
@@ -29,6 +41,8 @@ export interface ChecklistSection {
 export interface Checklist {
   id: string;
   title: string;
+  /** Optional 1–2 sentence instruction shown in the panel header. */
+  description?: string;
   sections: ChecklistSection[];
 }
 
@@ -39,6 +53,8 @@ export interface ChecklistDefItem {
   title: string;
   hint?: string;
   url?: string;
+  /** Validated wildcard pattern (contains `*`); highlight-only, never navigated. */
+  url_match?: string;
 }
 
 /** A validated section (order + items preserved) for UI grouping. */
@@ -51,6 +67,8 @@ export interface ChecklistDefSection {
 export interface ChecklistDef {
   id: string;
   title: string;
+  /** Optional 1–2 sentence instruction shown in the panel header. */
+  description?: string;
   sections: ChecklistDefSection[];
 }
 
@@ -83,6 +101,7 @@ export interface ChecklistState {
 const MAX_SECTIONS = 20;
 const MAX_ITEMS = 50;
 const MAX_TITLE = 120;
+const MAX_DESCRIPTION = 280;
 const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
 const MAX_ID = 80;
 
@@ -94,6 +113,35 @@ export function isVerdict(value: unknown): value is Verdict {
 
 function clipTitle(value: string): string {
   return value.length > MAX_TITLE ? value.slice(0, MAX_TITLE) : value;
+}
+
+function clip(value: string, max: number): string {
+  return value.length > max ? value.slice(0, max) : value;
+}
+
+/**
+ * A url_match is a wildcard PATH pattern: it must be a path (starts with `/`)
+ * and must contain a `*` — a value with no wildcard is a static path and
+ * belongs in `url` instead, so it is rejected here (dropped with a warning).
+ */
+function isValidUrlMatch(value: string): boolean {
+  return value.startsWith("/") && value.includes("*");
+}
+
+/**
+ * Match a path against a validated url_match pattern. `*` matches one non-empty
+ * path segment (`[^/]+`); a trailing `/*` therefore matches any single child
+ * segment (e.g. `/assessments/*` matches `/assessments/abc-123`, not
+ * `/assessments` nor `/assessments/abc/edit`). Path only — query/hash are
+ * ignored by the caller. Pure, so it is unit-testable.
+ */
+export function matchUrlPattern(pattern: string, path: string): boolean {
+  const clean = (s: string): string =>
+    s.length > 1 && s.endsWith("/") ? s.slice(0, -1) : s;
+  const escaped = clean(pattern)
+    .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+    .replace(/\*/g, "[^/]+");
+  return new RegExp(`^${escaped}$`).test(clean(path));
 }
 
 function warn(message: string): void {
@@ -125,6 +173,10 @@ export function normalizeChecklist(raw: unknown): ChecklistDef | null {
     typeof raw.title === "string" && raw.title.trim()
       ? clipTitle(raw.title.trim())
       : id;
+  const description =
+    typeof raw.description === "string" && raw.description.trim()
+      ? clip(raw.description.trim(), MAX_DESCRIPTION)
+      : undefined;
   if (!Array.isArray(raw.sections)) {
     warn("`sections` must be an array");
     return null;
@@ -186,6 +238,16 @@ export function normalizeChecklist(raw: unknown): ChecklistDef | null {
       if (typeof rawItem.url === "string" && rawItem.url.trim()) {
         item.url = rawItem.url.trim();
       }
+      if (typeof rawItem.url_match === "string" && rawItem.url_match.trim()) {
+        const pattern = rawItem.url_match.trim();
+        if (isValidUrlMatch(pattern)) {
+          item.url_match = pattern;
+        } else {
+          warn(
+            `dropping url_match ${JSON.stringify(rawItem.url_match)} on "${itemId}" — expected a wildcard path like "/x/*"`
+          );
+        }
+      }
       items.push(item);
     }
     if (items.length > 0) {
@@ -200,7 +262,7 @@ export function normalizeChecklist(raw: unknown): ChecklistDef | null {
     warn("no valid items — checklist ignored");
     return null;
   }
-  return { id, title, sections };
+  return { id, title, ...(description ? { description } : {}), sections };
 }
 
 /** Flatten a definition's items in order. */

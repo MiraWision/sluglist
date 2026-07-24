@@ -32,8 +32,12 @@ export interface Recorder {
   readonly atLimit: boolean;
   /** True if masking redacted anything on any captured frame. */
   readonly maskedAny: boolean;
-  /** Begin recording and capture the initial frame. */
-  start(): Promise<void>;
+  /**
+   * Begin recording and capture the initial frame. `clipIndex` (1-based) is
+   * stamped onto each action-linked frame's `record.clip`, so the `## Actions`
+   * lines can read `— clip N, frame NN`. Each start()→stop() is one clip.
+   */
+  start(clipIndex?: number): Promise<void>;
   /**
    * Manually capture a frame right now (the "+ Frame" button / S key).
    * Bypasses the action throttle; still respects the frame cap.
@@ -52,6 +56,7 @@ export function createRecorder(options: RecorderOptions): Recorder {
   let lastFrameTs = 0;
   let capturing = false;
   let maskedAny = false;
+  let clipIndex = 1;
   let unsubscribe: (() => void) | null = null;
 
   async function captureFrame(record: ActionRecord | null): Promise<void> {
@@ -76,8 +81,10 @@ export function createRecorder(options: RecorderOptions): Recorder {
       }
       frames.push(blob);
       if (record) {
-        // Link this frame to the action line (1-based; frame 01 = start state).
+        // Link this frame to the action line (1-based, per clip; frame 01 =
+        // start state). `clip` lets `## Actions` read "— clip N, frame NN".
         record.frame = frames.length;
+        record.clip = clipIndex;
       }
     } catch (error) {
       console.error("[sluglist] frame capture failed:", error);
@@ -103,11 +110,12 @@ export function createRecorder(options: RecorderOptions): Recorder {
     get maskedAny() {
       return maskedAny;
     },
-    async start() {
+    async start(clip = 1) {
       recording = true;
       frames = [];
       lastFrameTs = 0;
       maskedAny = false;
+      clipIndex = clip;
       options.onChange?.();
       await captureFrame(null); // initial state → frame 01
       unsubscribe = options.actions.subscribe((record) => {

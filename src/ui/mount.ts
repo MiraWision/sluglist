@@ -3,6 +3,7 @@ import {
   type ChecklistDef,
   checklistProgress,
   type ChecklistState,
+  matchUrlPattern,
   type Verdict,
 } from "../checklist";
 import { captureArea, captureElement, captureFullPage } from "../screenshot";
@@ -23,6 +24,8 @@ import {
   DEFAULT_STRINGS,
   type FeedbackWidgetStrings,
   formatString,
+  interpolate,
+  plural,
 } from "./strings";
 import { type UiTheme, widgetStyles } from "./styles";
 
@@ -78,10 +81,19 @@ interface Draft {
   captures: Promise<void>[];
   /** True if masking redacted at least one element on any shot. */
   maskedAny: boolean;
-  /** Record mode: ordered frame blobs + object URLs (read-only ribbon). */
+  /**
+   * Record mode: one clip per Record→Stop cycle. Kept as separate sequences (not
+   * a single flat frame list) so two recordings on the same issue stay distinct
+   * clips end to end — in the thumbnails and in the artifacts.
+   */
   recording: boolean;
+  clips: RecordingClip[];
+}
+
+interface RecordingClip {
   frames: Blob[];
-  frameUrls: string[];
+  /** Object URLs for the frames (revoked on discard). */
+  urls: string[];
 }
 
 function defaultCategories(s: FeedbackWidgetStrings): IssueCategory[] {
@@ -104,6 +116,10 @@ const FEEDBACK_ICON_SVG = `<svg viewBox="90 82 322 286" width="24" height="24" f
 // Checklist button: a clipboard with a check — a distinct mark from the slug so
 // the two stacked circles read as different actions.
 const CHECKLIST_ICON_SVG = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M9 3h6a1 1 0 0 1 1 1v1H8V4a1 1 0 0 1 1-1z"/><path d="M8 4H6a1 1 0 0 0-1 1v15a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V5a1 1 0 0 0-1-1h-2"/><path d="M9 13l2 2 4-4"/></svg>`;
+
+// A clean accordion chevron (points down when open; the collapsed class rotates
+// it to point right). Crisper and more visible than a `▾` glyph.
+const CHEVRON_SVG = `<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>`;
 
 function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -197,6 +213,7 @@ export function mountFeedbackWidget(
   const fab = el("button", "fab");
   fab.type = "button";
   fab.title = shortcut ? `${buttonLabel} (${shortcutLabel})` : buttonLabel;
+  fab.setAttribute("aria-label", buttonLabel);
   const fabIcon = el("span", "fab-icon");
   // Inline SVG (message-with-pencil) so the glyph is never a missing / empty
   // emoji box on systems without the character.
@@ -318,6 +335,8 @@ export function mountFeedbackWidget(
         Boolean(draft) && chip.dataset.category === draft?.category
       );
     }
+    // Placeholder follows the category (Bug / Design / Idea → default).
+    commentBox.placeholder = placeholderFor(draft?.category ?? null);
   }
 
   const toast = el("div", "toast");
@@ -339,18 +358,27 @@ export function mountFeedbackWidget(
   const checklistBadge = el("span", "cl-badge");
   checklistFab.append(checklistFabIcon, checklistBadge);
 
+  // v2 panel: a document-style header (title → optional description → a summary
+  // line) over an accordion of sections. No Done button — closed via the ✕,
+  // a click outside, Esc, or the shortcut.
   const checklistPanel = el("div", "checklist-panel");
+  checklistPanel.setAttribute("role", "dialog");
+  checklistPanel.setAttribute("aria-label", strings.checklistButton);
   const checklistHead = el("div", "checklist-head");
+  const checklistTitleRow = el("div", "cl-title-row");
   const checklistTitle = el("h2");
-  const checklistProgressEl = el("span", "checklist-progress");
-  checklistHead.append(checklistTitle, checklistProgressEl);
+  const checklistClose = el("button", "cl-close");
+  checklistClose.type = "button";
+  checklistClose.textContent = "×";
+  checklistClose.title = strings.close;
+  checklistClose.setAttribute("aria-label", strings.close);
+  checklistTitleRow.append(checklistTitle, checklistClose);
+  const checklistDescription = el("p", "cl-description");
+  checklistDescription.style.display = "none";
+  const checklistSummary = el("div", "cl-summary");
+  checklistHead.append(checklistTitleRow, checklistDescription, checklistSummary);
   const checklistBody = el("div", "checklist-body");
-  const checklistFoot = el("div", "checklist-foot");
-  const checklistDoneBtn = el("button");
-  checklistDoneBtn.type = "button";
-  checklistDoneBtn.textContent = strings.checklistDone;
-  checklistFoot.appendChild(checklistDoneBtn);
-  checklistPanel.append(checklistHead, checklistBody, checklistFoot);
+  checklistPanel.append(checklistHead, checklistBody);
 
   // Note: checklistFab / checklistPanel are built above but attached only when a
   // valid checklist resolves (see whenChecklistReady below), so a widget with no
@@ -373,10 +401,21 @@ export function mountFeedbackWidget(
   // pending fail-flow capture belongs to, and which sections are collapsed.
   let checklistDef: ChecklistDef | null = null;
   let pendingChecklistItem: string | null = null;
+  // Accordion: explicit collapsed set + the last-rendered completion state per
+  // section, so we can detect the "section just completed" event that drives
+  // self-navigation (collapse it, open the next incomplete one).
   const collapsedSections = new Set<number>();
+  let lastSectionComplete: boolean[] = [];
+  let checklistInitialized = false;
+  // Touch devices have no hover, so the per-item issue button is always visible
+  // (muted) instead of hover-revealed.
+  const isTouch =
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(hover: none)").matches;
   let addingToDraft = false;
-  // Whether the recording deck in the thumbs row is expanded into the ribbon.
-  let framesExpanded = false;
+  // Which recording clips are expanded into their numbered frame ribbon.
+  const expandedClips = new Set<number>();
   let annotating = false;
   let toastTimer: ReturnType<typeof setTimeout> | null = null;
   let hoverTarget: Element | null = null;
@@ -389,26 +428,57 @@ export function mountFeedbackWidget(
     badge.style.display = count > 0 ? "block" : "none";
   }
 
+  // Layer safety: while any widget panel is open, hide the floating circles so
+  // they can never cover the panel's own controls (the Send button lands under
+  // them on a full-width mobile panel) or steal modal focus order. They are not
+  // needed while composing — the panel has its own close affordances.
+  function syncOverlayState(): void {
+    const modalOpen = isPanelOpen() || isChecklistPanelOpen();
+    fab.style.visibility = modalOpen ? "hidden" : "visible";
+    fab.style.pointerEvents = modalOpen ? "none" : "auto";
+    if (checklistDef) {
+      checklistFab.style.visibility = modalOpen ? "hidden" : "visible";
+      checklistFab.style.pointerEvents = modalOpen ? "none" : "auto";
+    }
+  }
+
+  // A <kbd> chip showing the live toggle shortcut (platform-formatted, honoring
+  // a custom config value). Null when the shortcut is disabled.
+  function makeKbd(): HTMLElement | null {
+    if (!shortcutLabel) {
+      return null;
+    }
+    const kbd = el("kbd", "kbd-hint");
+    kbd.textContent = shortcutLabel;
+    return kbd;
+  }
+
+  // The comment placeholder adapts to the chosen category.
+  function placeholderFor(category: string | null): string {
+    switch (category) {
+      case "bug":
+        return strings.placeholderBug;
+      case "design":
+        return strings.placeholderDesign;
+      case "idea":
+        return strings.placeholderIdea;
+      default:
+        return strings.commentPlaceholder;
+    }
+  }
+
   // --- Checklist mode (second circle) ---
+  // An item is "checked" once it has any verdict (pass = clean, fail = with an
+  // issue); null = not tested. v2 no longer generates `skip`, but a `skip` read
+  // from an older artifact still counts as checked.
+  function isChecked(verdict: Verdict | null): boolean {
+    return verdict !== null;
+  }
+
   function checklistTotal(): number {
     return checklistDef
       ? checklistDef.sections.reduce((n, s) => n + s.items.length, 0)
       : 0;
-  }
-
-  function updateChecklistBadge(): void {
-    if (!checklistDef) {
-      return;
-    }
-    const total = checklistTotal();
-    const state = core.getChecklistState();
-    const done = state ? checklistProgress(state).done : 0;
-    const text = `${done}/${total}`;
-    checklistBadge.textContent = text;
-    checklistProgressEl.textContent = text;
-    const complete = total > 0 && done === total;
-    checklistBadge.classList.toggle("complete", complete);
-    checklistProgressEl.classList.toggle("complete", complete);
   }
 
   function verdictsById(): Map<string, ChecklistState["items"][number]> {
@@ -422,18 +492,94 @@ export function mountFeedbackWidget(
     return map;
   }
 
-  function verdictButton(
-    kind: Verdict,
-    label: string,
-    glyph: string,
-    active: boolean
-  ): HTMLButtonElement {
-    const button = el("button", `cl-act ${kind}${active ? " active" : ""}`);
-    button.type = "button";
-    button.title = label;
-    button.setAttribute("aria-label", label);
-    button.textContent = glyph;
-    return button;
+  interface SectionStat {
+    done: number;
+    total: number;
+    issues: number;
+    complete: boolean;
+  }
+
+  function sectionStat(
+    section: ChecklistDef["sections"][number],
+    verdicts: Map<string, ChecklistState["items"][number]>
+  ): SectionStat {
+    let done = 0;
+    let issues = 0;
+    for (const item of section.items) {
+      const verdict = verdicts.get(item.id)?.verdict ?? null;
+      if (isChecked(verdict)) {
+        done++;
+      }
+      if (verdict === "fail") {
+        issues++;
+      }
+    }
+    const total = section.items.length;
+    return { done, total, issues, complete: total > 0 && done === total };
+  }
+
+  // Circle badge: the number of items still to check, or a check when done.
+  function updateChecklistBadge(): void {
+    if (!checklistDef) {
+      return;
+    }
+    const total = checklistTotal();
+    const state = core.getChecklistState();
+    const done = state ? checklistProgress(state).done : 0;
+    const remaining = total - done;
+    const complete = total > 0 && remaining === 0;
+    checklistBadge.textContent = complete ? "✓" : String(remaining);
+    checklistBadge.classList.toggle("complete", complete);
+  }
+
+  // Summary line: "5 of 12 checked · 2 issues · 7 left", collapsing to
+  // "12 checked · 2 issues" + an autosave note in the completed state.
+  function renderSummary(): void {
+    const total = checklistTotal();
+    const verdicts = verdictsById();
+    let done = 0;
+    let issues = 0;
+    if (checklistDef) {
+      for (const section of checklistDef.sections) {
+        const stat = sectionStat(section, verdicts);
+        done += stat.done;
+        issues += stat.issues;
+      }
+    }
+    const remaining = total - done;
+    const complete = total > 0 && remaining === 0;
+    const parts: string[] = [];
+    parts.push(
+      complete
+        ? interpolate(strings.checklistSummaryDone, { n: total })
+        : interpolate(strings.checklistSummaryChecked, { done, total })
+    );
+    if (issues > 0) {
+      parts.push(
+        plural(
+          strings.checklistSummaryIssueOne,
+          strings.checklistSummaryIssueMany,
+          issues
+        )
+      );
+    }
+    if (remaining > 0) {
+      parts.push(interpolate(strings.checklistSummaryLeft, { n: remaining }));
+    }
+    checklistSummary.textContent = "";
+    const line = el("span", "cl-summary-line");
+    line.textContent = parts.join(" · ");
+    checklistSummary.appendChild(line);
+    checklistSummary.classList.toggle("complete", complete);
+    if (complete) {
+      const note = el("span", "cl-summary-note");
+      note.textContent = strings.checklistAutosaved;
+      checklistSummary.appendChild(note);
+    }
+  }
+
+  function currentPath(): string {
+    return typeof window !== "undefined" ? window.location.pathname : "";
   }
 
   function renderChecklist(): void {
@@ -442,101 +588,249 @@ export function mountFeedbackWidget(
     }
     checklistTitle.textContent = checklistDef.title;
     checklistTitle.title = checklistDef.title;
+    if (checklistDef.description) {
+      checklistDescription.textContent = checklistDef.description;
+      checklistDescription.style.display = "block";
+    } else {
+      checklistDescription.style.display = "none";
+    }
     const verdicts = verdictsById();
+    const path = currentPath();
     checklistBody.innerHTML = "";
+    const completion: boolean[] = [];
     checklistDef.sections.forEach((section, si) => {
+      const stat = sectionStat(section, verdicts);
+      completion[si] = stat.complete;
       const sectionEl = el("div", "cl-section");
+      if (stat.complete) {
+        sectionEl.classList.add("done");
+      }
       if (collapsedSections.has(si)) {
         sectionEl.classList.add("collapsed");
       }
       if (section.title) {
         const head = el("button", "cl-section-head");
         head.type = "button";
+        head.setAttribute(
+          "aria-expanded",
+          collapsedSections.has(si) ? "false" : "true"
+        );
         const chevron = el("span", "cl-chevron");
-        chevron.textContent = "▾";
-        const label = el("span");
+        chevron.innerHTML = CHEVRON_SVG;
+        chevron.setAttribute("aria-hidden", "true");
+        const label = el("span", "cl-section-name");
         label.textContent = section.title;
-        head.append(chevron, label);
-        head.addEventListener("click", () => {
-          if (collapsedSections.has(si)) {
-            collapsedSections.delete(si);
-          } else {
-            collapsedSections.add(si);
-          }
-          sectionEl.classList.toggle("collapsed");
-        });
+        // Mini-progress: "2/4 · 1 issue".
+        const meta = el("span", "cl-section-meta");
+        const metaParts = [`${stat.done}/${stat.total}`];
+        if (stat.issues > 0) {
+          metaParts.push(
+            plural(
+              strings.checklistSummaryIssueOne,
+              strings.checklistSummaryIssueMany,
+              stat.issues
+            )
+          );
+        }
+        meta.textContent = metaParts.join(" · ");
+        head.append(chevron, label, meta);
+        head.addEventListener("click", () => toggleSection(si, sectionEl, head));
         sectionEl.appendChild(head);
       }
       const items = el("div", "cl-items");
+      const itemsInner = el("div", "cl-items-inner");
       for (const item of section.items) {
         const state = verdicts.get(item.id);
         const verdict = state?.verdict ?? null;
+        const checked = isChecked(verdict);
+        const here = Boolean(
+          item.url_match && matchUrlPattern(item.url_match, path)
+        );
         const row = el("div", "cl-item");
         if (verdict) {
           row.classList.add(verdict);
         }
+        if (checked) {
+          row.classList.add("checked");
+        }
+        if (here) {
+          row.classList.add("here");
+        }
+        row.setAttribute("role", "checkbox");
+        row.setAttribute("aria-checked", checked ? "true" : "false");
+        row.tabIndex = 0;
+
+        // A check indicator on the left; the whole row toggles it.
+        const box = el("span", "cl-check");
+        box.setAttribute("aria-hidden", "true");
+        box.textContent = verdict === "fail" ? "!" : checked ? "✓" : "";
+
         const main = el("div", "cl-item-main");
+        const titleRow = el("div", "cl-item-titlerow");
         const title = el("span", "cl-item-title");
         title.textContent = item.title;
-        main.appendChild(title);
+        titleRow.appendChild(title);
+        if (here) {
+          const hereEl = el("span", "cl-item-here");
+          hereEl.textContent = strings.checklistHere;
+          titleRow.appendChild(hereEl);
+        }
+        main.appendChild(titleRow);
         if (item.hint) {
           const hintEl = el("span", "cl-item-hint");
           hintEl.textContent = item.hint;
           main.appendChild(hintEl);
         }
+        const links = el("div", "cl-item-links");
         if (item.url) {
+          // Static route → a real navigation chip (does not toggle the item).
           const link = el("a", "cl-item-link");
           link.textContent = `${strings.checklistOpen} ↗`;
           link.href = item.url;
           link.target = "_blank";
           link.rel = "noopener noreferrer";
-          main.appendChild(link);
+          link.addEventListener("click", (e) => e.stopPropagation());
+          links.appendChild(link);
         }
         if (verdict === "fail" && state?.issue) {
           const issueEl = el("span", "cl-item-issue");
           issueEl.textContent = `issue ${state.issue}`;
-          main.appendChild(issueEl);
+          links.appendChild(issueEl);
         }
-        const actions = el("div", "cl-item-actions");
-        const pass = verdictButton(
-          "pass",
-          strings.checklistPass,
-          "✓",
-          verdict === "pass"
-        );
-        const fail = verdictButton(
-          "fail",
-          strings.checklistFail,
-          "✕",
-          verdict === "fail"
-        );
-        const skip = verdictButton(
-          "skip",
-          strings.checklistSkip,
-          "–",
-          verdict === "skip"
-        );
-        pass.addEventListener("click", () => setVerdict(item.id, "pass"));
-        skip.addEventListener("click", () => setVerdict(item.id, "skip"));
-        fail.addEventListener("click", () => startFailFlow(item.id));
-        actions.append(pass, fail, skip);
-        row.append(main, actions);
-        items.appendChild(row);
+        if (links.childElementCount > 0) {
+          main.appendChild(links);
+        }
+
+        // The slug (issue) button: flags a problem for this item. Always
+        // present; hover-revealed on pointer devices, persistent on touch.
+        const issueBtn = el("button", "cl-issue-btn");
+        issueBtn.type = "button";
+        issueBtn.title = strings.checklistItemIssue;
+        issueBtn.setAttribute("aria-label", strings.checklistItemIssue);
+        issueBtn.innerHTML = FEEDBACK_ICON_SVG;
+        if (isTouch) {
+          issueBtn.classList.add("touch");
+        }
+        issueBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          startFailFlow(item.id);
+        });
+
+        const activate = (): void => toggleItem(item.id, verdict);
+        row.addEventListener("click", activate);
+        row.addEventListener("keydown", (e) => {
+          if (e.key === " " || e.key === "Enter") {
+            e.preventDefault();
+            activate();
+          }
+        });
+
+        row.append(box, main, issueBtn);
+        itemsInner.appendChild(row);
       }
+      items.appendChild(itemsInner);
       sectionEl.appendChild(items);
       checklistBody.appendChild(sectionEl);
     });
+    lastSectionComplete = completion;
+    renderSummary();
     updateChecklistBadge();
   }
 
-  function setVerdict(itemId: string, verdict: Verdict): void {
-    core.recordVerdict(itemId, verdict);
-    renderChecklist();
+  function toggleSection(
+    si: number,
+    sectionEl: HTMLElement,
+    head: HTMLElement
+  ): void {
+    const collapsing = !collapsedSections.has(si);
+    if (collapsing) {
+      collapsedSections.add(si);
+    } else {
+      collapsedSections.delete(si);
+    }
+    sectionEl.classList.toggle("collapsed", collapsing);
+    head.setAttribute("aria-expanded", collapsing ? "false" : "true");
   }
 
-  // Fail: an item marked ✗ must carry evidence, so open the standard capture
-  // flow tagged with this item. The verdict is recorded only once the issue is
-  // sent (see sendDraft); cancelling leaves the item unset.
+  // Toggle an item's checked state. null → pass (checked clean); pass/skip →
+  // cleared; fail → cleared, but confirmed first (the issue is already sent and
+  // stays linked in the yaml — only the verdict is withdrawn).
+  function toggleItem(itemId: string, verdict: Verdict | null): void {
+    if (verdict === null) {
+      core.recordVerdict(itemId, "pass");
+    } else if (verdict === "fail") {
+      const item = verdictsById().get(itemId);
+      if (
+        item?.issue &&
+        typeof window !== "undefined" &&
+        typeof window.confirm === "function" &&
+        !window.confirm(
+          interpolate(strings.checklistUncheckIssue, { id: item.issue })
+        )
+      ) {
+        return;
+      }
+      core.clearVerdict(itemId);
+    } else {
+      core.clearVerdict(itemId);
+    }
+    afterVerdictChange();
+  }
+
+  // Self-navigation: when a verdict change completes a section, collapse it and
+  // open the next incomplete one, scrolling to it. Fires only on the
+  // incomplete→complete transition, so manual open/close is never overridden.
+  function afterVerdictChange(): void {
+    const before = lastSectionComplete;
+    const verdicts = verdictsById();
+    let scrollTo = -1;
+    checklistDef?.sections.forEach((section, si) => {
+      const complete = sectionStat(section, verdicts).complete;
+      if (complete && !before[si]) {
+        collapsedSections.add(si);
+        const next = nextIncompleteSection(si, verdicts);
+        if (next >= 0) {
+          collapsedSections.delete(next);
+          scrollTo = next;
+        }
+      }
+    });
+    renderChecklist();
+    if (scrollTo >= 0) {
+      const sections = checklistBody.querySelectorAll(".cl-section");
+      sections[scrollTo]?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }
+
+  function nextIncompleteSection(
+    after: number,
+    verdicts: Map<string, ChecklistState["items"][number]>
+  ): number {
+    const sections = checklistDef?.sections ?? [];
+    // Prefer the next section after the one that just completed, then wrap.
+    for (let step = 1; step <= sections.length; step++) {
+      const si = (after + step) % sections.length;
+      if (!sectionStat(sections[si], verdicts).complete) {
+        return si;
+      }
+    }
+    return -1;
+  }
+
+  function firstIncompleteSection(): number {
+    const verdicts = verdictsById();
+    const sections = checklistDef?.sections ?? [];
+    for (let si = 0; si < sections.length; si++) {
+      if (!sectionStat(sections[si], verdicts).complete) {
+        return si;
+      }
+    }
+    return -1;
+  }
+
+  // Fail: an item flagged with an issue must carry evidence, so open the
+  // standard capture flow tagged with this item. The verdict is recorded only
+  // once the issue is sent (see sendDraft); cancelling leaves the item unset.
   function startFailFlow(itemId: string): void {
     pendingChecklistItem = itemId;
     closeChecklistPanel();
@@ -548,18 +842,63 @@ export function mountFeedbackWidget(
     return checklistPanel.style.display === "flex";
   }
 
+  // Seed the accordion the first time the panel opens: collapse every section
+  // except the first incomplete one. Manual toggles persist after that.
+  function initAccordion(): void {
+    if (checklistInitialized || !checklistDef) {
+      return;
+    }
+    checklistInitialized = true;
+    const first = firstIncompleteSection();
+    checklistDef.sections.forEach((_, si) => {
+      if (si !== first) {
+        collapsedSections.add(si);
+      }
+    });
+  }
+
   function openChecklistPanel(): void {
     pendingChecklistItem = null;
     closeMenu();
     if (isPanelOpen()) {
       closePanel();
     }
+    initAccordion();
     renderChecklist();
     checklistPanel.style.display = "flex";
+    syncOverlayState();
   }
 
   function closeChecklistPanel(): void {
     checklistPanel.style.display = "none";
+    syncOverlayState();
+  }
+
+  // Auto-open the panel once per session when the checklist has no verdicts yet
+  // (the client just landed to walk it). The once-per-session guard is a
+  // sessionStorage flag, so an in-session page navigation does not reopen it.
+  function maybeAutoOpen(): void {
+    if (!checklistDef) {
+      return;
+    }
+    const state = core.getChecklistState();
+    const done = state ? checklistProgress(state).done : 0;
+    if (done > 0) {
+      return;
+    }
+    const key = `feedback-widget:${core.config.project}:cl-autoopen`;
+    try {
+      if (typeof sessionStorage !== "undefined") {
+        if (sessionStorage.getItem(key)) {
+          return;
+        }
+        sessionStorage.setItem(key, "1");
+      }
+    } catch {
+      // Storage blocked (private mode / cross-origin) — fall through and open
+      // once for this mount; without persistence it may reopen on reload.
+    }
+    openChecklistPanel();
   }
 
   function hideToast(): void {
@@ -618,6 +957,7 @@ export function mountFeedbackWidget(
     draft.comment = commentBox.value;
     addingToDraft = true;
     panel.style.display = "none";
+    syncOverlayState();
     openMenu();
   }
 
@@ -637,13 +977,15 @@ export function mountFeedbackWidget(
       for (const url of draft.urls) {
         URL.revokeObjectURL(url);
       }
-      for (const url of draft.frameUrls) {
-        URL.revokeObjectURL(url);
+      for (const clip of draft.clips) {
+        for (const url of clip.urls) {
+          URL.revokeObjectURL(url);
+        }
       }
     }
     draft = null;
     addingToDraft = false;
-    framesExpanded = false;
+    expandedClips.clear();
   }
 
   // Full (re)open of the panel: sets the comment field and focuses it. Called
@@ -668,6 +1010,7 @@ export function mountFeedbackWidget(
     sendBtn.textContent = strings.send;
     panel.style.display = "flex";
     commentBox.focus();
+    syncOverlayState();
   }
 
   // Rebuilds only the thumbnail row (real shots + pending placeholders + the
@@ -680,7 +1023,7 @@ export function mountFeedbackWidget(
     if (
       draft.urls.length === 0 &&
       draft.pending === 0 &&
-      draft.frameUrls.length === 0
+      draft.clips.length === 0
     ) {
       const empty = el("span", "no-shot");
       empty.textContent = strings.noScreenshot;
@@ -696,6 +1039,8 @@ export function mountFeedbackWidget(
       const remove = el("button", "thumb-remove");
       remove.type = "button";
       remove.textContent = "×";
+      remove.title = strings.removeScreenshot;
+      remove.setAttribute("aria-label", strings.removeScreenshot);
       remove.addEventListener("click", (event) => {
         event.stopPropagation();
         URL.revokeObjectURL(url);
@@ -733,47 +1078,61 @@ export function mountFeedbackWidget(
       loading.appendChild(spin);
       thumbs.appendChild(loading);
     }
-    // Recording: one stacked "deck" tile for the whole frame sequence, living
-    // next to the regular screenshots. Click toggles the numbered ribbon.
-    if (draft.frameUrls.length > 0) {
-      const count = draft.frameUrls.length;
-      const deckLabel = formatString(strings.recordingFrames, String(count));
+    // Recording: one stacked "deck" tile per clip (a Record→Stop cycle), each
+    // labeled "Clip N · M frames" with its first frame as the cover. Clips are
+    // independent — deleting one leaves the others untouched. Click toggles the
+    // clip's numbered ribbon.
+    draft.clips.forEach((clip, ci) => {
+      const count = clip.urls.length;
+      const expanded = expandedClips.has(ci);
+      const deckLabel = `${interpolate(strings.recordingClip, {
+        n: ci + 1,
+      })} · ${plural(
+        strings.recordingFrameOne,
+        strings.recordingFrameMany,
+        count
+      )}`;
       const deck = el("button", "thumb frame-deck");
       deck.type = "button";
-      deck.classList.toggle("open", framesExpanded);
+      deck.classList.toggle("open", expanded);
       deck.title = deckLabel;
+      deck.setAttribute("aria-label", deckLabel);
       const img = el("img");
-      img.src = draft.frameUrls[0];
+      img.src = clip.urls[0];
       img.alt = deckLabel;
       const badge = el("span", "deck-count");
       badge.textContent = deckLabel;
       deck.append(img, badge);
       deck.addEventListener("click", () => {
-        framesExpanded = !framesExpanded;
+        if (expandedClips.has(ci)) {
+          expandedClips.delete(ci);
+        } else {
+          expandedClips.add(ci);
+        }
         renderThumbs();
       });
       const remove = el("button", "thumb-remove");
       remove.type = "button";
       remove.textContent = "×";
       remove.title = strings.recordingRemove;
+      remove.setAttribute("aria-label", strings.recordingRemove);
       remove.addEventListener("click", (event) => {
         event.stopPropagation();
         if (!draft) {
           return;
         }
-        for (const url of draft.frameUrls) {
+        for (const url of clip.urls) {
           URL.revokeObjectURL(url);
         }
-        draft.frames = [];
-        draft.frameUrls = [];
-        draft.recording = false;
-        framesExpanded = false;
+        draft.clips.splice(ci, 1);
+        draft.recording = draft.clips.length > 0;
+        expandedClips.clear(); // indices shifted; simplest to collapse all
         renderThumbs();
       });
       deck.appendChild(remove);
       thumbs.appendChild(deck);
-      if (framesExpanded) {
-        draft.frameUrls.forEach((url, i) => {
+      if (expanded) {
+        clip.urls.forEach((url, i) => {
           const frame = el("div", "thumb frame-thumb");
           const fimg = el("img");
           fimg.src = url;
@@ -784,11 +1143,16 @@ export function mountFeedbackWidget(
           thumbs.appendChild(frame);
         });
       }
-    }
+    });
     const addBtn = el("button", "add-shot");
     addBtn.type = "button";
-    addBtn.textContent = strings.addScreenshot;
-    if (shortcutLabel) {
+    addBtn.setAttribute("aria-label", strings.addScreenshot);
+    const addText = el("span");
+    addText.textContent = strings.addScreenshot;
+    addBtn.appendChild(addText);
+    const addKbd = makeKbd();
+    if (addKbd) {
+      addBtn.appendChild(addKbd);
       addBtn.title = `${strings.addScreenshot} (${shortcutLabel})`;
     }
     addBtn.addEventListener("click", addScreenshotToDraft);
@@ -824,8 +1188,7 @@ export function mountFeedbackWidget(
       captures: [],
       maskedAny: false,
       recording: false,
-      frames: [],
-      frameUrls: [],
+      clips: [],
     };
     return draft;
   }
@@ -875,6 +1238,7 @@ export function mountFeedbackWidget(
   function closePanel(): void {
     panel.style.display = "none";
     discardDraft();
+    syncOverlayState();
   }
 
   // Element mode: hover highlight, capture on click.
@@ -996,7 +1360,14 @@ export function mountFeedbackWidget(
     if (recorder.recording) {
       return;
     }
-    await recorder.start();
+    // The clip index is this recording's slot in the draft (its frames' actions
+    // are tagged with it), so a second recording on the same issue is clip 2.
+    const clipIndex = (draft ? draft.clips.length : 0) + 1;
+    await recorder.start(clipIndex);
+  }
+
+  function makeClip(frames: Blob[]): RecordingClip {
+    return { frames, urls: frames.map((f) => URL.createObjectURL(f)) };
   }
 
   async function stopRecording(): Promise<void> {
@@ -1006,18 +1377,20 @@ export function mountFeedbackWidget(
     const frames = recorder.stop();
     const maskedAny = recorder.maskedAny;
     // An open draft (recording added via "+ Add screenshot" or with the panel
-    // up) keeps its shots and comment: frames are appended, not a new issue.
+    // up) keeps its shots and comment: this recording becomes a NEW clip on the
+    // draft — never merged into a prior one.
     if (draft) {
       addingToDraft = false;
-      draft.frames.push(...frames);
-      draft.frameUrls.push(...frames.map((f) => URL.createObjectURL(f)));
-      draft.recording = draft.frames.length > 0;
+      if (frames.length > 0) {
+        draft.clips.push(makeClip(frames));
+      }
+      draft.recording = draft.clips.length > 0;
       draft.maskedAny = draft.maskedAny || maskedAny;
       renderPanel();
       return;
     }
     // Fresh recording: final screenshot (the "moment of Stop"), masked like
-    // the frames, then a new draft.
+    // the frames, then a new draft carrying this recording as clip-01.
     const mask = applyMask(privacy);
     let main: Blob | null = null;
     try {
@@ -1040,9 +1413,8 @@ export function mountFeedbackWidget(
       pending: 0,
       captures: [],
       maskedAny: maskedAny || mask.count > 0,
-      recording: true,
-      frames,
-      frameUrls: frames.map((f) => URL.createObjectURL(f)),
+      recording: frames.length > 0,
+      clips: frames.length > 0 ? [makeClip(frames)] : [],
     };
     renderPanel();
   }
@@ -1130,7 +1502,9 @@ export function mountFeedbackWidget(
     // Recording frames are screenshots too, so consent drops them as well.
     const attachShots = !(consentEnabled && !consentBox.checked);
     const shots = attachShots ? current.shots : [];
-    const frames = attachShots ? current.frames : [];
+    // Each clip ships as its own ordered frame sequence.
+    const clips = attachShots ? current.clips.map((c) => c.frames) : [];
+    const frameTotal = clips.reduce((n, c) => n + c.length, 0);
     // `masked` reflects the shipped screenshots: omitted with no screenshot or
     // when privacy is not configured; else whether anything was redacted.
     const masked =
@@ -1153,9 +1527,9 @@ export function mountFeedbackWidget(
           ? { checklistItem: current.checklistItem }
           : {}),
         ...(masked !== undefined ? { masked } : {}),
-        // Record mode: attach the frame sequence (unless consent dropped it).
-        ...(current.recording && frames.length > 0
-          ? { recording: true, frames }
+        // Record mode: attach the clips (unless consent dropped them).
+        ...(current.recording && frameTotal > 0
+          ? { recording: true, clips }
           : {}),
         // Present for every mode (null when not element) so the artifact fields
         // are always there.
@@ -1273,7 +1647,22 @@ export function mountFeedbackWidget(
       openChecklistPanel();
     }
   });
-  checklistDoneBtn.addEventListener("click", closeChecklistPanel);
+  checklistClose.addEventListener("click", closeChecklistPanel);
+  // Close the checklist panel on a click outside it (but not on its own circle,
+  // which toggles). The capture panel keeps its explicit Cancel button.
+  document.addEventListener(
+    "pointerdown",
+    (event) => {
+      if (!isChecklistPanelOpen()) {
+        return;
+      }
+      const path = event.composedPath();
+      if (!path.includes(checklistPanel) && !path.includes(checklistFab)) {
+        closeChecklistPanel();
+      }
+    },
+    true
+  );
   // Reveal the second circle once the checklist resolves (inline immediately,
   // or after a URL fetch). A null result (none configured / invalid / 404)
   // leaves the widget exactly as it is today.
@@ -1288,6 +1677,16 @@ export function mountFeedbackWidget(
       shadow.append(checklistFab, checklistPanel);
       checklistFab.style.display = "flex";
       updateChecklistBadge();
+      // url_match highlighting depends on the current path; re-render on SPA
+      // navigation (from the existing navigate interception) while open.
+      core.actions.subscribe((record) => {
+        if (record.kind === "navigate" && isChecklistPanelOpen()) {
+          renderChecklist();
+        }
+      });
+      // Auto-open once per session: a configured checklist with no verdicts yet
+      // is a strong signal the client just arrived to walk it.
+      maybeAutoOpen();
     })
     .catch(() => undefined);
   // Ordered by expected frequency of use: quick captures first, the

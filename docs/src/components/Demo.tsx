@@ -55,32 +55,46 @@ export function Demo() {
       offlineQueue: false,
       shortcut: "Shift+F",
       // Optional acceptance checklist → the second circle above the button.
-      // Pass a URL string instead of an object to load one at init.
+      // Pass a URL string instead of an object to load one at init. This one
+      // reads like a real sign-off document (title, description, sections).
       checklist: {
-        id: "sluglist-tour",
-        title: "Try the widget",
+        id: "sluglist-beta-acceptance",
+        title: "Release acceptance checklist",
+        description:
+          "Walk each item on this page and check it off. Click the slug button on a row to flag anything that looks wrong.",
         sections: [
           {
             title: "Capture",
             items: [
               {
                 id: "full-page",
-                title: "Full-page screenshot lands in the artifacts panel",
+                title: "A full-page screenshot lands in the artifacts panel",
                 hint: "Feedback → Full page → Send",
               },
               {
                 id: "annotate",
-                title: "Arrow / box / text annotate a shot",
+                title: "Arrow, box and text annotate a screenshot",
+                hint: "Click a thumbnail to open the editor",
+              },
+              {
+                id: "recording",
+                title: "Record steps captures a clip of numbered frames",
+                hint: "Feedback → Record steps → do something → Stop",
               },
             ],
           },
           {
-            title: "Report",
+            title: "Report a problem",
             items: [
               {
-                id: "verdict-flow",
-                title: "A ✗ opens the normal issue flow and links back",
-                hint: "Mark this item failed to see it",
+                id: "flag-flow",
+                title: "The slug button on a row opens the issue flow and links back",
+                hint: "Hover a row and click the slug icon on the right",
+              },
+              {
+                id: "artifacts-here",
+                title: "Every send appears in the artifacts panel on this page",
+                url: "#demo",
               },
             ],
           },
