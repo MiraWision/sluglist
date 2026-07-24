@@ -28,8 +28,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "pack": "npm pack",
-    "prepublishOnly": "npm run build",
-    "publish": "npm publish --access public"
+    "prepublishOnly": "npm run build"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "keywords": [
     "sluglist",
