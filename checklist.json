@@ -1,0 +1,44 @@
+{
+  "id": "checklist-mode-2026-07",
+  "title": "Checklist mode release",
+  "sections": [
+    {
+      "title": "Landing page",
+      "items": [
+        {
+          "id": "feature-card-visible",
+          "title": "The features grid shows a \"Checklist mode\" card",
+          "url": "/#features",
+          "hint": "Scroll to \"Everything a feedback loop needs\""
+        },
+        {
+          "id": "agent-story-step",
+          "title": "The agent story mentions generating a checklist from a branch",
+          "url": "/#agents"
+        }
+      ]
+    },
+    {
+      "title": "Live demo widget",
+      "items": [
+        {
+          "id": "second-circle",
+          "title": "A second round button appears above the Feedback button",
+          "url": "/#demo",
+          "hint": "It shows a progress count like 0/3"
+        },
+        {
+          "id": "walk-the-list",
+          "title": "Opening it shows the checklist; Pass / Fail / Skip each record",
+          "url": "/#demo"
+        },
+        {
+          "id": "fail-opens-issue",
+          "title": "Marking an item Fail opens the normal report flow and links the issue back",
+          "url": "/#demo",
+          "hint": "The item then shows an issue number"
+        }
+      ]
+    }
+  ]
+}
