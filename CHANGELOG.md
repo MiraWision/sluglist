@@ -29,16 +29,6 @@
 
 ## 1.6.0 — Record mode: manual frames + recording attaches to the open draft
 
-### Renamed back to `sluglist` (permanent)
-
-The package, CLI (`npx sluglist dev`), default folder (`.sluglist/`), standalone global
-(`Sluglist` / `dist/sluglist.global.js`), skill (`sluglist-fix`) and docs are now `sluglist` — the
-final, permanent name (this supersedes the brief `snaglist` naming in 1.3.0). Install
-`npm install sluglist`. Compatibility: `sluglist dev` still detects a legacy `.snaglist/` folder and
-prints a one-time hint (it never renames your files), and the `sluglist-fix` skill falls back to a
-`.snaglist/` folder when no `.sluglist/` exists. The `snaglist` package on npm is deprecated with a
-pointer to `sluglist`.
-
 ### Manual frames while recording
 
 - The recording bar gained a **`+ Frame`** button (and the **S** key outside text fields) to snap an
@@ -86,8 +76,8 @@ No breaking changes; no artifact format changes.
   lines gain a `— frame NN` suffix, turning an issue into automatic steps-to-reproduce with images.
 - Additive format: `NN-slug-frames/NN.png` + `recording`/`frames_count`/`frames_dir` frontmatter +
   `frames: N` in the session index. `config.recording {enabled, maxFrames, frameMinInterval}`.
-- The `snaglist dev` sidecar / `LocalConnector` accept a single `frames/` subfolder (still
-  traversal-safe). The `snaglist-fix` skill now reads Actions as steps-to-reproduce and lines frames up
+- The `sluglist dev` sidecar / `LocalConnector` accept a single `frames/` subfolder (still
+  traversal-safe). The `sluglist-fix` skill now reads Actions as steps-to-reproduce and lines frames up
   with them.
 
 ### Other
@@ -102,9 +92,9 @@ No breaking changes; all artifact additions are additive. `FeedbackConnector` un
 
 ### Local feedback loop (new)
 
-- **`snaglist dev` CLI** (`npx snaglist dev`): a local sidecar that writes feedback artifacts into a
-  `.snaglist/` folder (`--dir` / `--port`). Binds to `127.0.0.1` only, path-traversal-safe, logs each
-  file. Ships a `snaglist-fix` skill (`skills/snaglist-fix/`) that reads `.snaglist/` and fixes issues.
+- **`sluglist dev` CLI** (`npx sluglist dev`): a local sidecar that writes feedback artifacts into a
+  `.sluglist/` folder (`--dir` / `--port`). Binds to `127.0.0.1` only, path-traversal-safe, logs each
+  file. Ships a `sluglist-fix` skill (`skills/sluglist-fix/`) that reads `.sluglist/` and fixes issues.
 - **`LocalConnector`**: posts artifacts to the sidecar (default `127.0.0.1:4477`); warns once and stays
   out of the way when the server isn't running.
 
@@ -122,18 +112,13 @@ No breaking changes; all artifact additions are additive. `FeedbackConnector` un
 
 ### Branding
 
-- Adopted the snaglist brand logo across the favicon, docs header, and the widget button.
+- Adopted the brand logo across the favicon, docs header, and the widget button.
 
 No breaking changes; all artifact additions are additive. `FeedbackConnector` unchanged.
 
-## 1.3.0 — Renamed to snaglist + beta feedback mode
+## 1.3.0 — Beta feedback mode
 
-**Renamed `sluglist` → `snaglist`** (from a *snagging list*, the punch list of defects a client marks
-on handover). Install `npm install snaglist`; import from `"snaglist"`; the standalone bundle exposes
-the global `Snaglist` (`dist/snaglist.global.js`). The old `sluglist` package is deprecated and points
-here.
-
-New **beta feedback mode** for real users on a production beta (still one-way capture: no inbox,
+**Beta feedback mode** for real users on a production beta (still one-way capture: no inbox,
 statuses or replies). All additive and backward compatible:
 
 - **Identity** — `config.identity: { userId, email, name }` → session-level `reporter` in `session.yaml`
