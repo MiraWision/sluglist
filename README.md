@@ -234,6 +234,84 @@ If you need a support loop (triage, back-and-forth, resolution states), that is 
 sluglist deliberately stops at capture. Its output is a stable set of artifacts you can pipe into
 whatever tracker or workflow you already run.
 
+## Checklist mode
+
+Everything above fills a session **from the bottom** — the client freely creates issues. A **checklist**
+fills it **from the top**: the developer pre-seeds a list of "what shipped and what to verify", and the
+client walks it, recording a verdict per item (**pass / fail / skip**). A `fail` opens the normal issue
+flow, linked to that item. The result is a **coverage map** in `session.yaml`: what's confirmed, what
+failed (with links to the issues), and what was never checked.
+
+It's entirely opt-in: a second circle appears above the feedback button **only** when a checklist is
+configured. Without one, the widget looks and works exactly as before.
+
+```ts
+const widget = createFeedbackWidget({
+  project: "acme",
+  connectors: [/* ... */],
+  checklist: {
+    id: "export-release-2026-07",
+    title: "Export + notifications release",
+    sections: [
+      {
+        title: "Export",
+        items: [
+          { id: "export-button", title: "On Reports, the Export button downloads a CSV", url: "/reports" },
+          { id: "csv-columns", title: "The CSV has all the expected columns", hint: "Open it in a spreadsheet" },
+        ],
+      },
+      { title: "Notifications", items: [{ id: "email-sent", title: "An email arrives after an export" }] },
+    ],
+  },
+});
+```
+
+Pass a **URL string** instead of an object to fetch the checklist at init (`GET` → JSON of the same
+shape) — handy when a skill generates it: `checklist: "/checklist.json"`. An unreachable or invalid
+checklist warns and is skipped; capture still works.
+
+Verdicts land in `session.yaml` (put-per-verdict, upserted on every click):
+
+```yaml
+checklist:
+  id: export-release-2026-07
+  title: "Export + notifications release"
+  items:
+    - id: export-button
+      section: "Export"
+      title: "On Reports, the Export button downloads a CSV"
+      verdict: pass
+      issue: null
+      ts: 2026-07-24T14:05:10Z
+    - id: csv-columns
+      section: "Export"
+      title: "The CSV has all the expected columns"
+      verdict: fail
+      issue: "03"          # the issue that documents the failure
+      ts: 2026-07-24T14:06:00Z
+    - id: email-sent
+      section: "Notifications"
+      title: "An email arrives after an export"
+      verdict: null        # not checked
+      issue: null
+      ts: null
+```
+
+### Generate a checklist from a branch
+
+The package ships a `sluglist-checklist` skill: point Claude Code at a branch and it builds a
+client-facing checklist from the diff (user-visible pages/components/text only — refactors, tests and
+config are excluded), grouped by feature and phrased for a non-developer, written to
+`public/checklist.json`. Ask it to "generate a checklist from this branch". See
+[`skills/sluglist-checklist/SKILL.md`](skills/sluglist-checklist/SKILL.md).
+
+### Scope — the checklist is a session input, verdicts are its output
+
+The checklist enters a session and the verdicts leave with it. There is **no lifecycle beyond the
+session**: items are never reopened, verdicts never sync between sessions, nothing is stored as a
+"done on the server", and issues are never blocked on completing the checklist. Every session runs the
+checklist from scratch. (This is deliberate — it keeps sluglist a capture tool, not a workflow tracker.)
+
 ## Local feedback loop
 
 Test your app locally, click feedback with the widget, and have it land in a `.sluglist/` folder in
@@ -311,7 +389,7 @@ per-issue metadata in frontmatter followed by the free-text comment. The structu
 are a stable contract intended as input for downstream parsers; **it only changes additively**.
 
 The full field dictionary, section rules and versioning policy live in **[SPEC.md](SPEC.md)** — safe
-to build parsers against. `session.yaml` starts with `format_version: "1.0"`; a missing version means
+to build parsers against. `session.yaml` starts with `format_version: "1.1"`; a missing version means
 `"1.0"`. Within a major version, new fields are only ever added, never removed or repurposed.
 
 ## Metadata collected

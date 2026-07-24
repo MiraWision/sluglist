@@ -4,6 +4,13 @@ import {
   sessionYamlFile,
 } from "./artifacts";
 import { type ActionCapture, createActionCapture } from "./actions";
+import {
+  type ChecklistDef,
+  type ChecklistState,
+  normalizeChecklist,
+  seedChecklistState,
+  type Verdict,
+} from "./checklist";
 import { deliver } from "./deliver";
 import { type ErrorCapture, createErrorCapture } from "./errors";
 import {
@@ -32,6 +39,7 @@ import type {
   DeliveryReport,
   FeedbackWidgetConfig,
   IssueIndexEntry,
+  SessionMeta,
   SessionState,
 } from "./types";
 
@@ -42,6 +50,22 @@ export interface FeedbackWidgetCore {
   captureIssue(input: CaptureIssueInput): Promise<CaptureResult | null>;
   readonly config: FeedbackWidgetConfig;
   readonly enabled: boolean;
+  /**
+   * The resolved acceptance checklist, or null when none is configured (or an
+   * inline one was invalid). For a URL checklist this is null until the fetch
+   * settles — await {@link whenChecklistReady} first.
+   */
+  getChecklist(): ChecklistDef | null;
+  /** Current per-item verdicts, or null before any checklist/session exists. */
+  getChecklistState(): ChecklistState | null;
+  /** Resolves once a URL checklist has loaded (immediately for inline/none). */
+  whenChecklistReady(): Promise<ChecklistDef | null>;
+  /**
+   * Record a verdict for a checklist item and upsert session.yaml (put-per-verdict,
+   * like put-per-issue). A `fail` should carry the evidencing `issueId`; `pass`
+   * and `skip` clear any prior issue link. No-op when no checklist is configured.
+   */
+  recordVerdict(itemId: string, verdict: Verdict, issueId?: string | null): void;
   /** Number of issues captured in the current session. */
   getIssueCount(): number;
   /** Number of delivery batches still uploading. */
@@ -78,6 +102,32 @@ function now(): number {
   return Date.now();
 }
 
+/**
+ * Fetch a checklist from a URL (GET → JSON) and validate it. Any failure
+ * (network, non-2xx, bad JSON, invalid shape) resolves to null with a warning:
+ * a missing checklist must never block plain capture.
+ */
+async function fetchChecklist(url: string): Promise<ChecklistDef | null> {
+  if (typeof fetch !== "function") {
+    return null;
+  }
+  try {
+    const res = await fetch(url, { headers: { accept: "application/json" } });
+    if (!res.ok) {
+      console.warn(
+        `[sluglist] checklist: GET ${url} → ${res.status}; checklist skipped`
+      );
+      return null;
+    }
+    return normalizeChecklist(await res.json());
+  } catch (error) {
+    console.warn(
+      `[sluglist] checklist: could not load ${url} (${String(error)}); checklist skipped`
+    );
+    return null;
+  }
+}
+
 const PROJECT_SLUG = /^[a-z0-9][a-z0-9-]*$/;
 
 export function createFeedbackWidget(
@@ -104,6 +154,24 @@ export function createFeedbackWidget(
   // Runtime host context (setContext). `undefined` until the host calls it →
   // omitted from artifacts (back-compat); `null`/map once configured.
   let context: Record<string, YamlScalar> | null | undefined;
+  // Acceptance checklist. Inline objects validate synchronously; a URL is
+  // fetched at init (GET → JSON). Either way an invalid/unreachable checklist
+  // resolves to null and never blocks capture. `checklistReady` lets the UI
+  // wait for a URL fetch before deciding whether to render the second button.
+  let checklistDef: ChecklistDef | null = null;
+  let checklistReady: Promise<ChecklistDef | null>;
+  const rawChecklist = config.checklist;
+  if (rawChecklist === undefined) {
+    checklistReady = Promise.resolve(null);
+  } else if (typeof rawChecklist === "string") {
+    checklistReady = fetchChecklist(rawChecklist).then((def) => {
+      checklistDef = def;
+      return def;
+    });
+  } else {
+    checklistDef = normalizeChecklist(rawChecklist);
+    checklistReady = Promise.resolve(checklistDef);
+  }
   // Error capture starts at widget init (not on panel open) so errors that
   // happen before the reporter opens the widget are still recorded.
   const errorCapture =
@@ -185,18 +253,11 @@ export function createFeedbackWidget(
   }
   flushQueue();
 
-  function doCapture(input: CaptureIssueInput): CaptureResult | null {
-    if (!enabled) {
-      console.warn("[feedback-widget] disabled, issue ignored");
-      return null;
-    }
-    const comment = input.comment?.trim();
-    if (!comment) {
-      throw new Error("[feedback-widget] comment is required");
-    }
-
+  // Session metadata factory (shared by capture and verdict recording), so a
+  // verdict recorded before any issue creates a session identically to a capture.
+  function makeMeta(): Omit<SessionMeta, "session_id" | "created_at"> {
     const env = readEnvironment();
-    const state = sessions.ensure(() => ({
+    return {
       project: config.project,
       base_url: env.baseUrl,
       browser: env.browser,
@@ -211,7 +272,39 @@ export function createFeedbackWidget(
       reduced_motion: env.reducedMotion,
       // Session-level reporter: present only when identity was configured.
       ...(reporter !== undefined ? { reporter } : {}),
-    }));
+    };
+  }
+
+  // Seed the full checklist (all verdicts null) into the session the first time,
+  // so session.yaml carries the complete coverage map from the start. Additive:
+  // does nothing when no checklist is configured. Returns true if it wrote.
+  function seedChecklist(state: SessionState): boolean {
+    if (checklistDef && state.checklist?.id !== checklistDef.id) {
+      state.checklist = seedChecklistState(checklistDef);
+      sessions.write(state);
+      return true;
+    }
+    return false;
+  }
+
+  function ensureSession(): SessionState {
+    const state = sessions.ensure(makeMeta);
+    seedChecklist(state);
+    return state;
+  }
+
+  function doCapture(input: CaptureIssueInput): CaptureResult | null {
+    if (!enabled) {
+      console.warn("[feedback-widget] disabled, issue ignored");
+      return null;
+    }
+    const comment = input.comment?.trim();
+    if (!comment) {
+      throw new Error("[feedback-widget] comment is required");
+    }
+
+    const env = readEnvironment();
+    const state = ensureSession();
 
     const id = sessions.nextIssueId(state);
     const slug = slugFromComment(comment);
@@ -271,6 +364,10 @@ export function createFeedbackWidget(
         screenshot: pngPaths[0] ?? null,
         ...(pngPaths.length > 1 ? { screenshots: pngPaths } : {}),
         ...(input.category ? { category: input.category } : {}),
+        // Checklist fail-evidence link (only when this issue came from a ✗).
+        ...(input.checklistItem !== undefined
+          ? { checklistItem: input.checklistItem }
+          : {}),
         // Element metadata: forwarded when the UI provides it (element mode
         // passes values; other modes pass null so the fields are present).
         ...(input.selectorStrategy !== undefined
@@ -339,6 +436,34 @@ export function createFeedbackWidget(
     redeliver: (capture) => enqueueDelivery(capture.sessionId, capture.files),
     setContext: (next) => {
       context = normalizeContext(next ?? {}, context ?? null);
+    },
+    getChecklist: () => checklistDef,
+    getChecklistState: () => sessions.read()?.checklist ?? null,
+    whenChecklistReady: () => checklistReady,
+    recordVerdict: (itemId, verdict, issueId = null) => {
+      if (!enabled) {
+        return;
+      }
+      if (!checklistDef) {
+        console.warn(
+          "[sluglist] recordVerdict called with no checklist configured"
+        );
+        return;
+      }
+      const state = ensureSession();
+      const item = state.checklist?.items.find((i) => i.id === itemId);
+      if (!item) {
+        console.warn(`[sluglist] unknown checklist item "${itemId}"`);
+        return;
+      }
+      item.verdict = verdict;
+      // A fail carries its evidencing issue; pass/skip drop any prior link.
+      item.issue = verdict === "fail" ? (issueId ?? item.issue) : null;
+      item.ts = isoTimestamp(new Date());
+      sessions.write(state);
+      // Put-per-verdict: re-put only the session index (like put-per-issue),
+      // so a verdict survives the tab closing right after.
+      enqueueDelivery(state.session_id, [sessionYamlFile(state)]);
     },
   };
 }

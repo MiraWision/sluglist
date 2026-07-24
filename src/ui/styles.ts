@@ -110,6 +110,52 @@ export function widgetStyles(theme: UiTheme): string {
   text-align: center;
   display: none;
 }
+/* Second circle: the optional checklist button, stacked directly above the
+   main FAB. Only present when a valid checklist is configured. */
+.checklist-fab {
+  position: fixed;
+  bottom: 78px;
+  ${side}: 24px;
+  z-index: 2147483646;
+  width: 44px;
+  height: 44px;
+  border-radius: 22px;
+  border: 1px solid rgba(17, 17, 17, 0.1);
+  background: #fff;
+  color: #18181b;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.16), 0 1px 3px rgba(0, 0, 0, 0.1);
+  pointer-events: auto;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.checklist-fab:hover {
+  background: #f9fafb;
+}
+.checklist-fab svg {
+  width: 20px;
+  height: 20px;
+}
+.checklist-fab .cl-badge {
+  position: absolute;
+  top: -6px;
+  ${side === "right" ? "left" : "right"}: -6px;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: ${theme.accentColor};
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+}
+.checklist-fab .cl-badge.complete {
+  background: #16a34a;
+}
 .menu {
   position: fixed;
   bottom: 80px;
@@ -710,6 +756,194 @@ textarea:focus {
   cursor: pointer;
   display: none;
 }
+/* Checklist panel: same corner as the capture panel (only one is open at a
+   time), taller with its own scroll for long lists. */
+.checklist-panel {
+  position: fixed;
+  bottom: 80px;
+  ${side}: 24px;
+  z-index: 2147483646;
+  width: 360px;
+  max-width: calc(100vw - 48px);
+  max-height: calc(100vh - 120px);
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  display: none;
+  flex-direction: column;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
+  pointer-events: auto;
+}
+.checklist-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid #f1f1f3;
+}
+.checklist-head h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #111;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.checklist-progress {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  font-variant-numeric: tabular-nums;
+}
+.checklist-progress.complete {
+  color: #16a34a;
+}
+.checklist-body {
+  overflow-y: auto;
+  padding: 6px 8px 10px;
+}
+.cl-section {
+  margin-top: 4px;
+}
+.cl-section-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  border: none;
+  background: none;
+  padding: 6px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #9ca3af;
+  cursor: pointer;
+  text-align: left;
+}
+.cl-section-head .cl-chevron {
+  transition: transform 0.15s ease;
+  font-size: 9px;
+  color: #b3b3b8;
+}
+.cl-section.collapsed .cl-chevron {
+  transform: rotate(-90deg);
+}
+.cl-section.collapsed .cl-items {
+  display: none;
+}
+.cl-items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cl-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+}
+.cl-item:hover {
+  background: #fafafa;
+}
+.cl-item.pass {
+  background: rgba(22, 163, 74, 0.06);
+}
+.cl-item.fail {
+  background: rgba(220, 38, 38, 0.06);
+}
+.cl-item.skip {
+  opacity: 0.72;
+}
+.cl-item-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cl-item-title {
+  font-size: 13px;
+  color: #111;
+  line-height: 1.35;
+}
+.cl-item-hint {
+  font-size: 11px;
+  color: #9ca3af;
+  line-height: 1.3;
+}
+.cl-item-link {
+  font-size: 11px;
+  color: ${theme.accentColor};
+  text-decoration: none;
+  align-self: flex-start;
+}
+.cl-item-link:hover {
+  text-decoration: underline;
+}
+.cl-item-issue {
+  font-size: 11px;
+  color: #dc2626;
+  font-variant-numeric: tabular-nums;
+}
+.cl-item-actions {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 3px;
+}
+.cl-act {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  color: #6b7280;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.cl-act:hover {
+  border-color: #9ca3af;
+}
+.cl-act.pass.active {
+  background: #16a34a;
+  border-color: #16a34a;
+  color: #fff;
+}
+.cl-act.fail.active {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #fff;
+}
+.cl-act.skip.active {
+  background: #6b7280;
+  border-color: #6b7280;
+  color: #fff;
+}
+.checklist-foot {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 12px;
+  border-top: 1px solid #f1f1f3;
+}
+.checklist-foot button {
+  border-radius: 8px;
+  padding: 7px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #111;
+}
 @media (max-width: 480px) {
   .panel {
     left: 12px;
@@ -717,6 +951,14 @@ textarea:focus {
     bottom: 12px;
     width: auto;
     max-width: none;
+  }
+  .checklist-panel {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    width: auto;
+    max-width: none;
+    max-height: calc(100vh - 90px);
   }
   .menu {
     left: 12px;

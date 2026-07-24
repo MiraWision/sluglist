@@ -1,16 +1,18 @@
-# sluglist artifact format — v1.0
+# sluglist artifact format — v1.1
 
 This is the on-disk contract sluglist produces for each feedback session. It is stable and safe to
 build parsers against: **within a major version the format only ever changes additively** (new optional
 fields), so a parser written for 1.x keeps working as 1.x grows.
 
 Source of truth: `src/artifacts.ts` (`buildSessionYaml`, `buildIssueMarkdown`, `issueEntries`),
-`src/errors.ts` and `src/actions.ts`. Every field below exists in that code.
+`src/errors.ts`, `src/actions.ts` and `src/checklist.ts`. Every field below exists in that code.
 
 ## Versioning
 
-- `session.yaml` starts with `format_version: "1.0"` (a quoted string, always the first line).
+- `session.yaml` starts with `format_version: "1.1"` (a quoted string, always the first line).
 - **Missing `format_version` ⇒ treat as `"1.0"`** (artifacts written before versioning was added).
+- **1.1** added the additive `checklist:` block (acceptance checklist verdicts) and the
+  `checklist_item` issue field; everything from 1.0 is unchanged.
 - The number is `MAJOR.MINOR`:
   - **MINOR** bumps for additive changes (a new optional field/section). Parsers must ignore unknown
     fields and keep working.
@@ -57,7 +59,34 @@ are zero-padded and monotonic within a session.
 | `color_scheme` | string | optional | 1.0 | `light` \| `dark`. |
 | `reduced_motion` | boolean | optional | 1.0 | |
 | `reporter` | map \| null | optional | 1.0 | Present only when `identity` configured (`null` if empty). Keys: `user_id`, `email`, `name`. |
+| `checklist` | map | optional | 1.1 | Present only when a checklist is configured. See below. |
 | `issues` | list | yes | 1.0 | `[]` when empty; otherwise a list of the entries below. |
+
+### `checklist` (acceptance checklist, 1.1)
+
+Present only when the widget is configured with a `checklist`. It is the client's per-session sign-off
+map — a coverage snapshot of *this* run, not a durable status.
+
+| Field | Type | Required | Since | Notes |
+|---|---|---|---|---|
+| `id` | string | yes | 1.1 | Checklist id. |
+| `title` | string | yes | 1.1 | Human title. |
+| `items` | list | yes | 1.1 | One entry per checklist item (below). |
+
+Each `items[]` entry:
+
+| Field | Type | Required | Since | Notes |
+|---|---|---|---|---|
+| `id` | string | yes | 1.1 | Item id (unique within the checklist). |
+| `section` | string | yes | 1.1 | Section title the item belongs to (may be `""`). |
+| `title` | string | yes | 1.1 | The client-facing check. |
+| `verdict` | string \| null | yes | 1.1 | `pass` \| `fail` \| `skip`, or `null` when not yet checked. |
+| `issue` | string \| null | yes | 1.1 | For a `fail`, the id of the issue that documents it; else `null`. |
+| `ts` | string \| null | yes | 1.1 | ISO time the verdict was set; `null` when unset. |
+
+Verdicts are written **put-per-verdict**: every click upserts `session.yaml` (same idempotent path as
+per-issue writes). A `fail` opens the normal issue flow; that issue's frontmatter carries
+`checklist_item` pointing back at the item.
 
 ### `issues[]` (session index entry)
 
@@ -87,6 +116,7 @@ YAML frontmatter between `---` fences, then the reporter's comment, then optiona
 | `selector_unique` | boolean \| null | optional | 1.0 | |
 | `mode` | string | yes | 1.0 | `element` \| `fullpage` \| `area`. |
 | `category` | string | optional | 1.0 | |
+| `checklist_item` | string \| null | optional | 1.1 | Present when this issue is a checklist item's fail-evidence; the item's id. |
 | `element_text` | string \| null | optional | 1.0 | Visible text of the clicked element (≤ 80 chars). |
 | `dom_path` | string \| null | optional | 1.0 | Tag path with no classes. |
 | `component` | string \| null | optional | 1.0 | Nearest named React component; null when unknown (no React / anonymous / minified). |

@@ -1,4 +1,5 @@
 import { type ActionRecord, renderAction } from "./actions";
+import type { ChecklistState } from "./checklist";
 import { type ErrorRecord, formatErrorAge } from "./errors";
 import type {
   ArtifactFile,
@@ -44,12 +45,43 @@ function yamlBlock(
 }
 
 /**
- * Artifact format version. Bumped only on a breaking (non-additive) change;
- * additive fields keep the same major. Written as the first line of every
- * session.yaml; parsers treat a missing field as "1.0" (pre-versioning
- * artifacts). See SPEC.md.
+ * Artifact format version, `MAJOR.MINOR`. MINOR bumps for additive changes (a
+ * new optional field/section); MAJOR only for a breaking one. Written as the
+ * first line of every session.yaml; parsers treat a missing field as "1.0"
+ * (pre-versioning artifacts). See SPEC.md.
+ *
+ * 1.1 — additive `checklist` block (acceptance checklist verdicts) +
+ *       `checklist_item` issue frontmatter.
  */
-export const FORMAT_VERSION = "1.0";
+export const FORMAT_VERSION = "1.1";
+
+/**
+ * The `checklist:` block: definition identity + one entry per item with its
+ * verdict (null until acted on). Nested under `checklist` so it stays a single
+ * additive top-level key.
+ */
+function yamlChecklist(checklist: ChecklistState): string {
+  const head = `checklist:\n${yamlLine("id", checklist.id, "  ")}\n${yamlLine(
+    "title",
+    checklist.title,
+    "  "
+  )}`;
+  if (checklist.items.length === 0) {
+    return `${head}\n  items: []`;
+  }
+  const items = yamlListOfMaps(
+    checklist.items.map((item) => [
+      ["id", item.id],
+      ["section", item.section],
+      ["title", item.title],
+      ["verdict", item.verdict],
+      ["issue", item.issue],
+      ["ts", item.ts],
+    ]),
+    "    "
+  );
+  return `${head}\n  items:\n${items}`;
+}
 
 export function buildSessionYaml(state: SessionState): string {
   const headEntries: [string, YamlValue][] = [
@@ -89,6 +121,11 @@ export function buildSessionYaml(state: SessionState): string {
   // (null when configured but empty). Sessions without it stay byte-identical.
   if (state.reporter !== undefined) {
     head += `\n${yamlBlock("reporter", state.reporter)}`;
+  }
+  // Additive (format 1.1): acceptance checklist with per-item verdicts. Present
+  // only when a checklist is configured; sessions without one stay byte-identical.
+  if (state.checklist !== undefined) {
+    head += `\n${yamlChecklist(state.checklist)}`;
   }
 
   if (state.issues.length === 0) {
@@ -140,6 +177,8 @@ export interface IssueMarkdownInput {
   /** Total actions in the snapshot; emitted as `actions_count` when defined. */
   actionsCount?: number;
   category?: string;
+  /** Checklist item this issue is evidence for; emitted as `checklist_item`. */
+  checklistItem?: string | null;
   comment: string;
   /** Nearest named React component of the captured element; null when unknown. */
   component?: string | null;
@@ -195,6 +234,10 @@ export function buildIssueMarkdown(input: IssueMarkdownInput): string {
   lines.push(yamlLine("mode", input.mode));
   if (input.category !== undefined) {
     lines.push(yamlLine("category", input.category));
+  }
+  // Additive: the checklist item this issue provides fail-evidence for.
+  if (input.checklistItem !== undefined) {
+    lines.push(yamlLine("checklist_item", input.checklistItem));
   }
   if (input.elementText !== undefined) {
     lines.push(yamlLine("element_text", input.elementText));

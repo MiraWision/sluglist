@@ -14,6 +14,24 @@ export type {
   ActionKind,
   ActionRecord,
 } from "./actions";
+export {
+  checklistItems,
+  checklistProgress,
+  isVerdict,
+  normalizeChecklist,
+  seedChecklistState,
+} from "./checklist";
+export type {
+  Checklist,
+  ChecklistDef,
+  ChecklistDefItem,
+  ChecklistDefSection,
+  ChecklistItem,
+  ChecklistSection,
+  ChecklistState,
+  ChecklistVerdictItem,
+  Verdict,
+} from "./checklist";
 export { applyMask } from "./mask";
 export type { MaskResult } from "./mask";
 export { resolvePrivacy } from "./preset";

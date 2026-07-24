@@ -67,6 +67,18 @@ const AGENT_STEPS: { n: string; title: string; body: React.ReactNode }[] = [
       </>
     ),
   },
+  {
+    n: "+",
+    title: "Or hand it a checklist",
+    body: (
+      <>
+        Going the other way, ask the agent to{" "}
+        <em>&ldquo;generate a checklist from this branch.&rdquo;</em> It turns
+        the diff into a client-facing acceptance list; the client walks it and
+        every pass / fail / skip lands in <Mono>session.yaml</Mono>.
+      </>
+    ),
+  },
 ];
 
 const QUICK_START = `import {
@@ -190,6 +202,10 @@ const FEATURES = [
   {
     title: "Action trail & record mode",
     body: "Every issue carries a ## Actions trail — recent clicks, navigations and typing (never the content). Record mode adds a screenshot frame per step.",
+  },
+  {
+    title: "Checklist mode",
+    body: "Pre-seed an acceptance checklist; the client walks it and records pass / fail / skip. A fail opens the normal issue flow, linked. Get a coverage map in session.yaml — and generate the checklist from a branch diff.",
   },
   {
     title: "Pluggable connectors",

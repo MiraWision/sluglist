@@ -1,3 +1,5 @@
+import type { Checklist, ChecklistState } from "./checklist";
+
 /**
  * Contract types. These are the public API consumed by connectors and future
  * artifact parsers. Changes must be additive only.
@@ -101,6 +103,13 @@ export interface ReporterMeta {
 export interface FeedbackWidgetConfig {
   /** Background action trail (clicks/navigations/submits/typing). Default on. */
   actions?: FeedbackActionsConfig;
+  /**
+   * Optional acceptance checklist. Pass an inline {@link Checklist} object, or a
+   * URL string fetched (GET → JSON of the same shape) at init. Renders a second
+   * widget button; when absent the widget looks and works exactly as without it.
+   * An unreachable/invalid checklist warns and is skipped — capture still works.
+   */
+  checklist?: Checklist | string;
   connectors: FeedbackConnector[];
   /**
    * Flat project fields (string | number | boolean) attached to every issue's
@@ -145,6 +154,11 @@ export type CaptureMode = "element" | "fullpage" | "area";
 export interface CaptureIssueInput {
   /** Optional triage category, e.g. "bug" | "design" | "idea". */
   category?: string;
+  /**
+   * Checklist item id this issue provides evidence for (a `fail` verdict).
+   * Emitted as `checklist_item` in frontmatter; omitted for normal issues.
+   */
+  checklistItem?: string | null;
   comment: string;
   /** Nearest named React component of the captured element (element mode); null when unknown. */
   component?: string | null;
@@ -230,6 +244,11 @@ export interface SessionMeta {
 }
 
 export interface SessionState extends SessionMeta {
+  /**
+   * Acceptance checklist with per-item verdicts. Present only when a checklist
+   * is configured; rendered as the `checklist` block in session.yaml.
+   */
+  checklist?: ChecklistState;
   issues: IssueIndexEntry[];
 }
 

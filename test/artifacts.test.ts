@@ -46,7 +46,7 @@ describe("buildSessionYaml", () => {
   it("produces valid YAML that round-trips to the same data", () => {
     const parsed = parse(buildSessionYaml(state));
     expect(parsed).toEqual({
-      format_version: "1.0",
+      format_version: "1.1",
       project: "trugenix",
       session_id: "session-2026-07-20-a1b2",
       created_at: "2026-07-20T14:03:22Z",
@@ -480,8 +480,8 @@ describe("buildIssueMarkdown", () => {
 describe("format version + agent-context fields", () => {
   it("writes format_version as the first line of session.yaml", () => {
     const yaml = buildSessionYaml(state);
-    expect(yaml.startsWith('format_version: "1.0"\n')).toBe(true);
-    expect(parse(yaml).format_version).toBe("1.0");
+    expect(yaml.startsWith('format_version: "1.1"\n')).toBe(true);
+    expect(parse(yaml).format_version).toBe("1.1");
   });
 
   it("emits component (element mode) and a context block additively", () => {
@@ -532,6 +532,110 @@ describe("format version + agent-context fields", () => {
     });
     expect(md).not.toContain("component:");
     expect(md).not.toContain("context:");
+  });
+
+  it("emits a checklist block (format 1.1) with per-item verdicts", () => {
+    const yaml = buildSessionYaml({
+      ...state,
+      checklist: {
+        id: "feature-export-2026-07",
+        title: "Export + notifications release",
+        items: [
+          {
+            id: "export-button-visible",
+            section: "Export",
+            title: "Export button is visible on /reports",
+            verdict: "pass",
+            issue: null,
+            ts: "2026-07-24T14:05:10Z",
+          },
+          {
+            id: "csv-downloads",
+            section: "Export",
+            title: "CSV downloads with the right columns",
+            verdict: "fail",
+            issue: "03",
+            ts: "2026-07-24T14:06:00Z",
+          },
+          {
+            id: "email-sent",
+            section: "Notifications",
+            title: "Email is sent after export",
+            verdict: null,
+            issue: null,
+            ts: null,
+          },
+        ],
+      },
+    });
+    const parsed = parse(yaml);
+    expect(parsed.format_version).toBe("1.1");
+    expect(parsed.checklist.id).toBe("feature-export-2026-07");
+    expect(parsed.checklist.title).toBe("Export + notifications release");
+    expect(parsed.checklist.items).toEqual([
+      {
+        id: "export-button-visible",
+        section: "Export",
+        title: "Export button is visible on /reports",
+        verdict: "pass",
+        issue: null,
+        ts: "2026-07-24T14:05:10Z",
+      },
+      {
+        id: "csv-downloads",
+        section: "Export",
+        title: "CSV downloads with the right columns",
+        verdict: "fail",
+        issue: "03",
+        ts: "2026-07-24T14:06:00Z",
+      },
+      {
+        id: "email-sent",
+        section: "Notifications",
+        title: "Email is sent after export",
+        verdict: null,
+        issue: null,
+        ts: null,
+      },
+    ]);
+    // The fail verdict links to its issue; the id keeps its zero-padded form.
+    expect(parsed.checklist.items[1].issue).toBe("03");
+  });
+
+  it("omits the checklist block entirely when not configured (back-compat)", () => {
+    const parsed = parse(buildSessionYaml(state));
+    expect("checklist" in parsed).toBe(false);
+  });
+
+  it("emits checklist_item in an issue only when set", () => {
+    const withItem = parse(
+      buildIssueMarkdown({
+        id: "03",
+        url: "/reports",
+        selector: null,
+        mode: "fullpage",
+        viewport: "1512x982",
+        screenshot: "03-x.png",
+        checklistItem: "csv-downloads",
+        createdAt: "2026-07-24T14:06:00Z",
+        comment: "CSV is missing the total column",
+      }).split("---\n")[1]
+    );
+    expect(withItem.checklist_item).toBe("csv-downloads");
+
+    const withoutItem = parse(
+      buildIssueMarkdown({
+        id: "04",
+        url: "/reports",
+        selector: null,
+        mode: "fullpage",
+        viewport: "1512x982",
+        screenshot: null,
+        createdAt: "2026-07-24T14:07:00Z",
+        comment: "Normal issue",
+      }).split("---\n")[1]
+    );
+    expect("checklist_item" in withoutItem).toBe(false);
   });
 
   it("renders a network failure line in ## Errors", () => {

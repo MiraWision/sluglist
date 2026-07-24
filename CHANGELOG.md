@@ -1,5 +1,32 @@
 # Changelog
 
+## 1.8.0 — Checklist mode (structured acceptance)
+
+### Acceptance checklist + verdicts
+
+- **`config.checklist`** — pass an inline `Checklist` (sections of items) or a URL string (fetched
+  `GET` → JSON at init). A **second circle** appears above the feedback button with a progress badge;
+  the client walks the list and records **pass / fail / skip** per item. Entirely opt-in — with no
+  checklist the widget is byte-identical to before (the elements aren't even attached).
+- **Fail opens the normal issue flow**, linked both ways: the item stores the issue id, and the issue's
+  frontmatter carries `checklist_item`. A fail always has evidence — cancelling the capture leaves the
+  item unset.
+- Verdicts are written **put-per-verdict**: every click upserts `session.yaml` (same idempotent path as
+  per-issue writes), so progress survives the tab closing. Result: a **coverage map** — confirmed,
+  failed (with issue links), and never-checked.
+- Format **1.0 → 1.1** (additive): a `checklist:` block in `session.yaml` and the `checklist_item`
+  issue field. Missing `format_version` still means `1.0`; parsers ignore unknown fields.
+- **`sluglist-checklist` skill** (new): Claude Code turns a branch diff into a client-facing checklist
+  (`git diff <base>...HEAD`, user-visible changes only, grouped by feature, client voice) →
+  `public/checklist.json`. The `sluglist-fix` skill now reads the coverage map: fails are tasks,
+  unchecked items are reported as gaps.
+
+### Scope (deliberate)
+
+The checklist is a session input; verdicts are its output. No lifecycle after the session — no
+reopening, no cross-session sync, no server-side status, and issues are never blocked on completion.
+Every session runs the checklist fresh. `FeedbackConnector` is unchanged.
+
 ## 1.7.0 — Format versioning + agent context
 
 ### Artifact format is now versioned + specified

@@ -13,6 +13,12 @@ export interface FeedbackWidgetStrings {
   categoryBug: string;
   categoryDesign: string;
   categoryIdea: string;
+  checklistButton: string;
+  checklistDone: string;
+  checklistFail: string;
+  checklistOpen: string;
+  checklistPass: string;
+  checklistSkip: string;
   commentPlaceholder: string;
   deliveryFailed: string;
   dialogTitle: string;
@@ -52,6 +58,12 @@ export const DEFAULT_STRINGS: FeedbackWidgetStrings = {
   categoryBug: "Bug",
   categoryDesign: "Design",
   categoryIdea: "Idea",
+  checklistButton: "Checklist",
+  checklistDone: "Done",
+  checklistFail: "Report",
+  checklistOpen: "Open",
+  checklistPass: "Pass",
+  checklistSkip: "Skip",
   commentPlaceholder: "Describe the problem...",
   deliveryFailed: "Issue {id}: upload failed",
   dialogTitle: "New issue",

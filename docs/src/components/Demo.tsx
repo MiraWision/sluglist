@@ -54,6 +54,38 @@ export function Demo() {
       connectors: [connector],
       offlineQueue: false,
       shortcut: "Shift+F",
+      // Optional acceptance checklist → the second circle above the button.
+      // Pass a URL string instead of an object to load one at init.
+      checklist: {
+        id: "sluglist-tour",
+        title: "Try the widget",
+        sections: [
+          {
+            title: "Capture",
+            items: [
+              {
+                id: "full-page",
+                title: "Full-page screenshot lands in the artifacts panel",
+                hint: "Feedback → Full page → Send",
+              },
+              {
+                id: "annotate",
+                title: "Arrow / box / text annotate a shot",
+              },
+            ],
+          },
+          {
+            title: "Report",
+            items: [
+              {
+                id: "verdict-flow",
+                title: "A ✗ opens the normal issue flow and links back",
+                hint: "Mark this item failed to see it",
+              },
+            ],
+          },
+        ],
+      },
     });
     const ui = mountFeedbackWidget(widget, {
       categories: [

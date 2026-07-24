@@ -56,6 +56,26 @@ Open the frames in `<frames_dir>/` **in order** and line them up with the number
 which the defect appears** — that narrows the buggy code to whatever ran on that step. Frame `NN.png`
 shows the state *after* action `NN`.
 
+### Checklist coverage (`checklist:` in `session.yaml`)
+
+When the session was run against an acceptance checklist, `session.yaml` has a `checklist:` block: an
+`id`, `title`, and `items[]`, each with a `verdict` (`pass` | `fail` | `skip` | `null`), an optional
+`issue` (the id of the issue that documents a fail), and a `ts`. Read it as the client's sign-off map:
+
+- **`verdict: fail`** → a real defect the client hit. Its `issue` points to the `NN-*.md` issue with
+  the full context (screenshot, selector, errors). The failing issue's frontmatter carries
+  `checklist_item: <item id>` linking back. **These are your work items** — fix them like any issue,
+  and note in `.done` which checklist item each fix closes.
+- **`verdict: null`** (not checked) → the client did **not** verify this item. This is **not a task for
+  you** — you can't manufacture a client's acceptance. List these in `.done` under a
+  **"Not verified by client"** heading so the owner knows what still needs a human pass.
+- **`verdict: pass`** → confirmed working. Leave it alone; don't "improve" passed items.
+- **`verdict: skip`** → the client deliberately skipped it. Mention it only if relevant; it's not a task.
+
+The checklist is a per-session snapshot — verdicts are the output of *that* run, not a durable status.
+Don't try to reconcile it across sessions or reopen items; just act on this session's fails and report
+the gaps.
+
 ## Algorithm
 
 1. **Find work.** List `.sluglist/session-*/` folders. If `.sluglist/` does not exist but a legacy
@@ -76,7 +96,9 @@ shows the state *after* action `NN`.
       string), and `url` (map to the route/page/file). The `screen` field narrows the area.
    d. **Fix** the smallest change that resolves the report.
 4. **Report.** After handling a session, write `.sluglist/{session}/.done` — a short markdown report:
-   per issue, `issue → file(s) touched → what you did` (or `needs clarification → why`).
+   per issue, `issue → file(s) touched → what you did` (or `needs clarification → why`). If the session
+   had a `checklist:` block, add which checklist item each fix closed, and a **"Not verified by client"**
+   list of the `verdict: null` items (a signal to the owner, not work you did).
 
 ## Rules
 

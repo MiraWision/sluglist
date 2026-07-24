@@ -1,3 +1,122 @@
+# RUN_EVIDENCE — checklist mode (structured UAT acceptance)
+
+Date: 2026-07-24. Additive-only; `FeedbackConnector` unchanged; format `1.0 → 1.1` (minor, additive).
+**171 unit/integration tests pass** (was 150), type-check clean, lib + docs build clean. Scope frozen:
+the checklist is a session *input*, verdicts are its *output* — no lifecycle after the session.
+
+## Phase 0 — Pre-flight audit (surface → state → action)
+
+| Surface | State | Action taken |
+|---|---|---|
+| Widget UI (`ui/mount.ts` + `ui/styles.ts`) | REAL — shadow-DOM, one `.fab` @ `bottom:24px`, `.menu`/`.panel` @ `bottom:80px` | Added `.checklist-fab` @ `bottom:78px` (stacks above) + a `.checklist-panel`; attached **only** when a checklist resolves. No shortcut/positioning rebuild → no STOP |
+| Session model (`session.ts`, `widget.ts`, `artifacts.ts`) | REAL — `SessionManager` (sessionStorage) → `buildSessionYaml` → `enqueueDelivery(id, [sessionYamlFile])` per issue | Put-per-verdict = same path (re-put `session.yaml`). Session seeded with the checklist on first issue **or** first verdict (lazy-create shared via `makeMeta`) |
+| Format (`FORMAT_VERSION`, SPEC) | REAL — `"1.0"`, byte-exact fixture + 2 asserting tests | Bumped to `"1.1"` (single generator version); updated fixture + tests |
+| Skills | REAL — `sluglist-fix`, `skills/` shipped in package | Added `skills/sluglist-checklist/SKILL.md`; extended `sluglist-fix` with a checklist-coverage section |
+| Landing/README/SPEC | REAL — `App.tsx` FEATURES/agents, README sections, SPEC v1.0 | Feature card + agent-story step; README "Checklist mode" section; SPEC v1.1 tables |
+
+## Phase 1 — Model & format (additive, tested)
+
+- `src/checklist.ts` (new, pure like `reporter.ts`): `normalizeChecklist` (unique ids, ≤ 20 sections,
+  ≤ 50 items, titles clipped to 120, invalid dropped with warning, never throws), `seedChecklistState`,
+  `checklistProgress`, `isVerdict`. Config `Checklist` (sections) → validated `ChecklistDef`.
+- `session.yaml` `checklist:` block + `checklist_item` issue frontmatter, both additive. `FORMAT_VERSION`
+  → `"1.1"`. Sessions with no checklist stay byte-identical apart from the version line.
+- Tests: `test/checklist.test.ts` (11 — validation, limits, dup ids, seeding, progress) +
+  `test/artifacts.test.ts` (+3 — checklist block round-trips, `checklist_item` emitted only when set,
+  back-compat omission) + `test/checklist-widget.test.ts` (7 — put-per-verdict, fail→issue link +
+  `checklist_item`, fail→pass drops the link, no-op without a checklist, **URL fetch** + **404 → warn,
+  capture still works**).
+
+## Phase 2 — UI: second circle + panel (real-browser, sluglist.dev demo)
+
+Verified live in the preview (shadow-DOM introspection + interaction):
+
+- Second circle attaches only when a checklist resolves: `.checklist-fab` `display:flex` @ `bottom:78px`,
+  main `.fab` @ `bottom:24px`; badge `0/3`. Without a checklist the shadow tree is unchanged (elements
+  built but never appended).
+- Panel: title "Try the widget", collapsible **Capture** / **Report** sections, 3 items, each with
+  ✓ / ✕ / – and hints. Clicking **Pass** on #1 + **Skip** on #2 → badge/progress `2/3`, active states +
+  row tint applied.
+- Fail-flow: ✕ on #3 closed the checklist and opened the capture menu (5 modes). Completing a
+  comment-only issue → checklist **reopened**, item marked **fail**, `issue 01` link shown, progress
+  `3/3` (green complete). Reload → badge still `3/3` (verdicts persist in the session).
+- Delivered artifacts (demo connector), verbatim:
+
+```yaml
+# session.yaml
+checklist:
+  id: sluglist-tour
+  title: Try the widget
+  items:
+    - id: full-page
+      section: Capture
+      title: Full-page screenshot lands in the artifacts panel
+      verdict: pass
+      issue: null
+      ts: 2026-07-24T08:30:41Z
+    - id: annotate
+      section: Capture
+      title: Arrow / box / text annotate a shot
+      verdict: skip
+      issue: null
+      ts: 2026-07-24T08:30:41Z
+    - id: verdict-flow   # …verdict: fail, issue: "01"
+```
+
+```yaml
+# 01-…​.md frontmatter
+mode: fullpage
+checklist_item: verdict-flow
+```
+
+- Mobile (≤ 480px): panel goes full-width (`left/right: 12px`, `bottom: 12px`).
+
+## Phase 3 — Skills
+
+- `skills/sluglist-checklist/SKILL.md` (new): base = `main`→`master` (override honored); include only
+  user-visible pages/components/text; exclude refactors/tests/config; group by feature; client voice
+  (self-check bans code identifiers in titles); emit `Checklist` JSON to `public/checklist.json`;
+  ambiguous changes → a "Not included — confirm" list, never faked items; ≤ 50 items.
+- `skills/sluglist-fix/SKILL.md`: new "Checklist coverage" section — `fail` items (with their linked
+  issue via `checklist_item`) are tasks; `null` items go to a "Not verified by client" report section
+  (a gap, not a task); `pass`/`skip` are left alone. Report step updated.
+
+## Phase 4 — Docs
+
+- SPEC.md → **v1.1**: `checklist` session table + `items[]` sub-table + `checklist_item` issue field,
+  all marked `Since 1.1`; versioning note. README: "Checklist mode" section (inline + URL config, yaml
+  result, generator-skill subsection, explicit scope-boundary paragraph); `format_version` refs → 1.1.
+- Landing: "Checklist mode" feature card + a `+` agent-story step ("generate a checklist from this
+  branch"); live demo wired with an inline checklist. `npm run build` clean (70 modules).
+- **SPEC ⇄ generator field check** (parsed a real `buildSessionYaml`/`buildIssueMarkdown`):
+
+  | Location | SPEC says | Generator emits | Match |
+  |---|---|---|---|
+  | `checklist` block | `id`, `title`, `items` | `id`, `items`, `title` | ✓ |
+  | `checklist.items[]` | `id`, `section`, `title`, `verdict`, `issue`, `ts` | `id`, `issue`, `section`, `title`, `ts`, `verdict` | ✓ |
+  | issue frontmatter | `checklist_item` (optional) | `checklist_item` (only when set) | ✓ |
+
+## Phase 5 — E2E
+
+- **Generator → JSON:** `docs/public/checklist.json` produced for this branch's visible surface
+  (landing card, agent step, demo widget). Validated: `normalizeChecklist` → **2 sections, 5 items**,
+  every title jargon-free (regex self-check), ≤ 50. Served by the dev server: `GET /checklist.json` →
+  `200`, valid JSON (proves the URL-load path end to end; the fetch + 404 branches are also unit-tested).
+- **Client walk → artifacts → fix-skill:** the Phase-2 run is the walk (pass + skip + fail-with-issue +
+  one untouched → coverage map in `session.yaml`, fail linked). `sluglist-fix` reads that block per its
+  new section.
+
+## Known limitations (conscious)
+
+- URL checklists need `fetch`; absent it, the checklist is skipped (capture unaffected). Guarded.
+- A fail requires an issue by design — cancelling the capture leaves the item unset (no "fail without
+  evidence"). Verified via the Escape/close path clearing the pending item.
+- Verdicts live only in the session (sessionStorage + `session.yaml`); no cross-session or server state
+  — this is the frozen scope, not a gap.
+- The checklist and capture panels share the corner; opening one closes the other (only one is ever up).
+
+---
+
 # RUN_EVIDENCE — sluglist.dev + format versioning + agent context
 
 Date: 2026-07-23. Additive-only; `FeedbackConnector` unchanged. Version bumped 1.6.0 → **1.7.0**.
