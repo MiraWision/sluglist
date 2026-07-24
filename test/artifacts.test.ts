@@ -46,7 +46,7 @@ describe("buildSessionYaml", () => {
   it("produces valid YAML that round-trips to the same data", () => {
     const parsed = parse(buildSessionYaml(state));
     expect(parsed).toEqual({
-      format_version: "1.1",
+      format_version: "1.2",
       project: "trugenix",
       session_id: "session-2026-07-20-a1b2",
       created_at: "2026-07-20T14:03:22Z",
@@ -423,6 +423,41 @@ describe("buildIssueMarkdown", () => {
     expect(md).toContain("- [18s before report] submit form#payment — frame 03");
   });
 
+  it("emits a clips block + clip-tagged Actions for multi-clip recordings", () => {
+    const at = 100_000;
+    const md = buildIssueMarkdown({
+      id: "03",
+      url: "/checkout",
+      selector: null,
+      mode: "fullpage",
+      viewport: "1512x982",
+      screenshot: "03-checkout-bug.png",
+      recording: true,
+      framesCount: 8,
+      framesDir: "03-checkout-bug-frames",
+      clips: [
+        { id: "clip-01", frames: 5 },
+        { id: "clip-02", frames: 3 },
+      ],
+      actionsAt: at,
+      actionsCount: 2,
+      actions: [
+        { ts: at - 24_000, kind: "click", selector: "button.pay", frame: 2, clip: 1 },
+        { ts: at - 18_000, kind: "submit", selector: "form#payment", frame: 2, clip: 2 },
+      ],
+      createdAt: "2026-07-22T10:00:00Z",
+      comment: "Two recordings",
+    });
+    const fm = parse(md.split("---\n")[1]);
+    expect(fm.frames_count).toBe(8);
+    expect(fm.clips).toEqual([
+      { id: "clip-01", frames: 5 },
+      { id: "clip-02", frames: 3 },
+    ]);
+    expect(md).toContain("- [24s before report] click button.pay — clip 1, frame 02");
+    expect(md).toContain("- [18s before report] submit form#payment — clip 2, frame 02");
+  });
+
   it("emits `frames` in the session index only when set", () => {
     const withFrames = parse(
       buildSessionYaml({
@@ -480,8 +515,8 @@ describe("buildIssueMarkdown", () => {
 describe("format version + agent-context fields", () => {
   it("writes format_version as the first line of session.yaml", () => {
     const yaml = buildSessionYaml(state);
-    expect(yaml.startsWith('format_version: "1.1"\n')).toBe(true);
-    expect(parse(yaml).format_version).toBe("1.1");
+    expect(yaml.startsWith('format_version: "1.2"\n')).toBe(true);
+    expect(parse(yaml).format_version).toBe("1.2");
   });
 
   it("emits component (element mode) and a context block additively", () => {
@@ -569,7 +604,7 @@ describe("format version + agent-context fields", () => {
       },
     });
     const parsed = parse(yaml);
-    expect(parsed.format_version).toBe("1.1");
+    expect(parsed.format_version).toBe("1.2");
     expect(parsed.checklist.id).toBe("feature-export-2026-07");
     expect(parsed.checklist.title).toBe("Export + notifications release");
     expect(parsed.checklist.items).toEqual([

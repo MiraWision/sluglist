@@ -17,7 +17,9 @@ export function widgetStyles(theme: UiTheme): string {
   position: fixed;
   bottom: 24px;
   ${side}: 24px;
-  z-index: 2147483646;
+  /* One below the menus/panels/toast (…646) so those always paint over the
+     floating circles instead of the circles covering them. */
+  z-index: 2147483645;
   height: 44px;
   min-width: 44px;
   max-width: 44px;
@@ -95,6 +97,8 @@ export function widgetStyles(theme: UiTheme): string {
   border-width: 1px;
   opacity: 1;
 }
+/* Neutral (brand) badge for the issue count — red is reserved for delivery
+   problems, surfaced by the toast, not by this counter. */
 .badge {
   position: absolute;
   top: -4px;
@@ -103,7 +107,7 @@ export function widgetStyles(theme: UiTheme): string {
   height: 20px;
   padding: 0 5px;
   border-radius: 10px;
-  background: #dc2626;
+  background: ${theme.accentColor};
   color: #fff;
   font-size: 12px;
   line-height: 20px;
@@ -116,7 +120,7 @@ export function widgetStyles(theme: UiTheme): string {
   position: fixed;
   bottom: 78px;
   ${side}: 24px;
-  z-index: 2147483646;
+  z-index: 2147483645;
   width: 44px;
   height: 44px;
   border-radius: 22px;
@@ -141,7 +145,8 @@ export function widgetStyles(theme: UiTheme): string {
 .checklist-fab .cl-badge {
   position: absolute;
   top: -6px;
-  ${side === "right" ? "left" : "right"}: -6px;
+  /* Same corner as the main FAB's count badge (top-right), not mirrored. */
+  right: -6px;
   min-width: 20px;
   height: 18px;
   padding: 0 5px;
@@ -243,7 +248,7 @@ export function widgetStyles(theme: UiTheme): string {
 }
 .panel {
   position: fixed;
-  bottom: 80px;
+  bottom: 24px;
   ${side}: 24px;
   z-index: 2147483646;
   width: 340px;
@@ -666,8 +671,26 @@ export function widgetStyles(theme: UiTheme): string {
   color: #6b7280;
   font-size: 12px;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 .add-shot:hover {
+  border-color: ${theme.accentColor};
+  color: ${theme.accentColor};
+}
+/* Kbd chip: shows the live toggle shortcut wherever we invite a screenshot. */
+.kbd-hint {
+  font-family: inherit;
+  font-size: 10px;
+  line-height: 1;
+  color: #9ca3af;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  padding: 2px 5px;
+  white-space: nowrap;
+}
+.add-shot:hover .kbd-hint {
   border-color: ${theme.accentColor};
   color: ${theme.accentColor};
 }
@@ -760,12 +783,14 @@ textarea:focus {
    time), taller with its own scroll for long lists. */
 .checklist-panel {
   position: fixed;
-  bottom: 80px;
+  /* Sits in the corner with matching right/bottom margins — the floating circle
+     is hidden while the panel is open, so no gap is needed for it. */
+  bottom: 24px;
   ${side}: 24px;
   z-index: 2147483646;
   width: 360px;
   max-width: calc(100vw - 48px);
-  max-height: calc(100vh - 120px);
+  max-height: calc(100vh - 48px);
   background: #fff;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
@@ -775,90 +800,183 @@ textarea:focus {
   pointer-events: auto;
 }
 .checklist-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 12px 14px 10px;
+  padding: 14px 16px 12px;
   border-bottom: 1px solid #f1f1f3;
 }
+.cl-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+/* The title reads like a document heading, not a UI label. */
 .checklist-head h2 {
   margin: 0;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.3;
   color: #111;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  letter-spacing: -0.01em;
 }
-.checklist-progress {
+.cl-close {
   flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  margin: -3px -4px 0 0;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  color: #9ca3af;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.cl-close:hover {
+  background: #f3f4f6;
+  color: #111;
+}
+.cl-description {
+  margin: 6px 0 0;
   font-size: 12px;
-  font-weight: 600;
+  line-height: 1.45;
+  color: #6b7280;
+}
+.cl-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-top: 10px;
+}
+.cl-summary-line {
+  font-size: 12px;
+  font-weight: 500;
   color: #6b7280;
   font-variant-numeric: tabular-nums;
 }
-.checklist-progress.complete {
+.cl-summary.complete .cl-summary-line {
   color: #16a34a;
+  font-weight: 600;
+}
+.cl-summary-note {
+  font-size: 11px;
+  color: #9ca3af;
 }
 .checklist-body {
   overflow-y: auto;
-  padding: 6px 8px 10px;
+  padding: 6px 8px 12px;
 }
 .cl-section {
-  margin-top: 4px;
+  margin-top: 2px;
 }
 .cl-section-head {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   width: 100%;
   border: none;
   background: none;
-  padding: 6px 6px;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #9ca3af;
+  padding: 8px 6px;
   cursor: pointer;
   text-align: left;
 }
 .cl-section-head .cl-chevron {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
   transition: transform 0.15s ease;
-  font-size: 9px;
-  color: #b3b3b8;
+  color: #9ca3af;
+}
+.cl-section-head .cl-chevron svg {
+  width: 12px;
+  height: 12px;
+}
+.cl-section-name {
+  flex: 1 1 auto;
+  font-size: 13px;
+  font-weight: 600;
+  color: #111;
+}
+.cl-section-meta {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 500;
+  color: #9ca3af;
+  font-variant-numeric: tabular-nums;
+}
+.cl-section.done .cl-section-name {
+  color: #9ca3af;
 }
 .cl-section.collapsed .cl-chevron {
   transform: rotate(-90deg);
 }
-.cl-section.collapsed .cl-items {
-  display: none;
-}
+/* Smooth collapse: animate the grid track from 1fr → 0fr (auto-height that CSS
+   can transition), with the inner wrapper clipped as it shrinks. */
 .cl-items {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 0.22s ease;
+}
+.cl-section.collapsed .cl-items {
+  grid-template-rows: 0fr;
+}
+.cl-items-inner {
+  overflow: hidden;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 .cl-item {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  padding: 7px 8px;
+  gap: 9px;
+  padding: 8px 8px;
   border-radius: 8px;
   border: 1px solid transparent;
+  cursor: pointer;
+  position: relative;
 }
 .cl-item:hover {
   background: #fafafa;
 }
-.cl-item.pass {
-  background: rgba(22, 163, 74, 0.06);
+.cl-item:focus-visible {
+  outline: 2px solid ${theme.accentColor};
+  outline-offset: -1px;
 }
-.cl-item.fail {
-  background: rgba(220, 38, 38, 0.06);
+/* Left check indicator: an empty circle → ✓ (clean) → ! (issue). */
+.cl-check {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border-radius: 50%;
+  border: 1.5px solid #d1d5db;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
-.cl-item.skip {
-  opacity: 0.72;
+.cl-item.pass .cl-check,
+.cl-item.skip .cl-check {
+  background: ${theme.accentColor};
+  border-color: ${theme.accentColor};
+}
+.cl-item.fail .cl-check {
+  background: #dc2626;
+  border-color: #dc2626;
+}
+.cl-item.here {
+  background: rgba(59, 130, 246, 0.07);
+  border-color: rgba(59, 130, 246, 0.28);
 }
 .cl-item-main {
   flex: 1 1 auto;
@@ -867,21 +985,50 @@ textarea:focus {
   flex-direction: column;
   gap: 2px;
 }
+.cl-item-titlerow {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+}
 .cl-item-title {
   font-size: 13px;
   color: #111;
   line-height: 1.35;
+}
+/* Checked-clean: greyed + struck through. A flagged item keeps its text but
+   gets the issue accent instead. */
+.cl-item.pass .cl-item-title,
+.cl-item.skip .cl-item-title {
+  color: #9ca3af;
+  text-decoration: line-through;
+}
+.cl-item-here {
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #2563eb;
+  background: rgba(59, 130, 246, 0.12);
+  padding: 1px 6px;
+  border-radius: 999px;
 }
 .cl-item-hint {
   font-size: 11px;
   color: #9ca3af;
   line-height: 1.3;
 }
+.cl-item-links {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 1px;
+}
 .cl-item-link {
   font-size: 11px;
   color: ${theme.accentColor};
   text-decoration: none;
-  align-self: flex-start;
 }
 .cl-item-link:hover {
   text-decoration: underline;
@@ -891,58 +1038,41 @@ textarea:focus {
   color: #dc2626;
   font-variant-numeric: tabular-nums;
 }
-.cl-item-actions {
+/* The slug (issue) button: hidden until row hover on pointer devices, always
+   visible but muted on touch. */
+.cl-issue-btn {
   flex: 0 0 auto;
-  display: flex;
-  gap: 3px;
-}
-.cl-act {
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
-  border: 1px solid #e5e7eb;
-  background: #fff;
-  color: #6b7280;
-  font-size: 13px;
-  line-height: 1;
+  width: 28px;
+  height: 28px;
+  margin: -2px -2px 0 0;
+  border: none;
+  background: none;
+  border-radius: 7px;
+  color: #9ca3af;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0;
+  opacity: 0;
+  transition: opacity 0.12s ease, color 0.12s ease, background 0.12s ease;
 }
-.cl-act:hover {
-  border-color: #9ca3af;
+.cl-issue-btn svg {
+  width: 17px;
+  height: 17px;
 }
-.cl-act.pass.active {
-  background: #16a34a;
-  border-color: #16a34a;
-  color: #fff;
+.cl-item:hover .cl-issue-btn,
+.cl-issue-btn:focus-visible,
+.cl-issue-btn.touch {
+  opacity: 1;
 }
-.cl-act.fail.active {
-  background: #dc2626;
-  border-color: #dc2626;
-  color: #fff;
+.cl-issue-btn.touch {
+  opacity: 0.5;
 }
-.cl-act.skip.active {
-  background: #6b7280;
-  border-color: #6b7280;
-  color: #fff;
-}
-.checklist-foot {
-  display: flex;
-  justify-content: flex-end;
-  padding: 8px 12px;
-  border-top: 1px solid #f1f1f3;
-}
-.checklist-foot button {
-  border-radius: 8px;
-  padding: 7px 14px;
-  font-size: 13px;
-  cursor: pointer;
-  border: 1px solid #d1d5db;
-  background: #fff;
-  color: #111;
+.cl-issue-btn:hover {
+  background: rgba(220, 38, 38, 0.1);
+  color: #dc2626;
+  opacity: 1;
 }
 @media (max-width: 480px) {
   .panel {

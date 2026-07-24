@@ -74,8 +74,9 @@ const AGENT_STEPS: { n: string; title: string; body: React.ReactNode }[] = [
       <>
         Going the other way, ask the agent to{" "}
         <em>&ldquo;generate a checklist from this branch.&rdquo;</em> It turns
-        the diff into a client-facing acceptance list; the client walks it and
-        every pass / fail / skip lands in <Mono>session.yaml</Mono>.
+        the diff into a client-facing acceptance list; the client clicks each row
+        to check it off (or flags a problem), and every verdict lands in{" "}
+        <Mono>session.yaml</Mono>.
       </>
     ),
   },
@@ -205,7 +206,7 @@ const FEATURES = [
   },
   {
     title: "Checklist mode",
-    body: "Pre-seed an acceptance checklist; the client walks it and records pass / fail / skip. A fail opens the normal issue flow, linked. Get a coverage map in session.yaml — and generate the checklist from a branch diff.",
+    body: "Pre-seed an acceptance checklist; the client clicks each row to check it off, or flags a problem to open the normal issue flow, linked. Smart links point them at the right page. Get a coverage map in session.yaml — and generate the checklist from a branch diff.",
   },
   {
     title: "Pluggable connectors",

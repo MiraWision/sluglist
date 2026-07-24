@@ -164,8 +164,17 @@ export interface CaptureIssueInput {
   component?: string | null;
   /** Full tag path with no classes (element mode). */
   domPath?: string | null;
-  /** Record-mode frames, in order (start + per-action). */
+  /**
+   * Record-mode frames, in order (start + per-action). Legacy single-clip form;
+   * when {@link CaptureIssueInput.clips} is set it takes precedence. Kept so a
+   * caller passing one flat sequence still works (treated as `clip-01`).
+   */
   frames?: Blob[];
+  /**
+   * Record-mode clips: one ordered frame sequence per Record→Stop cycle. Each
+   * becomes a `clip-NN/` subfolder. Preferred over {@link CaptureIssueInput.frames}.
+   */
+  clips?: Blob[][];
   /** Whether this issue is a recording (frames attached). */
   recording?: boolean;
   /**

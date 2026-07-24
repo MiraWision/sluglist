@@ -28,6 +28,12 @@ export interface ActionRecord {
   chars?: number;
   /** record mode: the frame number captured for this action (set externally). */
   frame?: number;
+  /**
+   * record mode: the 1-based clip this frame belongs to (a clip = one
+   * Record→Stop cycle). Set alongside `frame`; drives the `— clip N, frame NN`
+   * suffix. Absent on frames from pre-clip artifacts (rendered as `— frame NN`).
+   */
+  clip?: number;
 }
 
 export interface ActionCapture {
@@ -241,7 +247,9 @@ export function createActionCapture(
 export function renderAction(record: ActionRecord): string {
   const frameSuffix =
     record.frame !== undefined
-      ? ` — frame ${String(record.frame).padStart(2, "0")}`
+      ? record.clip !== undefined
+        ? ` — clip ${record.clip}, frame ${String(record.frame).padStart(2, "0")}`
+        : ` — frame ${String(record.frame).padStart(2, "0")}`
       : "";
   switch (record.kind) {
     case "navigate":

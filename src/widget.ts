@@ -66,6 +66,14 @@ export interface FeedbackWidgetCore {
    * and `skip` clear any prior issue link. No-op when no checklist is configured.
    */
   recordVerdict(itemId: string, verdict: Verdict, issueId?: string | null): void;
+  /**
+   * Clear an item's verdict back to "not tested" (verdict → null), upserting
+   * session.yaml. The `issue` link (if any) is intentionally preserved: an issue
+   * already delivered is not retractable, so the connection stays in the yaml
+   * for the fix-skill even though the client withdrew their sign-off. No-op when
+   * no checklist is configured.
+   */
+  clearVerdict(itemId: string): void;
   /** Number of issues captured in the current session. */
   getIssueCount(): number;
   /** Number of delivery batches still uploading. */
@@ -325,12 +333,27 @@ export function createFeedbackWidget(
     const errorSnapshot = errorCapture.snapshot();
     const actionSnapshot = actionCapture.snapshot();
 
-    // Record-mode frames: a subfolder of numbered PNGs (additive, only when set).
-    const frames = input.frames ?? [];
-    const isRecording = input.recording === true && frames.length > 0;
+    // Record-mode clips: each Record→Stop cycle is one clip, written to its own
+    // `<framesDir>/clip-NN/` subfolder of numbered PNGs (additive, only when set).
+    // `clips` wins; a legacy flat `frames` array is treated as a single clip.
+    const clipBlobs: Blob[][] = (
+      input.clips ?? (input.frames ? [input.frames] : [])
+    ).filter((c) => c.length > 0);
+    const frameTotal = clipBlobs.reduce((n, c) => n + c.length, 0);
+    const isRecording = input.recording === true && frameTotal > 0;
     const framesDir = isRecording ? `${id}-${slug}-frames` : null;
-    const framePaths = isRecording
-      ? frames.map((_, i) => `${framesDir}/${String(i + 1).padStart(2, "0")}.png`)
+    const clipId = (ci: number): string => `clip-${String(ci + 1).padStart(2, "0")}`;
+    // Flat list of [path, blob] for every frame across every clip.
+    const framePairs: { path: string; blob: Blob }[] = isRecording
+      ? clipBlobs.flatMap((clip, ci) =>
+          clip.map((blob, fi) => ({
+            path: `${framesDir}/${clipId(ci)}/${String(fi + 1).padStart(2, "0")}.png`,
+            blob,
+          }))
+        )
+      : [];
+    const clipsMeta = isRecording
+      ? clipBlobs.map((clip, ci) => ({ id: clipId(ci), frames: clip.length }))
       : [];
 
     const entry: IssueIndexEntry = {
@@ -340,7 +363,7 @@ export function createFeedbackWidget(
       ...(pngPaths.length > 1 ? { screenshots: pngPaths } : {}),
       ...(input.category ? { category: input.category } : {}),
       ...(input.screen ? { screen: input.screen } : {}),
-      ...(isRecording ? { frames: frames.length } : {}),
+      ...(isRecording ? { frames: frameTotal } : {}),
       url: env.url,
       selector: input.selector ?? null,
       created_at: createdAt,
@@ -351,8 +374,8 @@ export function createFeedbackWidget(
     const files: ArtifactFile[] = shots.map((shot, i) =>
       screenshotFile(pngPaths[i], shot)
     );
-    for (let i = 0; i < frames.length && isRecording; i++) {
-      files.push(screenshotFile(framePaths[i], frames[i]));
+    for (const frame of framePairs) {
+      files.push(screenshotFile(frame.path, frame.blob));
     }
     files.push(
       issueMarkdownFile(mdPath, {
@@ -399,12 +422,13 @@ export function createFeedbackWidget(
         actions: actionSnapshot,
         actionsAt: createdAtMs,
         actionsCount: actionSnapshot.length,
-        // Record mode: recording flag + frames dir (only for recordings).
+        // Record mode: recording flag + frames dir + per-clip breakdown.
         ...(isRecording
           ? {
               recording: true,
-              framesCount: frames.length,
+              framesCount: frameTotal,
               framesDir: framesDir as string,
+              clips: clipsMeta,
             }
           : {}),
         createdAt,
@@ -463,6 +487,21 @@ export function createFeedbackWidget(
       sessions.write(state);
       // Put-per-verdict: re-put only the session index (like put-per-issue),
       // so a verdict survives the tab closing right after.
+      enqueueDelivery(state.session_id, [sessionYamlFile(state)]);
+    },
+    clearVerdict: (itemId) => {
+      if (!enabled || !checklistDef) {
+        return;
+      }
+      const state = ensureSession();
+      const item = state.checklist?.items.find((i) => i.id === itemId);
+      if (!item || item.verdict === null) {
+        return;
+      }
+      item.verdict = null;
+      // `issue` is deliberately left in place (see interface docs).
+      item.ts = isoTimestamp(new Date());
+      sessions.write(state);
       enqueueDelivery(state.session_id, [sessionYamlFile(state)]);
     },
   };

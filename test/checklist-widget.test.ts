@@ -80,7 +80,7 @@ describe("checklist verdicts (put-per-verdict)", () => {
 
     const sessionId = widget.getSession()?.session_id as string;
     const yaml = await sessionYaml(memory, sessionId);
-    expect(yaml.format_version).toBe("1.1");
+    expect(yaml.format_version).toBe("1.2");
     expect(yaml.checklist.id).toBe("export-release");
     const csv = yaml.checklist.items.find((i: { id: string }) => i.id === "csv-downloads");
     expect(csv.verdict).toBeNull();
@@ -135,6 +135,26 @@ describe("checklist verdicts (put-per-verdict)", () => {
     expect(item?.issue).toBeNull();
   });
 
+  it("clearVerdict resets the verdict to null but preserves the issue link", async () => {
+    const memory = new MemoryConnector();
+    const widget = makeWidget([memory]);
+
+    const result = await widget.captureIssue({
+      comment: "broken",
+      mode: "fullpage",
+      checklistItem: "csv-downloads",
+    });
+    widget.recordVerdict("csv-downloads", "fail", result?.issueId ?? null);
+    // The client checked it, flagged it, then withdrew their verdict.
+    widget.clearVerdict("csv-downloads");
+    await widget.captureIssue({ comment: "flush", mode: "fullpage" }).then((r) => r?.delivered);
+
+    const item = widget.getChecklistState()?.items.find((i) => i.id === "csv-downloads");
+    expect(item?.verdict).toBeNull();
+    // The delivered issue is not retractable — the link stays for the fix-skill.
+    expect(item?.issue).toBe(result?.issueId);
+  });
+
   it("no checklist configured → no checklist block, verdicts are a no-op", async () => {
     const memory = new MemoryConnector();
     const widget = makeWidget([memory], false);
@@ -146,7 +166,7 @@ describe("checklist verdicts (put-per-verdict)", () => {
     const sessionId = widget.getSession()?.session_id as string;
     const yaml = await sessionYaml(memory, sessionId);
     expect("checklist" in yaml).toBe(false);
-    expect(yaml.format_version).toBe("1.1");
+    expect(yaml.format_version).toBe("1.2");
   });
 });
 

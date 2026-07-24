@@ -31,7 +31,7 @@ locally, `sluglist dev` wrote it into `.sluglist/`, and now you read those issue
 Issue frontmatter fields you rely on: `url` (route/page), `selector` + `selector_strategy`,
 `element_text` (the visible text of the clicked element), `component` (nearest named React component,
 when known — a direct pointer to the source file), `screen`, `mode`, `errors_count`, `actions_count`,
-and (for recordings) `recording: true` + `frames_count` + `frames_dir`. There may also be a `context`
+and (for recordings) `recording: true` + `frames_count` + `frames_dir` + a `clips:` list. There may also be a `context`
 block (runtime host state: tenant, feature flags, build version) — useful for reproducing under the
 same conditions. The body has a `## Errors` section (recent page errors, including failed network
 calls as `network: METHOD /path → status`) and a `## Actions` section (what the user did before
@@ -51,26 +51,51 @@ trail are code entry points **on par with** the issue's own `selector`:
 
 ### Recording issues (`recording: true`)
 
-Open the frames in `<frames_dir>/` **in order** and line them up with the numbered `## Actions` lines
-(`— frame NN` ↔ `NN.png`; `01.png` is the initial state). Find the two consecutive frames **between
-which the defect appears** — that narrows the buggy code to whatever ran on that step. Frame `NN.png`
-shows the state *after* action `NN`.
+A recording is split into **clips** — one per Record→Stop cycle. The frontmatter lists them:
+
+```yaml
+recording: true
+frames_count: 8
+frames_dir: 03-checkout-bug-frames
+clips:
+  - id: clip-01
+    frames: 5
+  - id: clip-02
+    frames: 3
+```
+
+Frames live under `<frames_dir>/<clip-id>/NN.png` (e.g. `03-checkout-bug-frames/clip-01/01.png`), and the
+`## Actions` lines carry `— clip N, frame NN` pointing at `clip-0N/NN.png`. Within each clip, `01.png` is
+the initial state and `NN.png` is the state *after* action `NN`.
+
+**Read each clip as its own sequence — do not stitch clips into one timeline.** Separate clips are separate
+attempts/scenarios the tester recorded (e.g. "here's the happy path" then "here's what breaks"); their frame
+numbering restarts at `01` per clip. Within a clip, find the two consecutive frames **between which the
+defect appears** — that narrows the buggy code to whatever ran on that step.
+
+*Older artifacts* (pre-clips) may instead have flat frames at `<frames_dir>/NN.png` with `frames_count` and
+no `clips:` block — treat that as a single clip and read it in order.
 
 ### Checklist coverage (`checklist:` in `session.yaml`)
 
 When the session was run against an acceptance checklist, `session.yaml` has a `checklist:` block: an
 `id`, `title`, and `items[]`, each with a `verdict` (`pass` | `fail` | `skip` | `null`), an optional
-`issue` (the id of the issue that documents a fail), and a `ts`. Read it as the client's sign-off map:
+`issue` (the id of the issue that documents a fail), and a `ts`. Read it as the client's sign-off map.
+In the widget the client either **checks a row off** or **flags a problem** on it, which maps to three
+states — use this vocabulary in your `.done` report:
 
-- **`verdict: fail`** → a real defect the client hit. Its `issue` points to the `NN-*.md` issue with
-  the full context (screenshot, selector, errors). The failing issue's frontmatter carries
-  `checklist_item: <item id>` linking back. **These are your work items** — fix them like any issue,
-  and note in `.done` which checklist item each fix closes.
-- **`verdict: null`** (not checked) → the client did **not** verify this item. This is **not a task for
+- **checked-with-issue** = **`verdict: fail`** → a real defect the client hit. Its `issue` points to the
+  `NN-*.md` issue with the full context (screenshot, selector, errors); the issue's frontmatter carries
+  `checklist_item: <item id>` linking back. **These are your work items** — fix them like any issue, and
+  note in `.done` which checklist item each fix closes.
+- **not-tested** = **`verdict: null`** → the client did **not** verify this item. This is **not a task for
   you** — you can't manufacture a client's acceptance. List these in `.done` under a
-  **"Not verified by client"** heading so the owner knows what still needs a human pass.
-- **`verdict: pass`** → confirmed working. Leave it alone; don't "improve" passed items.
-- **`verdict: skip`** → the client deliberately skipped it. Mention it only if relevant; it's not a task.
+  **"Not verified by client"** heading so the owner knows what still needs a human pass. (A `null` verdict
+  that still carries an `issue` id is an item the client checked, flagged, then withdrew their verdict on —
+  the issue was already filed and stays linked; treat the issue as a work item but the item as not-signed-off.)
+- **checked-clean** = **`verdict: pass`** → confirmed working. Leave it alone; don't "improve" passed items.
+- **`verdict: skip`** (legacy) → older artifacts may carry a deliberate skip; the current widget no longer
+  produces it. Treat it as not-a-task; mention only if relevant.
 
 The checklist is a per-session snapshot — verdicts are the output of *that* run, not a durable status.
 Don't try to reconcile it across sessions or reopen items; just act on this session's fails and report

@@ -1,5 +1,54 @@
 # Changelog
 
+## 1.9.0 — Checklist UX v2, clips, smart links, polish
+
+### Checklist panel v2
+
+- **Simpler model:** click a row to **check it off** (grey + strikethrough); click the per-row **slug
+  button** to **flag a problem** (opens the normal issue flow, auto-marks the item and links the issue
+  back). Replaces the three verdict buttons. Unchecking a flagged item confirms first and keeps the
+  issue link in `session.yaml` (a delivered issue is not retractable).
+- **Self-navigating accordion:** finishing a section collapses it and opens the next incomplete one
+  (scrolled into view); manual open/close always works. A **summary** line
+  (`5 of 12 checked · 2 issues · 7 left`) replaces the bare counter; the circle badge counts what's
+  left, then shows `✓`. Panel **auto-opens once per session** when nothing is checked yet; the Done
+  button is gone (close via ✕ / click-outside / Esc / shortcut). New `config.checklist.description`.
+- **Smart links:** `url` (static routes only) renders an "Open ↗" navigation chip; `url_match` (a
+  wildcard like `/assessments/*`) highlights the item with a "You're here" tag when the current path
+  matches — never navigates. Use `hint` + `url_match` for dynamic routes instead of guessing an id.
+
+### Recording clips
+
+- Each **Record→Stop** cycle is now its own **clip**. Two recordings on one issue stay two independent
+  clips end to end — in the modal (`Clip 1 · 5 frames`, first frame as cover, delete per clip) and in
+  the artifacts (`NN-slug-frames/clip-01/…`, `clip-02/…`; `## Actions` tagged `— clip N, frame NN`).
+  Fixes the bug where a second recording merged into the first's flat frame list.
+- Format **1.1 → 1.2** (additive): a `clips:` list in issue frontmatter (`{ id, frames }` per clip) and
+  the `<frames_dir>/<clip-id>/NN.png` layout it discriminates. Pre-1.2 recordings (flat
+  `<frames_dir>/NN.png`, no `clips:`) stay readable.
+
+### Polish
+
+- Floating circles hide while any panel is open — the **Send** button is never covered (was overlapped
+  on mobile), and modal focus order is freed.
+- `<Kbd>` hints show the live, platform-formatted shortcut (`⇧F` / `Shift+F`, incl. a custom one) on
+  **+ Add screenshot** and the button tooltip.
+- Issue-count badge is now **neutral** (brand accent); red is reserved for delivery problems.
+- Frame **pluralization** (`1 frame` / `2 frames`), **category placeholders** (Bug / Design / Idea), and
+  **aria-labels + roles** on all icon buttons and the panel.
+
+### Skills & docs
+
+- `sluglist-checklist`: link rules (static → `url`, dynamic → `hint` + wildcard `url_match`, mixed →
+  both) with an explicit "never invent a route id". `sluglist-fix`: clips read as separate sequences;
+  v2 vocabulary (checked-clean / checked-with-issue / not-tested).
+- SPEC.md → v1.2 (clips, config appendix, `skip` valid-on-read); README + landing demo updated to v2.
+
+### Scope (unchanged)
+
+The checklist is a session input; verdicts are its output — no lifecycle after the session. `skip`
+stays valid on read but the v2 UI never generates it. `FeedbackConnector` is unchanged.
+
 ## 1.8.0 — Checklist mode (structured acceptance)
 
 ### Acceptance checklist + verdicts
