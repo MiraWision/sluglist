@@ -264,6 +264,14 @@ const CONFIG = [
   ["strings", "Partial<Strings>", "Override any UI text (i18n)."],
 ];
 
+/**
+ * Every grid on this page carries `[&>*]:min-w-0`. Grid items default to
+ * `min-width: auto`, which means a child refuses to shrink below its content
+ * width — and a code block's content is wider than a phone. Without it the
+ * item forces the grid wider than the viewport, the whole page gains a
+ * horizontal scroll, and the `overflow-x: auto` on the `<pre>` inside never
+ * gets a chance to do its job.
+ */
 function Section({
   id,
   eyebrow,
@@ -420,7 +428,7 @@ export function App() {
             diff.
           </p>
 
-          <div className="mt-10 grid gap-5 md:grid-cols-3">
+          <div className="mt-10 grid gap-5 md:grid-cols-3 [&>*]:min-w-0">
             {AGENT_STEPS.map((s) => (
               <div
                 className="rounded-xl border border-[var(--color-line)] bg-[var(--color-canvas)] p-5"
@@ -437,7 +445,7 @@ export function App() {
             ))}
           </div>
 
-          <div className="mt-6 grid gap-5 md:grid-cols-2 md:items-start">
+          <div className="mt-6 grid gap-5 md:grid-cols-2 md:items-start [&>*]:min-w-0">
             <Terminal code={DEV_TERMINAL} title="your project" />
             <Terminal code={AGENT_TERMINAL} title="claude code" />
           </div>
@@ -461,7 +469,7 @@ export function App() {
       </Section>
 
       <Section eyebrow="Why" id="features" title="Everything a feedback loop needs">
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-3 [&>*]:min-w-0">
           {FEATURES.map((f) => (
             <div
               className="rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] p-5"
@@ -477,7 +485,7 @@ export function App() {
       </Section>
 
       <Section eyebrow="Install" id="start" title="Quick start">
-        <div className="grid gap-6 md:grid-cols-2 md:items-start">
+        <div className="grid gap-6 md:grid-cols-2 md:items-start [&>*]:min-w-0">
           <CodeBlock code={QUICK_START} />
           <div className="space-y-4 text-[15px] text-[var(--color-ink-2)] leading-relaxed">
             <p>
@@ -498,7 +506,7 @@ export function App() {
       </Section>
 
       <Section eyebrow="Capture" id="modes" title="Five ways to report">
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 [&>*]:min-w-0">
           {MODES.map((m) => (
             <div
               className="flex gap-4 rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] p-5"
@@ -514,7 +522,7 @@ export function App() {
       </Section>
 
       <Section eyebrow="Delivery" id="connectors" title="Connectors own the storage">
-        <div className="grid gap-6 md:grid-cols-2 md:items-start">
+        <div className="grid gap-6 md:grid-cols-2 md:items-start [&>*]:min-w-0">
           <p className="text-[15px] text-[var(--color-ink-2)] leading-relaxed">
             The core produces artifacts and hands them to your connectors. All
             auth, credentials and knowledge of where things go live in the
@@ -532,7 +540,7 @@ export function App() {
         id="beta"
         title="A &ldquo;Report a problem&rdquo; button for real users"
       >
-        <div className="grid gap-6 md:grid-cols-2 md:items-start">
+        <div className="grid gap-6 md:grid-cols-2 md:items-start [&>*]:min-w-0">
           <div>
             <p className="mb-4 text-[15px] text-[var(--color-ink-2)] leading-relaxed">
               The <code className="font-mono text-[13px]">production</code> preset
@@ -585,17 +593,14 @@ export function App() {
           numbers, viewport strings and stack-trace line numbers are left alone, so
           the report stays readable.
         </p>
-        <div className="grid gap-6 md:grid-cols-2 md:items-start">
-          {/* min-w-0: a grid item defaults to min-width:auto and would otherwise
-              refuse to shrink below the code block's content width, pushing the
-              whole page into a horizontal scroll on mobile. */}
-          <div className="min-w-0">
+        <div className="grid gap-6 md:grid-cols-2 md:items-start [&>*]:min-w-0">
+          <div>
             <p className="mb-2 font-mono text-[12px] text-[var(--color-muted)] uppercase tracking-widest">
               Captured
             </p>
             <CodeBlock code={SCRUB_BEFORE} lang="markdown" />
           </div>
-          <div className="min-w-0">
+          <div>
             <p className="mb-2 font-mono text-[12px] text-[var(--color-muted)] uppercase tracking-widest">
               Delivered
             </p>
@@ -611,7 +616,7 @@ export function App() {
       </Section>
 
       <Section eyebrow="Contract" id="artifacts" title="A stable artifact format">
-        <div className="grid gap-6 md:grid-cols-2 md:items-start">
+        <div className="grid gap-6 md:grid-cols-2 md:items-start [&>*]:min-w-0">
           <div>
             <p className="mb-4 text-[15px] text-[var(--color-ink-2)] leading-relaxed">
               Every session is a folder: an upserted{" "}
@@ -626,7 +631,10 @@ export function App() {
       </Section>
 
       <Section eyebrow="Reference" id="config" title="Configuration">
-        <div className="overflow-hidden rounded-xl border border-[var(--color-line)]">
+        {/* overflow-x-auto, not overflow-hidden: the table is ~570px wide, so on
+            a phone `hidden` silently amputated the entire Description column.
+            Scrolling inside its own box keeps the page itself from panning. */}
+        <div className="overflow-x-auto rounded-xl border border-[var(--color-line)]">
           <table className="w-full border-collapse text-left text-[13px]">
             <thead className="bg-[var(--color-surface)] text-[var(--color-muted)]">
               <tr>
