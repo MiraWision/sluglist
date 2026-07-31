@@ -2,7 +2,7 @@
 
 Date: 2026-07-31. **Additive-only**; the `FeedbackConnector` contract is unchanged; the `dev` preset
 behaves exactly as before. Artifact format `1.2 → 1.3` (minor, additive: the `scrubbed` issue field).
-**310 tests pass** (was 182 at the start of this iteration — 128 added), type-check clean, build clean.
+**312 tests pass** (was 182 at the start of this iteration — 130 added), type-check clean, build clean.
 
 Scope was deliberately narrow. Out of scope and *not* attempted: OCR / automatic PII detection on
 screenshots, consent banners and cookie mechanics (the client's privacy-policy territory), artifact
@@ -276,13 +276,13 @@ message and stack, in a failed request path, and in an SPA navigation target —
 capture modules, not stubs. Artifacts are written to
 [`evidence/production-e2e/`](evidence/production-e2e/).
 
-### Grep output (run over the written artifacts, outside the test)
+### Grep output (run over the committed artifacts, outside the test)
 
 ```
 === files ===
-session-2026-07-31-qwey/session.yaml
-session-2026-07-31-qwey/01-the-notify-button-does-nothing-on-the.png
-session-2026-07-31-qwey/01-the-notify-button-does-nothing-on-the.md
+session-2026-07-31-vx3h/session.yaml
+session-2026-07-31-vx3h/01-the-notify-button-does-nothing-on-the.png
+session-2026-07-31-vx3h/01-the-notify-button-does-nothing-on-the.md
 
 === grep for original PII values ===
 anna.smirnova@acme-corp.io                         0 match(es)
@@ -297,8 +297,28 @@ sk-live-9f86d081884c7d659a2feaa0c55ad015           0 match(es)
    6 [token]
 ```
 
-The test asserts the same thing programmatically, walking every file byte-wise (`the whole evidence
-tree greps clean`), so the guarantee is enforced in CI and not just by a one-off shell command.
+The test asserts the same thing programmatically and in two places, so the guarantee is enforced in
+CI rather than by a one-off shell command: `the whole session greps clean, byte for byte` checks the
+in-memory artifacts of the run, and `the committed evidence on disk also greps clean` walks the files
+in this repo.
+
+### Refreshing the evidence
+
+The test does **not** write files by default. Artifacts carry a random session id and a wall-clock
+`created_at`, so writing on every run rewrote the committed folder under a new name each time and
+left `git status` dirty after any `npm test` — which is how a "clean" tree once nearly got
+`git reset --hard`-ed. Byte-stability is not honestly achievable either, since a real captured stack
+trace embeds absolute paths from whichever machine ran the test.
+
+So the assertions always run in memory, and refreshing the snapshot is deliberate:
+
+```bash
+WRITE_EVIDENCE=1 npx vitest run test/e2e-production.test.ts
+```
+
+The exception the test injects carries a hand-written stack (`/assets/session-9c4b.js:184:23`)
+instead of a real one, so the committed evidence contains no developer-machine paths — asserted by
+`the committed evidence carries no absolute paths from a developer machine`.
 
 ### What the artifact looks like afterwards
 
@@ -390,7 +410,7 @@ the production checklist tells the client to go and look for them.
 ```bash
 export PATH="$HOME/.nvm/versions/node/v20.19.2/bin:$PATH"   # repo needs Node 20+ (system default is 16)
 npm run type-check     # clean
-npm test               # 310 passed (24 files)
+npm test               # 312 passed (24 files)
 npm run build          # esm + cjs + iife + dts, clean
 
 # the acceptance grep, run outside the test

@@ -1,7 +1,7 @@
 format_version: "1.3"
 project: acme
-session_id: session-2026-07-31-igom
-created_at: 2026-07-31T07:47:28Z
+session_id: session-2026-07-31-vx3h
+created_at: 2026-07-31T16:26:42Z
 base_url: https://app.acme.example
 browser: Chrome 138
 os: macOS
@@ -23,4 +23,4 @@ issues:
     screenshot: 01-the-notify-button-does-nothing-on-the.png
     url: "/account/settings?email=[email]&[token]"
     selector: "[data-testid=\"[email]\"]"
-    created_at: 2026-07-31T07:47:28Z
+    created_at: 2026-07-31T16:26:42Z
