@@ -653,7 +653,7 @@ export function App() {
       </Section>
 
       <footer className="border-[var(--color-line)] border-t">
-        <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-4 px-6 py-10 text-[14px] text-[var(--color-muted)] sm:flex-row">
+        <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-4 px-6 pt-10 text-[14px] text-[var(--color-muted)] sm:flex-row">
           <Logo />
           <div className="flex items-center gap-5">
             <a className="hover:text-[var(--color-ink)]" href={REPO}>
@@ -664,6 +664,17 @@ export function App() {
             </a>
             <span>MIT © MiraWision</span>
           </div>
+        </div>
+        {/* Stated plainly rather than buried: anyone who opens DevTools to check
+            the privacy claims above will find exactly one third-party request,
+            and this line explains it. */}
+        {/* pr-20 until lg: the demo widget's floating circles are fixed to the
+            bottom-right corner, and below ~1070px the centred container reaches
+            far enough right for them to sit on top of this line. */}
+        <div className="mx-auto max-w-5xl px-6 pt-6 pr-20 pb-10 text-[13px] text-[var(--color-muted)] lg:pr-6">
+          Analytics: <Mono>Umami</Mono>, EU data region — cookieless, no personal
+          data, no cross-site tracking. No consent banner needed, so there
+          isn&rsquo;t one.
         </div>
       </footer>
     </div>
