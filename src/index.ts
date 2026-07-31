@@ -32,9 +32,36 @@ export type {
   ChecklistVerdictItem,
   Verdict,
 } from "./checklist";
+export {
+  clearDismissed,
+  dismissKey,
+  isDismissed,
+  readDismiss,
+  setDismissed,
+} from "./dismiss";
+export type { DismissRecord } from "./dismiss";
+export {
+  createGuard,
+  DEFAULT_FAILURE_THRESHOLD,
+  NOOP_GUARD,
+  restoreIfOurs,
+} from "./guard";
+export type { GuardOptions, WidgetGuard } from "./guard";
 export { applyMask } from "./mask";
 export type { MaskResult } from "./mask";
-export { resolvePrivacy } from "./preset";
+export {
+  DEFAULT_DISMISS_DAYS,
+  resolveDismiss,
+  resolveErrors,
+  resolvePrivacy,
+} from "./preset";
+export {
+  DIGITS_MARK,
+  EMAIL_MARK,
+  scrub,
+  scrubMaybe,
+  TOKEN_MARK,
+} from "./scrub";
 export {
   formatShortcut,
   matchesShortcut,
@@ -70,6 +97,7 @@ export type {
   FeedbackActionsConfig,
   FeedbackConnector,
   FeedbackCustom,
+  FeedbackDismissConfig,
   FeedbackErrorConfig,
   FeedbackIdentity,
   FeedbackPrivacy,

@@ -3,6 +3,7 @@ import {
   checklistItems,
   checklistProgress,
   isVerdict,
+  matchUrlPattern,
   normalizeChecklist,
   seedChecklistState,
 } from "../src/checklist";
@@ -141,6 +142,64 @@ describe("normalizeChecklist", () => {
     const spy = vi.spyOn(console, "warn");
     normalizeChecklist({ id: "c", title: "C", sections: "not-an-array" });
     expect(spy).toHaveBeenCalled();
+  });
+
+  it("keeps a checklist description (clipped) and drops a blank one", () => {
+    const def = normalizeChecklist({
+      id: "c",
+      title: "C",
+      description: "  Walk the release and confirm each item.  ",
+      sections: [{ title: "S", items: [{ id: "i", title: "T" }] }],
+    });
+    expect(def?.description).toBe("Walk the release and confirm each item.");
+    const blank = normalizeChecklist({
+      id: "c",
+      title: "C",
+      description: "   ",
+      sections: [{ title: "S", items: [{ id: "i", title: "T" }] }],
+    });
+    expect(blank?.description).toBeUndefined();
+  });
+
+  it("keeps a wildcard url_match and drops a non-wildcard one with a warning", () => {
+    const warn = vi.spyOn(console, "warn");
+    const def = normalizeChecklist({
+      id: "c",
+      title: "C",
+      sections: [
+        {
+          title: "S",
+          items: [
+            { id: "list", title: "List", url: "/assessments", url_match: "/assessments/*" },
+            { id: "static", title: "Static", url_match: "/assessments" }, // no wildcard → dropped
+          ],
+        },
+      ],
+    });
+    const items = checklistItems(def!);
+    expect(items[0].url).toBe("/assessments");
+    expect(items[0].url_match).toBe("/assessments/*");
+    expect(items[1].url_match).toBeUndefined();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("url_match"));
+  });
+});
+
+describe("matchUrlPattern", () => {
+  it("matches a single dynamic segment against a wildcard", () => {
+    expect(matchUrlPattern("/assessments/*", "/assessments/abc-123")).toBe(true);
+    expect(matchUrlPattern("/assessments/*", "/assessments/9f2c-uuid")).toBe(true);
+  });
+  it("does not match the list page itself or deeper paths", () => {
+    expect(matchUrlPattern("/assessments/*", "/assessments")).toBe(false);
+    expect(matchUrlPattern("/assessments/*", "/assessments/abc/edit")).toBe(false);
+    expect(matchUrlPattern("/assessments/*", "/animals/abc")).toBe(false);
+  });
+  it("ignores a trailing slash on either side", () => {
+    expect(matchUrlPattern("/x/*", "/x/1/")).toBe(true);
+  });
+  it("matches a wildcard in the middle of a path", () => {
+    expect(matchUrlPattern("/org/*/settings", "/org/acme/settings")).toBe(true);
+    expect(matchUrlPattern("/org/*/settings", "/org/acme/billing")).toBe(false);
   });
 });
 

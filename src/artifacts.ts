@@ -52,8 +52,12 @@ function yamlBlock(
  *
  * 1.1 — additive `checklist` block (acceptance checklist verdicts) +
  *       `checklist_item` issue frontmatter.
+ * 1.2 — additive `clips` issue frontmatter (per-clip recording breakdown) and
+ *       the `<frames_dir>/<clip-id>/NN.png` frame layout it discriminates.
+ * 1.3 — additive `scrubbed` issue frontmatter: whether the text surfaces of the
+ *       issue were run through the PII scrub (`privacy.scrubText`).
  */
-export const FORMAT_VERSION = "1.1";
+export const FORMAT_VERSION = "1.3";
 
 /**
  * The `checklist:` block: definition identity + one entry per item with its
@@ -189,6 +193,13 @@ export interface IssueMarkdownInput {
   recording?: boolean;
   framesCount?: number;
   framesDir?: string;
+  /**
+   * Record mode: one entry per clip (a Record→Stop cycle), in order — emitted as
+   * an additive `clips:` block. Frames live under `<framesDir>/<clip.id>/NN.png`.
+   * Present for every recording (a single recording is one `clip-01`); a reader
+   * that only knows the flat `frames_count` form still works.
+   */
+  clips?: { id: string; frames: number }[];
   /** Captured page errors, snapshotted at issue time. */
   errors?: ErrorRecord[];
   /** Issue time (epoch ms) used to compute each error's relative age. */
@@ -202,6 +213,12 @@ export interface IssueMarkdownInput {
   id: string;
   /** Whether masking was applied to the screenshot(s); emitted when defined. */
   masked?: boolean;
+  /**
+   * Whether the text surfaces of this issue were run through the PII scrub;
+   * emitted only when `privacy.scrubText` was set explicitly (or by the
+   * production preset), so artifacts written without it stay byte-identical.
+   */
+  scrubbed?: boolean;
   mode: CaptureMode;
   /** Reporter identity mirrored into the issue; `reporter:` block (null empty). */
   reporter?: ReporterMeta | null;
@@ -263,6 +280,11 @@ export function buildIssueMarkdown(input: IssueMarkdownInput): string {
   if (input.masked !== undefined) {
     lines.push(yamlLine("masked", input.masked));
   }
+  // Additive (format 1.3): emitted only when scrubText was set explicitly, so
+  // dev and default-beta artifacts stay byte-identical.
+  if (input.scrubbed !== undefined) {
+    lines.push(yamlLine("scrubbed", input.scrubbed));
+  }
   // Additive: emitted only when error capture is engaged (0 when off/none).
   if (input.errorsCount !== undefined) {
     lines.push(yamlLine("errors_count", input.errorsCount));
@@ -279,6 +301,18 @@ export function buildIssueMarkdown(input: IssueMarkdownInput): string {
     }
     if (input.framesDir !== undefined) {
       lines.push(yamlLine("frames_dir", input.framesDir));
+    }
+    // Additive: per-clip breakdown (each Record→Stop is one clip). Frames of
+    // clip `id` live under `<frames_dir>/<id>/NN.png`.
+    if (input.clips && input.clips.length > 0) {
+      const clips = yamlListOfMaps(
+        input.clips.map((c) => [
+          ["id", c.id],
+          ["frames", c.frames],
+        ]),
+        "  "
+      );
+      lines.push(`clips:\n${clips}`);
     }
   }
   lines.push(yamlLine("created_at", input.createdAt));

@@ -56,6 +56,24 @@ describe("createRecorder", () => {
     expect(a.frame).toBe(2); // linked to file 02.png
   });
 
+  it("stamps the clip index onto action-linked frames", async () => {
+    const actions = fakeActions();
+    const recorder = createRecorder({
+      actions,
+      maxFrames: 30,
+      frameMinInterval: 0,
+      privacy: {},
+      now: () => 0,
+    });
+    // Second recording on the same issue → clip 2.
+    await recorder.start(2);
+    const a = click();
+    actions.emit(a);
+    await vi.runAllTimersAsync();
+    expect(a.frame).toBe(2); // per-clip frame numbering (01 = start)
+    expect(a.clip).toBe(2);
+  });
+
   it("does not capture a frame for typing", async () => {
     const actions = fakeActions();
     const recorder = createRecorder({

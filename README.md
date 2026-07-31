@@ -234,13 +234,81 @@ If you need a support loop (triage, back-and-forth, resolution states), that is 
 sluglist deliberately stops at capture. Its output is a stable set of artifacts you can pipe into
 whatever tracker or workflow you already run.
 
+## Production
+
+`preset: "production"` is `beta` plus the three things a widget needs once it faces paying
+customers rather than your own testers: PII scrubbed out of the text it collects, a way for the
+reporter to make it go away, and no `console.warn` capture.
+
+```ts
+const widget = createFeedbackWidget({
+  project: "acme",
+  preset: "production",
+  connectors: [new HttpConnector("/api/feedback", () => session.token)],
+});
+const ui = mountFeedbackWidget(widget);
+```
+
+| | `dev` | `beta` | `production` |
+| --- | --- | --- | --- |
+| `privacy.maskInputs` | – | ✓ | ✓ |
+| `privacy.screenshotConsent` | – | ✓ | ✓ |
+| `privacy.scrubText` | – | – | ✓ |
+| `errors.captureWarnings` | opt-in | opt-in | forced off |
+| `dismiss.enabled` | – | – | ✓ |
+| Button label | "Feedback" | "Report a problem" | "Report a problem" |
+
+Every option can still be set explicitly and wins over the preset — except `errors.captureWarnings`
+under `production`, which is forced to `false` (warnings are the noisiest text channel in a real
+app; asking for them anyway logs a warning).
+
+**Text scrubbing.** With `scrubText` on, the text surfaces of every artifact — `element_text`, the
+issue `url`, each message and stack in `## Errors` (including failed-request paths), and the
+selectors and labels in `## Actions` — have emails replaced by `[email]`, runs of 6+ digits by
+`[digits]`, and hex/base64-shaped tokens by `[token]`. Dates, version numbers, viewport strings,
+stack-trace line numbers and ordinary prose are left alone. Values *you* supply (`context`,
+`custom`, `identity`, checklist titles) and the reporter's own comment are never scrubbed. Issues
+carry `scrubbed: true` in their frontmatter so a reader knows which artifacts went through it.
+`privacy: { scrubText: true }` also works without the preset.
+
+**Dismiss.** The launcher gets a ✕ — shown on hover on desktop, always visible (muted) on touch.
+Clicking it hides the widget completely, shortcut included, and remembers that for `dismiss.days`
+(default 7; `0` means until storage is cleared). Configure with `dismiss: { enabled, days }`.
+
+The rescue path is `ui.show()`, which clears the dismissal immediately. Wire it to a link in your
+own footer so the ✕ is never a one-way door:
+
+```ts
+footerLink.addEventListener("click", () => ui.show());
+```
+
+**Self-isolation.** Everything the widget wraps (`console.error`, `fetch`, `XMLHttpRequest`,
+`history.pushState`) calls the original host function unconditionally — a bug inside sluglist
+cannot fail your request, swallow your log or block your navigation. Internal failures are counted;
+after five in one session the widget uninstalls itself (originals restored by reference, listeners
+removed, UI taken out of the DOM), logs one warning, and the page carries on without it.
+
+**Zero phone-home:** the widget makes no network requests except to your configured connectors.
+Enforced by an automated test ([`test/no-phone-home.test.ts`](test/no-phone-home.test.ts)) that
+drives a full session with every outbound channel trapped and asserts the count is zero. Two
+documented exceptions, both to URLs you already control: a `checklist:` URL if you configure one,
+and — at capture time only — the page's own images and webfonts, which the DOM-to-PNG renderer
+re-fetches in order to inline them into the screenshot.
+
+Before pointing this at real users, work through
+**[docs/production-checklist.md](docs/production-checklist.md)** — env gating, token generation,
+retention, storage access, and a privacy-policy paragraph to adapt.
+
 ## Checklist mode
 
 Everything above fills a session **from the bottom** — the client freely creates issues. A **checklist**
 fills it **from the top**: the developer pre-seeds a list of "what shipped and what to verify", and the
-client walks it, recording a verdict per item (**pass / fail / skip**). A `fail` opens the normal issue
-flow, linked to that item. The result is a **coverage map** in `session.yaml`: what's confirmed, what
-failed (with links to the issues), and what was never checked.
+client walks it with one natural motion — **click a row to check it off; click the slug button on a row to
+flag a problem** (that opens the normal issue flow, linked back to the item). The panel is an accordion of
+sections that self-navigates: finish a section and it collapses, opening the next one. A summary line
+(`5 of 12 checked · 2 issues · 7 left`) replaces a bare counter, and the circle's badge counts what's left,
+turning to ✓ when everything is checked. The result is a **coverage map** in `session.yaml`: what's
+confirmed, what was flagged (with links to the issues), and what was never checked.
 
 It's entirely opt-in: a second circle appears above the feedback button **only** when a checklist is
 configured. Without one, the widget looks and works exactly as before.
@@ -252,12 +320,16 @@ const widget = createFeedbackWidget({
   checklist: {
     id: "export-release-2026-07",
     title: "Export + notifications release",
+    description: "Walk each item and check it off. Flag anything that looks wrong.",
     sections: [
       {
         title: "Export",
         items: [
           { id: "export-button", title: "On Reports, the Export button downloads a CSV", url: "/reports" },
           { id: "csv-columns", title: "The CSV has all the expected columns", hint: "Open it in a spreadsheet" },
+          // Dynamic route: no fabricated id — a human hint + a wildcard match.
+          { id: "assessment-header", title: "Opening any assessment shows the new header",
+            hint: "Open the dashboard and pick any assessment", url: "/dashboard", url_match: "/assessments/*" },
         ],
       },
       { title: "Notifications", items: [{ id: "email-sent", title: "An email arrives after an export" }] },
@@ -265,6 +337,11 @@ const widget = createFeedbackWidget({
   },
 });
 ```
+
+**Smart links.** `url` must be a **static** route — it renders as an "Open ↗" chip that navigates there.
+For a **dynamic** route (an id/uuid in the path) don't guess an id: give a human `hint` and a wildcard
+`url_match` (`"/assessments/*"`). It never navigates — it just lights the item up with a "You're here" tag
+when the tester is on a matching page. The two can coexist (a list `url` + a detail `url_match`).
 
 Pass a **URL string** instead of an object to fetch the checklist at init (`GET` → JSON of the same
 shape) — handy when a skill generates it: `checklist: "/checklist.json"`. An unreachable or invalid
@@ -475,15 +552,16 @@ default; navigation paths drop the query string.
 
 **Record mode** turns a sequence into steps-to-reproduce *with images*. Click **Record steps**, do the
 thing, then **Stop & describe**. A frame is captured at the start and on each click / navigation /
-submit (not typing), so the issue gets a `NN-slug-frames/` folder of numbered screenshots and the
-matching `## Actions` lines are tagged `— frame NN`. Frames respect PII masking. Need a state the
-auto-capture misses (a hover popover, a transient toast)? Hit **`+ Frame`** in the recording bar — or
-press **S** — to snap one manually.
+submit (not typing). Each Record→Stop cycle is one **clip**: its frames go to
+`NN-slug-frames/clip-01/01.png …`, and the matching `## Actions` lines are tagged `— clip N, frame NN`.
+Frames respect PII masking. Need a state the auto-capture misses (a hover popover, a transient toast)?
+Hit **`+ Frame`** in the recording bar — or press **S** — to snap one manually.
 
 Recordings and screenshots mix in one issue: start a recording from an open draft (via
-`+ Add screenshot` → `Record steps`) and the frames attach to it instead of replacing it. In the
-panel the recording shows as a single stacked tile next to the screenshots; click it to expand the
-numbered frame ribbon, `×` to drop it.
+`+ Add screenshot` → `Record steps`) and it attaches as a **new clip** instead of replacing anything.
+Record twice and you get two independent clips — `clip-01/`, `clip-02/` — never one merged reel. In the
+panel each clip shows as its own stacked tile (`Clip 1 · 5 frames`) with its first frame as the cover;
+click it to expand the numbered ribbon, `×` to drop that clip alone.
 
 ```ts
 createFeedbackWidget({

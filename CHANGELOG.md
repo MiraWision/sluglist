@@ -1,5 +1,110 @@
 # Changelog
 
+## 1.10.0 — Production preset, PII text scrub, dismiss, self-isolation
+
+Everything here is additive. The `FeedbackConnector` contract is unchanged and the `dev` preset
+behaves exactly as before — artifacts written without the new options are byte-identical.
+
+### `preset: "production"`
+
+- New preset: `beta` (mask inputs + screenshot consent + "Report a problem" label) plus text
+  scrubbing, the dismiss control, and `errors.captureWarnings` forced off. Explicit options still win
+  over the preset — except `captureWarnings`, which `production` forces to `false` and warns about,
+  since `console.warn` is the noisiest text channel in a real app.
+
+### PII text scrub
+
+- New `privacy.scrubText` (on by default under `production`, available on its own). Redacts emails →
+  `[email]`, runs of 6+ digits → `[digits]`, and hex/base64-shaped tokens → `[token]` across the text
+  surfaces of an artifact: `element_text`, `url` (including the query string), `selector`,
+  `dom_path`, every message and stack in `## Errors` (network paths included), and the selectors and
+  labels in `## Actions`.
+- Dates, ISO timestamps, version numbers, IPv4, viewport strings, stack-trace line numbers and
+  ordinary prose are deliberately left alone. Values *you* supply (`context`, `custom`, `identity`,
+  checklist titles) and the reporter's own comment are never scrubbed.
+- Format **1.2 → 1.3** (additive): a `scrubbed: true|false` issue field, emitted only when
+  `scrubText` was set explicitly.
+
+### Dismiss
+
+- The launcher gets a ✕ — hover-revealed on desktop, always visible (muted) on touch. Hides the
+  widget completely, shortcut included, and remembers it for `dismiss.days` (default 7; `0` = until
+  storage is cleared). New `dismiss: { enabled, days }` config, on by default only in `production`.
+- `mountFeedbackWidget()` now returns `show()`, `dismiss()` and `isDismissed()`. Wire `show()` to a
+  "Report a problem" link in your footer so the ✕ is never a one-way door.
+
+### Self-isolation
+
+- Every host global the widget wraps (`console.error`, `fetch`, `XMLHttpRequest`,
+  `history.pushState`) now calls the original **unconditionally** — a bug inside sluglist can no
+  longer fail your request, swallow your log or block your navigation.
+- Circuit breaker: after five internal failures in a session the widget uninstalls itself (originals
+  restored by reference, listeners removed, UI taken out of the DOM) and logs one warning. Host page
+  errors are captured as data and never count toward it.
+- A global another library wrapped on top of ours is left intact rather than clobbered; our wrapper
+  degrades to a transparent passthrough.
+- Fixed: the `beforeunload` and `pointerdown` listeners were never removed.
+
+### Endpoint, docs, CI guard
+
+- `examples/feedback-route.ts` hardened: bearer auth with a constant-time compare (401), fail-closed
+  when unconfigured (503), 10 MB body cap (413), mime allowlist (415), per-session file cap (409),
+  and path validation that accepts the nested recording-frame layout. Now testable, covered by 27
+  tests.
+- New `docs/production-checklist.md`: env gating, token generation, retention, storage access, a
+  privacy-policy paragraph to adapt, and a pre-flight list. Linked from the README.
+- New permanent CI guard `test/no-phone-home.test.ts`: a full session with every outbound channel
+  trapped must make zero network calls, with a negative check proving the trap works.
+
+## 1.9.0 — Checklist UX v2, clips, smart links, polish
+
+### Checklist panel v2
+
+- **Simpler model:** click a row to **check it off** (grey + strikethrough); click the per-row **slug
+  button** to **flag a problem** (opens the normal issue flow, auto-marks the item and links the issue
+  back). Replaces the three verdict buttons. Unchecking a flagged item confirms first and keeps the
+  issue link in `session.yaml` (a delivered issue is not retractable).
+- **Self-navigating accordion:** finishing a section collapses it and opens the next incomplete one
+  (scrolled into view); manual open/close always works. A **summary** line
+  (`5 of 12 checked · 2 issues · 7 left`) replaces the bare counter; the circle badge counts what's
+  left, then shows `✓`. Panel **auto-opens once per session** when nothing is checked yet; the Done
+  button is gone (close via ✕ / click-outside / Esc / shortcut). New `config.checklist.description`.
+- **Smart links:** `url` (static routes only) renders an "Open ↗" navigation chip; `url_match` (a
+  wildcard like `/assessments/*`) highlights the item with a "You're here" tag when the current path
+  matches — never navigates. Use `hint` + `url_match` for dynamic routes instead of guessing an id.
+
+### Recording clips
+
+- Each **Record→Stop** cycle is now its own **clip**. Two recordings on one issue stay two independent
+  clips end to end — in the modal (`Clip 1 · 5 frames`, first frame as cover, delete per clip) and in
+  the artifacts (`NN-slug-frames/clip-01/…`, `clip-02/…`; `## Actions` tagged `— clip N, frame NN`).
+  Fixes the bug where a second recording merged into the first's flat frame list.
+- Format **1.1 → 1.2** (additive): a `clips:` list in issue frontmatter (`{ id, frames }` per clip) and
+  the `<frames_dir>/<clip-id>/NN.png` layout it discriminates. Pre-1.2 recordings (flat
+  `<frames_dir>/NN.png`, no `clips:`) stay readable.
+
+### Polish
+
+- Floating circles hide while any panel is open — the **Send** button is never covered (was overlapped
+  on mobile), and modal focus order is freed.
+- `<Kbd>` hints show the live, platform-formatted shortcut (`⇧F` / `Shift+F`, incl. a custom one) on
+  **+ Add screenshot** and the button tooltip.
+- Issue-count badge is now **neutral** (brand accent); red is reserved for delivery problems.
+- Frame **pluralization** (`1 frame` / `2 frames`), **category placeholders** (Bug / Design / Idea), and
+  **aria-labels + roles** on all icon buttons and the panel.
+
+### Skills & docs
+
+- `sluglist-checklist`: link rules (static → `url`, dynamic → `hint` + wildcard `url_match`, mixed →
+  both) with an explicit "never invent a route id". `sluglist-fix`: clips read as separate sequences;
+  v2 vocabulary (checked-clean / checked-with-issue / not-tested).
+- SPEC.md → v1.2 (clips, config appendix, `skip` valid-on-read); README + landing demo updated to v2.
+
+### Scope (unchanged)
+
+The checklist is a session input; verdicts are its output — no lifecycle after the session. `skip`
+stays valid on read but the v2 UI never generates it. `FeedbackConnector` is unchanged.
+
 ## 1.8.0 — Checklist mode (structured acceptance)
 
 ### Acceptance checklist + verdicts

@@ -1,0 +1,25 @@
+# sluglist-fix report — session-2026-07-24-vvx6
+
+Checklist: **Beta acceptance — assessments release** (`beta-acceptance-2026-07`), format 1.2.
+
+## Work items (checked-with-issue → verdict: fail)
+
+- **`assessment-header`** → issue **01** (`01-the-summary-header-overlaps-the-score.md`).
+  - Comment: "The summary header overlaps the score badge on narrow screens."
+  - Reproduction is a recording with **two clips** (read as separate sequences, not one timeline):
+    - `clip-01/` (01–03): the happy path — header renders alone.
+    - `clip-02/` (01–02): the broken repro — at a narrow viewport the header overlaps the score badge.
+    The defect appears in **clip-02 between frame 01 and 02** (the viewport-narrow step).
+  - Localization: **needs the app repo.** This evidence session was generated against a hypothetical
+    `assessments` app that is not present here, so per the skill's "never guess a location" rule no code
+    was changed. With the repo, localize via `url: /assessments/9f2c-3a71-uuid` → the assessment detail
+    route/component and the summary-header + score-badge layout.
+
+## Not verified by client (verdict: null)
+
+- **`assessment-score`** — "The score badge renders on an assessment." The client did not check this item.
+  Not a task; flagged here so the owner knows it still needs a human pass.
+
+## Confirmed working (checked-clean → verdict: pass)
+
+- **`export-csv`** — "On Reports, Export downloads a CSV with all columns." Left untouched.
