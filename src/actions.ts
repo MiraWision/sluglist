@@ -1,3 +1,4 @@
+import { NOOP_GUARD, restoreIfOurs, type WidgetGuard } from "./guard";
 import { generateSelector } from "./selector";
 
 /**
@@ -55,6 +56,12 @@ export interface ActionCaptureOptions {
   capturePasswords?: boolean;
   /** Test seam. */
   now?: () => number;
+  /**
+   * Fault isolation. Listeners are wrapped so a throw never reaches host code,
+   * and the history wrappers call the original OUTSIDE the guarded region so a
+   * broken trail can never break navigation. Defaults to a no-op guard.
+   */
+  guard?: WidgetGuard;
 }
 
 const DEFAULT_SIZE = 30;
@@ -111,6 +118,7 @@ export function createActionCapture(
   }
   const size = Math.max(1, options.bufferSize ?? DEFAULT_SIZE);
   const now = options.now ?? (() => Date.now());
+  const guard = options.guard ?? NOOP_GUARD;
   const buffer: ActionRecord[] = [];
   const typeTimers = new Map<Element, ReturnType<typeof setTimeout>>();
   const listeners = new Set<(record: ActionRecord) => void>();
@@ -120,8 +128,10 @@ export function createActionCapture(
     while (buffer.length > size) {
       buffer.shift();
     }
+    // Subscribers are widget code (record mode snapping a frame). One of them
+    // failing must not abort the others, nor bubble out to the host's click.
     for (const listener of listeners) {
-      listener(record);
+      guard.run("actions.subscriber", () => listener(record), undefined);
     }
   }
 
@@ -194,30 +204,56 @@ export function createActionCapture(
 
   const originalPushState = history.pushState;
   const originalReplaceState = history.replaceState;
-  history.pushState = function patchedPushState(
+  // Both wrappers follow the same shape: read state inside the guard, call the
+  // ORIGINAL unconditionally, then record inside the guard. A broken trail can
+  // therefore never break the host's navigation.
+  const patchedPushState = function patchedPushState(
     this: History,
     ...args: Parameters<History["pushState"]>
   ) {
-    const from = currentPath();
+    const from = guard.run("history.pushState:from", currentPath, "");
     const result = originalPushState.apply(this, args);
-    recordNavigation(from);
+    guard.run("history.pushState:record", () => recordNavigation(from), undefined);
     return result;
   };
-  history.replaceState = function patchedReplaceState(
+  const patchedReplaceState = function patchedReplaceState(
     this: History,
     ...args: Parameters<History["replaceState"]>
   ) {
-    const from = currentPath();
+    const from = guard.run("history.replaceState:from", currentPath, "");
     const result = originalReplaceState.apply(this, args);
-    recordNavigation(from);
+    guard.run(
+      "history.replaceState:record",
+      () => recordNavigation(from),
+      undefined
+    );
     return result;
   };
-  const onPopState = (): void => recordNavigation(lastPath);
-  const onHashChange = (): void => recordNavigation(lastPath);
+  history.pushState = patchedPushState;
+  history.replaceState = patchedReplaceState;
 
-  document.addEventListener("click", onClick, { capture: true, passive: true });
-  document.addEventListener("submit", onSubmit, { capture: true, passive: true });
-  document.addEventListener("input", onInput, { capture: true, passive: true });
+  const guardedClick = guard.wrap("actions.click", onClick);
+  const guardedSubmit = guard.wrap("actions.submit", onSubmit);
+  const guardedInput = guard.wrap("actions.input", onInput);
+  const onPopState = guard.wrap("actions.popstate", () =>
+    recordNavigation(lastPath)
+  );
+  const onHashChange = guard.wrap("actions.hashchange", () =>
+    recordNavigation(lastPath)
+  );
+
+  document.addEventListener("click", guardedClick, {
+    capture: true,
+    passive: true,
+  });
+  document.addEventListener("submit", guardedSubmit, {
+    capture: true,
+    passive: true,
+  });
+  document.addEventListener("input", guardedInput, {
+    capture: true,
+    passive: true,
+  });
   window.addEventListener("popstate", onPopState);
   window.addEventListener("hashchange", onHashChange);
 
@@ -232,13 +268,25 @@ export function createActionCapture(
         clearTimeout(timer);
       }
       typeTimers.clear();
-      document.removeEventListener("click", onClick, true);
-      document.removeEventListener("submit", onSubmit, true);
-      document.removeEventListener("input", onInput, true);
+      listeners.clear();
+      document.removeEventListener("click", guardedClick, true);
+      document.removeEventListener("submit", guardedSubmit, true);
+      document.removeEventListener("input", guardedInput, true);
       window.removeEventListener("popstate", onPopState);
       window.removeEventListener("hashchange", onHashChange);
-      history.pushState = originalPushState;
-      history.replaceState = originalReplaceState;
+      // Only restore what is still ours — see restoreIfOurs in errors.ts for
+      // why clobbering someone else's wrapper is worse than leaving ours in.
+      restoreIfOurs("history.pushState", history.pushState, patchedPushState, () => {
+        history.pushState = originalPushState;
+      });
+      restoreIfOurs(
+        "history.replaceState",
+        history.replaceState,
+        patchedReplaceState,
+        () => {
+          history.replaceState = originalReplaceState;
+        }
+      );
     },
   };
 }

@@ -3,7 +3,7 @@ import {
   screenshotFile,
   sessionYamlFile,
 } from "./artifacts";
-import { type ActionCapture, createActionCapture } from "./actions";
+import { type ActionCapture, type ActionRecord, createActionCapture } from "./actions";
 import {
   type ChecklistDef,
   type ChecklistState,
@@ -12,7 +12,11 @@ import {
   type Verdict,
 } from "./checklist";
 import { deliver } from "./deliver";
-import { type ErrorCapture, createErrorCapture } from "./errors";
+import {
+  type ErrorCapture,
+  type ErrorRecord,
+  createErrorCapture,
+} from "./errors";
 import {
   collectPageEnvironment,
   isoTimestamp,
@@ -23,7 +27,9 @@ import {
   NOOP_QUEUE,
   type OfflineQueue,
 } from "./queue";
-import { resolvePrivacy } from "./preset";
+import { createGuard, type WidgetGuard } from "./guard";
+import { resolveDismiss, resolveErrors, resolvePrivacy } from "./preset";
+import { scrub, scrubMaybe } from "./scrub";
 import {
   normalizeContext,
   normalizeCustom,
@@ -46,6 +52,13 @@ import type {
 export interface FeedbackWidgetCore {
   /** Background action trail; the UI's record mode subscribes to it for frames. */
   readonly actions: ActionCapture;
+  /**
+   * Fault isolation shared by the core and the UI. Every wrapper and listener
+   * the widget installs runs through it; after repeated internal failures it
+   * trips and the widget uninstalls itself. The UI registers its own teardown
+   * here at mount.
+   */
+  readonly guard: WidgetGuard;
   /** Capture and deliver one issue. Resolves once artifacts are built; delivery runs in the background. */
   captureIssue(input: CaptureIssueInput): Promise<CaptureResult | null>;
   readonly config: FeedbackWidgetConfig;
@@ -96,6 +109,8 @@ export interface FeedbackWidgetCore {
 export interface CreateFeedbackWidgetOptions {
   /** Test seam: action-trail override (skip installing global handlers). */
   actionCapture?: ActionCapture;
+  /** Test seam: fault guard override (e.g. a lower failure threshold). */
+  guard?: WidgetGuard;
   /** Test seam: environment override instead of reading from window. */
   environment?: () => PageEnvironment;
   /** Test seam: error-capture override (skip installing global handlers). */
@@ -138,6 +153,37 @@ async function fetchChecklist(url: string): Promise<ChecklistDef | null> {
 
 const PROJECT_SLUG = /^[a-z0-9][a-z0-9-]*$/;
 
+/**
+ * Scrub the page-derived text carried by an error record. `message` covers all
+ * four sources — console text, exception and rejection messages, and the
+ * `METHOD /path → status` line of a network failure, where the path segments
+ * are what needs redacting.
+ */
+function scrubErrors(records: ErrorRecord[]): ErrorRecord[] {
+  return records.map((record) => ({
+    ...record,
+    message: scrub(record.message),
+    ...(record.stack !== undefined ? { stack: scrub(record.stack) } : {}),
+  }));
+}
+
+/**
+ * Scrub the page-derived text carried by an action record: the visible label of
+ * a clicked element, the selector it resolved to, and the paths of an SPA
+ * navigation. `chars`, `kind`, `frame` and `clip` are counts and never text.
+ */
+function scrubActions(records: ActionRecord[]): ActionRecord[] {
+  return records.map((record) => ({
+    ...record,
+    ...(record.selector !== undefined ? { selector: scrub(record.selector) } : {}),
+    ...(record.elementText !== undefined
+      ? { elementText: scrub(record.elementText) }
+      : {}),
+    ...(record.from !== undefined ? { from: scrub(record.from) } : {}),
+    ...(record.to !== undefined ? { to: scrub(record.to) } : {}),
+  }));
+}
+
 export function createFeedbackWidget(
   config: FeedbackWidgetConfig,
   options: CreateFeedbackWidgetOptions = {}
@@ -148,12 +194,26 @@ export function createFeedbackWidget(
     );
   }
   const enabled = config.enabled !== false;
-  // Resolve the preset once so `core.config` exposes the effective privacy
-  // (the UI reads it for masking + the consent checkbox).
+  // Resolve the preset once so `core.config` exposes the effective options: the
+  // UI reads `privacy` for masking + the consent checkbox and `dismiss` for the
+  // ✕, and the core reads `privacy.scrubText` when building artifacts.
+  const resolvedPrivacy = resolvePrivacy(config);
+  const resolvedErrors = resolveErrors(config);
   const resolvedConfig: FeedbackWidgetConfig = {
     ...config,
-    privacy: resolvePrivacy(config),
+    privacy: resolvedPrivacy,
+    ...(resolvedErrors !== undefined ? { errors: resolvedErrors } : {}),
+    dismiss: resolveDismiss(config),
   };
+  // Text scrubbing is a build-time transform, decided once at init.
+  const scrubbing = resolvedPrivacy?.scrubText === true;
+  // `scrubbed` is emitted only when scrubText was set explicitly (directly or
+  // by the production preset), so dev and default-beta artifacts are unchanged.
+  const scrubbedFlag =
+    resolvedPrivacy?.scrubText === undefined
+      ? undefined
+      : resolvedPrivacy.scrubText === true;
+  const text = (value: string): string => (scrubbing ? scrub(value) : value);
   // Identity + custom are validated once at init and fixed for the session.
   // `undefined` means "not configured" → the fields are omitted from artifacts
   // (backward compatible); `null` means "configured but empty".
@@ -180,14 +240,21 @@ export function createFeedbackWidget(
     checklistDef = normalizeChecklist(rawChecklist);
     checklistReady = Promise.resolve(checklistDef);
   }
+  // One guard per widget, shared by every wrapper, listener and the UI. When it
+  // trips, the teardowns registered below put the page back exactly as it was.
+  const guard = options.guard ?? createGuard();
   // Error capture starts at widget init (not on panel open) so errors that
   // happen before the reporter opens the widget are still recorded.
   const errorCapture =
-    options.errorCapture ?? createErrorCapture(config.errors);
+    options.errorCapture ?? createErrorCapture({ ...resolvedErrors, guard });
   // Action trail installs at widget init too, so actions before the widget is
   // opened are still in the buffer.
   const actionCapture =
-    options.actionCapture ?? createActionCapture(config.actions);
+    options.actionCapture ?? createActionCapture({ ...config.actions, guard });
+  // Self-disable path: restore console/fetch/XHR/history and drop every
+  // document listener the capture modules installed.
+  guard.onTrip(() => errorCapture.uninstall());
+  guard.onTrip(() => actionCapture.uninstall());
   const sessions = new SessionManager({
     project: config.project,
     storage: options.storage,
@@ -207,12 +274,21 @@ export function createFeedbackWidget(
   // Warn before the tab closes while uploads are still in flight, so the
   // last issue is not silently lost.
   if (typeof window !== "undefined") {
-    window.addEventListener("beforeunload", (event) => {
-      if (pendingDeliveries > 0) {
-        event.preventDefault();
-        event.returnValue = "";
+    const onBeforeUnload = guard.wrap(
+      "widget.beforeunload",
+      (event: BeforeUnloadEvent) => {
+        if (pendingDeliveries > 0) {
+          event.preventDefault();
+          event.returnValue = "";
+        }
       }
-    });
+    );
+    window.addEventListener("beforeunload", onBeforeUnload);
+    // Registered so a tripped breaker leaves no listener behind — a widget that
+    // switched itself off must not still be blocking the host's tab close.
+    guard.onTrip(() =>
+      window.removeEventListener("beforeunload", onBeforeUnload)
+    );
   }
 
   function enqueueDelivery(
@@ -313,6 +389,10 @@ export function createFeedbackWidget(
 
     const env = readEnvironment();
     const state = ensureSession();
+    // `url` is `pathname + search`, so it carries whatever the app puts in the
+    // query string — tokens and emails included. Scrubbed like any other
+    // page-derived text surface, in both the issue file and the session index.
+    const issueUrl = text(env.url);
 
     const id = sessions.nextIssueId(state);
     const slug = slugFromComment(comment);
@@ -330,8 +410,11 @@ export function createFeedbackWidget(
     const createdAtMs = now();
     const createdAt = isoTimestamp(new Date(createdAtMs));
     // Snapshot the error + action buffers at issue time; relative ages vs createdAtMs.
-    const errorSnapshot = errorCapture.snapshot();
-    const actionSnapshot = actionCapture.snapshot();
+    // Both carry arbitrary page text, so both go through the scrub when it is on.
+    const rawErrors = errorCapture.snapshot();
+    const rawActions = actionCapture.snapshot();
+    const errorSnapshot = scrubbing ? scrubErrors(rawErrors) : rawErrors;
+    const actionSnapshot = scrubbing ? scrubActions(rawActions) : rawActions;
 
     // Record-mode clips: each Record→Stop cycle is one clip, written to its own
     // `<framesDir>/clip-NN/` subfolder of numbered PNGs (additive, only when set).
@@ -364,8 +447,8 @@ export function createFeedbackWidget(
       ...(input.category ? { category: input.category } : {}),
       ...(input.screen ? { screen: input.screen } : {}),
       ...(isRecording ? { frames: frameTotal } : {}),
-      url: env.url,
-      selector: input.selector ?? null,
+      url: issueUrl,
+      selector: scrubbing ? scrubMaybe(input.selector ?? null) : (input.selector ?? null),
       created_at: createdAt,
     };
     state.issues.push(entry);
@@ -380,7 +463,7 @@ export function createFeedbackWidget(
     files.push(
       issueMarkdownFile(mdPath, {
         id,
-        url: env.url,
+        url: issueUrl,
         selector: entry.selector,
         mode: input.mode,
         viewport: env.viewport,
@@ -399,12 +482,21 @@ export function createFeedbackWidget(
         ...(input.selectorUnique !== undefined
           ? { selectorUnique: input.selectorUnique }
           : {}),
+        // Element text and dom path are read straight off the page, so they are
+        // scrubbed alongside the other text surfaces.
         ...(input.elementText !== undefined
-          ? { elementText: input.elementText }
+          ? {
+              elementText: scrubbing
+                ? scrubMaybe(input.elementText)
+                : input.elementText,
+            }
           : {}),
-        ...(input.domPath !== undefined ? { domPath: input.domPath } : {}),
+        ...(input.domPath !== undefined
+          ? { domPath: scrubbing ? scrubMaybe(input.domPath) : input.domPath }
+          : {}),
         ...(input.screen !== undefined ? { screen: input.screen } : {}),
         ...(input.masked !== undefined ? { masked: input.masked } : {}),
+        ...(scrubbedFlag !== undefined ? { scrubbed: scrubbedFlag } : {}),
         // Reporter + custom mirrored into each issue (present only when
         // configured), so an issue file is self-contained.
         ...(reporter !== undefined ? { reporter } : {}),
@@ -451,6 +543,7 @@ export function createFeedbackWidget(
     actions: actionCapture,
     config: resolvedConfig,
     enabled,
+    guard,
     // Promise-wrapped so the public API stays async while the artifact build
     // itself is synchronous.
     captureIssue: (input) => Promise.resolve().then(() => doCapture(input)),

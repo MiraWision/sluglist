@@ -13,13 +13,21 @@ export function widgetStyles(theme: UiTheme): string {
   box-sizing: border-box;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
-.fab {
+/* Wrapper so the dismiss ✕ can be positioned against the launcher's corner.
+   It is the fixed-position element; .fab is relative inside it. Present
+   whether or not dismiss is enabled, so the launcher renders identically. */
+.fab-wrap {
   position: fixed;
   bottom: 24px;
   ${side}: 24px;
   /* One below the menus/panels/toast (…646) so those always paint over the
      floating circles instead of the circles covering them. */
   z-index: 2147483645;
+  pointer-events: none;
+  display: flex;
+}
+.fab {
+  position: relative;
   height: 44px;
   min-width: 44px;
   max-width: 44px;
@@ -89,6 +97,56 @@ export function widgetStyles(theme: UiTheme): string {
   max-width: 140px;
   margin-left: 8px;
   opacity: 1;
+}
+/* Dismiss ✕: anchored to the launcher's top corner on the pinned edge, which
+   is the one that does NOT move when the button expands on hover. Hidden until
+   the pointer is on the launcher; on touch (no hover) it is always visible but
+   muted, otherwise it would be unreachable. */
+.fab-dismiss {
+  position: absolute;
+  top: -7px;
+  ${side}: -7px;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 10px;
+  border: 1px solid rgba(17, 17, 17, 0.12);
+  background: #fff;
+  color: rgba(17, 17, 17, 0.55);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+  pointer-events: auto;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.fab-dismiss.enabled {
+  display: flex;
+}
+.fab-dismiss:hover {
+  color: #18181b;
+  background: #f4f4f5;
+}
+@media (hover: hover) {
+  .fab-wrap:hover .fab-dismiss,
+  .fab-dismiss:focus-visible {
+    opacity: 1;
+  }
+}
+@media (hover: none) {
+  .fab-dismiss {
+    opacity: 0.55;
+  }
+}
+/* With the ✕ occupying the top pinned corner, the issue counter moves to the
+   bottom one — also pinned, so neither jumps while the launcher expands. */
+.fab.has-dismiss .badge {
+  top: auto;
+  bottom: -4px;
 }
 .fab:hover .fab-hotkey {
   max-width: 70px;

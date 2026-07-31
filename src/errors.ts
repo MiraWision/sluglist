@@ -5,6 +5,8 @@
  * snapshotted into each issue as a `## Errors` section with relative time.
  */
 
+import { NOOP_GUARD, restoreIfOurs, type WidgetGuard } from "./guard";
+
 export type ErrorSource = "console" | "exception" | "rejection" | "network";
 
 export interface ErrorRecord {
@@ -34,6 +36,13 @@ export interface ErrorCaptureOptions {
   captureNetwork?: boolean;
   /** Test seam. */
   now?: () => number;
+  /**
+   * Fault isolation. Every wrapper below computes its bookkeeping inside the
+   * guard and calls the ORIGINAL host function outside it, so a bug in capture
+   * can never break a host console call, fetch or XHR. Defaults to a no-op
+   * guard, which keeps the standalone unit tests unchanged.
+   */
+  guard?: WidgetGuard;
 }
 
 /** Extract the path (no query, no origin) from a request URL for a network log. */
@@ -107,6 +116,7 @@ export function createErrorCapture(
   }
   const size = Math.max(1, options.bufferSize ?? DEFAULT_SIZE);
   const now = options.now ?? (() => Date.now());
+  const guard = options.guard ?? NOOP_GUARD;
   const buffer: ErrorRecord[] = [];
   const push = (record: ErrorRecord): void => {
     buffer.push(record);
@@ -115,25 +125,47 @@ export function createErrorCapture(
     }
   };
 
-  const originalError = console.error;
-  console.error = (...args: unknown[]) => {
-    const message = args.map(stringifyArg).join(" ");
-    if (!isSelfLog(message)) {
-      push({ ts: now(), source: "console", message: truncate(message) });
+  /**
+   * Set once `uninstall()` has run. A wrapper we could not remove (because
+   * someone else wrapped on top of it) stays installed but stops capturing, so
+   * it degrades to a transparent passthrough instead of a leak.
+   */
+  let stopped = false;
+
+  /** Buffer a console line. Guarded; the caller still forwards to the original. */
+  const captureConsole = (site: string, args: unknown[]): void => {
+    if (stopped) {
+      return;
     }
-    originalError.apply(console, args);
+    guard.run(
+      site,
+      () => {
+        const message = args.map(stringifyArg).join(" ");
+        if (!isSelfLog(message)) {
+          push({ ts: now(), source: "console", message: truncate(message) });
+        }
+      },
+      undefined
+    );
   };
 
+  const originalError = console.error;
+  const patchedError = (...args: unknown[]) => {
+    captureConsole("console.error", args);
+    // Outside the guard: the host's log must happen whatever capture did.
+    originalError.apply(console, args);
+  };
+  console.error = patchedError;
+
   let originalWarn: typeof console.warn | null = null;
+  let patchedWarn: typeof console.warn | null = null;
   if (options.captureWarnings) {
     originalWarn = console.warn;
-    console.warn = (...args: unknown[]) => {
-      const message = args.map(stringifyArg).join(" ");
-      if (!isSelfLog(message)) {
-        push({ ts: now(), source: "console", message: truncate(message) });
-      }
+    patchedWarn = (...args: unknown[]) => {
+      captureConsole("console.warn", args);
       (originalWarn as typeof console.warn).apply(console, args);
     };
+    console.warn = patchedWarn;
   }
 
   const onError = (event: ErrorEvent): void => {
@@ -161,10 +193,15 @@ export function createErrorCapture(
     });
   };
 
+  // Guarded listeners: a throw while recording a page error must not become a
+  // second page error. Note this counts WIDGET failures only — a host page
+  // error arriving here is data, and recording it successfully is not a failure.
   const hasWindow = typeof window !== "undefined";
+  const guardedOnError = guard.wrap("window.error", onError);
+  const guardedOnRejection = guard.wrap("window.unhandledrejection", onRejection);
   if (hasWindow) {
-    window.addEventListener("error", onError);
-    window.addEventListener("unhandledrejection", onRejection);
+    window.addEventListener("error", guardedOnError);
+    window.addEventListener("unhandledrejection", guardedOnRejection);
   }
 
   // Network-failure capture (fetch + XHR). Records only the FACT of a failure —
@@ -175,12 +212,21 @@ export function createErrorCapture(
     status: number | "network error",
     startedAt: number
   ): void => {
-    const ms = Math.max(0, Math.round(now() - startedAt));
-    push({
-      ts: now(),
-      source: "network",
-      message: `${method} ${pathOf(url)} → ${status} (${ms}ms)`,
-    });
+    if (stopped) {
+      return;
+    }
+    guard.run(
+      "network.record",
+      () => {
+        const ms = Math.max(0, Math.round(now() - startedAt));
+        push({
+          ts: now(),
+          source: "network",
+          message: `${method} ${pathOf(url)} → ${status} (${ms}ms)`,
+        });
+      },
+      undefined
+    );
   };
 
   const teardowns: Array<() => void> = [];
@@ -190,39 +236,59 @@ export function createErrorCapture(
 
   if (captureNetwork && typeof globalThis.fetch === "function") {
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = function patchedFetch(
+    const patchedFetch = function patchedFetch(
       this: unknown,
       input: RequestInfo | URL,
       init?: RequestInit
     ): Promise<Response> {
-      const startedAt = now();
-      const method = (
-        init?.method ||
-        (typeof input === "object" && "method" in input ? input.method : "") ||
-        "GET"
-      ).toUpperCase();
-      const url =
-        typeof input === "string"
-          ? input
-          : input instanceof URL
-            ? input.href
-            : input.url;
-      return originalFetch.call(this, input as RequestInfo, init).then(
+      // Everything the widget needs is computed first, inside the guard, so a
+      // failure here yields `null` instead of throwing.
+      const meta = guard.run<{
+        method: string;
+        startedAt: number;
+        url: string;
+      } | null>(
+        "fetch.meta",
+        () => ({
+          startedAt: now(),
+          method: (
+            init?.method ||
+            (typeof input === "object" && "method" in input ? input.method : "") ||
+            "GET"
+          ).toUpperCase(),
+          url:
+            typeof input === "string"
+              ? input
+              : input instanceof URL
+                ? input.href
+                : input.url,
+        }),
+        null
+      );
+      // The host's request is issued unconditionally, on the original fetch.
+      const response = originalFetch.call(this, input as RequestInfo, init);
+      if (!meta) {
+        return response;
+      }
+      return response.then(
         (res) => {
           if (res.status >= 400) {
-            pushNetwork(method, url, res.status, startedAt);
+            pushNetwork(meta.method, meta.url, res.status, meta.startedAt);
           }
           return res;
         },
         (err: unknown) => {
-          pushNetwork(method, url, "network error", startedAt);
+          pushNetwork(meta.method, meta.url, "network error", meta.startedAt);
           throw err;
         }
       );
     };
-    teardowns.push(() => {
-      globalThis.fetch = originalFetch;
-    });
+    globalThis.fetch = patchedFetch;
+    teardowns.push(() =>
+      restoreIfOurs("fetch", globalThis.fetch, patchedFetch, () => {
+        globalThis.fetch = originalFetch;
+      })
+    );
   }
 
   if (captureNetwork && typeof XMLHttpRequest !== "undefined") {
@@ -230,48 +296,80 @@ export function createErrorCapture(
     const originalOpen = proto.open;
     const originalSend = proto.send;
     type Tracked = XMLHttpRequest & { __sl?: { method: string; url: string } };
-    proto.open = function open(
+    const patchedOpen = function open(
       this: Tracked,
       method: string,
       url: string | URL,
       ...rest: unknown[]
     ) {
-      this.__sl = { method: (method || "GET").toUpperCase(), url: String(url) };
+      guard.run(
+        "xhr.open",
+        () => {
+          this.__sl = {
+            method: (method || "GET").toUpperCase(),
+            url: String(url),
+          };
+        },
+        undefined
+      );
       // biome-ignore lint/suspicious/noExplicitAny: passthrough to native signature
       return (originalOpen as any).call(this, method, url, ...rest);
     };
-    proto.send = function send(this: Tracked, ...args: unknown[]) {
-      const info = this.__sl;
-      if (info) {
-        const startedAt = now();
-        this.addEventListener("loadend", () => {
-          // status 0 → network error / abort; otherwise the HTTP status.
-          if (this.status === 0) {
-            pushNetwork(info.method, info.url, "network error", startedAt);
-          } else if (this.status >= 400) {
-            pushNetwork(info.method, info.url, this.status, startedAt);
+    proto.open = patchedOpen;
+    const patchedSend = function send(this: Tracked, ...args: unknown[]) {
+      guard.run(
+        "xhr.send",
+        () => {
+          const info = this.__sl;
+          if (!info || stopped) {
+            return;
           }
-        });
-      }
+          const startedAt = now();
+          this.addEventListener(
+            "loadend",
+            guard.wrap("xhr.loadend", () => {
+              // status 0 → network error / abort; otherwise the HTTP status.
+              if (this.status === 0) {
+                pushNetwork(info.method, info.url, "network error", startedAt);
+              } else if (this.status >= 400) {
+                pushNetwork(info.method, info.url, this.status, startedAt);
+              }
+            })
+          );
+        },
+        undefined
+      );
       // biome-ignore lint/suspicious/noExplicitAny: passthrough to native signature
       return (originalSend as any).apply(this, args);
     };
+    proto.send = patchedSend;
     teardowns.push(() => {
-      proto.open = originalOpen;
-      proto.send = originalSend;
+      restoreIfOurs("XMLHttpRequest.open", proto.open, patchedOpen, () => {
+        proto.open = originalOpen;
+      });
+      restoreIfOurs("XMLHttpRequest.send", proto.send, patchedSend, () => {
+        proto.send = originalSend;
+      });
     });
   }
 
   return {
     snapshot: () => [...buffer],
     uninstall: () => {
-      console.error = originalError;
-      if (originalWarn) {
-        console.warn = originalWarn;
+      // `stopped` first: any wrapper we cannot remove is already inert by the
+      // time we find out we have to leave it in place.
+      stopped = true;
+      restoreIfOurs("console.error", console.error, patchedError, () => {
+        console.error = originalError;
+      });
+      if (originalWarn && patchedWarn) {
+        restoreIfOurs("console.warn", console.warn, patchedWarn, () => {
+          console.warn = originalWarn as typeof console.warn;
+        });
       }
       if (hasWindow) {
-        window.removeEventListener("error", onError);
-        window.removeEventListener("unhandledrejection", onRejection);
+        window.removeEventListener("error", guardedOnError);
+        window.removeEventListener("unhandledrejection", guardedOnRejection);
       }
       for (const teardown of teardowns) {
         teardown();

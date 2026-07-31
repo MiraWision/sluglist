@@ -6,6 +6,12 @@ import {
   matchUrlPattern,
   type Verdict,
 } from "../checklist";
+import {
+  clearDismissed,
+  isDismissed as readIsDismissed,
+  setDismissed,
+} from "../dismiss";
+import { DEFAULT_DISMISS_DAYS } from "../preset";
 import { captureArea, captureElement, captureFullPage } from "../screenshot";
 import type { CaptureMode, CaptureResult, FeedbackPrivacy } from "../types";
 import type { FeedbackWidgetCore } from "../widget";
@@ -62,6 +68,21 @@ export interface FeedbackWidgetUiConfig {
 }
 
 export interface MountedFeedbackWidget {
+  /**
+   * Hide the widget as if the reporter clicked the ✕: the launcher, the
+   * shortcut and every panel go away, and the dismissal is persisted. Works
+   * whether or not the ✕ itself is enabled.
+   */
+  dismiss(): void;
+  /** Whether the widget is currently hidden by a dismissal. */
+  isDismissed(): boolean;
+  /**
+   * Clear any dismissal and bring the widget back immediately. This is the
+   * rescue path: wire it to a "Report a problem" link in your own footer so a
+   * customer who dismissed the launcher can always get it back. See the
+   * Production section of the README.
+   */
+  show(): void;
   unmount(): void;
 }
 
@@ -155,7 +176,12 @@ export function mountFeedbackWidget(
   uiConfig: FeedbackWidgetUiConfig = {}
 ): MountedFeedbackWidget {
   if (!core.enabled) {
-    return { unmount: () => undefined };
+    return {
+      dismiss: () => undefined,
+      isDismissed: () => false,
+      show: () => undefined,
+      unmount: () => undefined,
+    };
   }
 
   const theme: UiTheme = {
@@ -174,6 +200,10 @@ export function mountFeedbackWidget(
   const privacy: FeedbackPrivacy = core.config.privacy ?? {};
   const privacyConfigured = core.config.privacy !== undefined;
   const consentEnabled = privacy.screenshotConsent === true;
+  // Dismiss: resolved by the preset (on in production, off in dev/beta).
+  const dismissCfg = core.config.dismiss ?? {};
+  const dismissEnabled = dismissCfg.enabled === true;
+  const dismissDays = dismissCfg.days ?? DEFAULT_DISMISS_DAYS;
   // Record mode config (frames per action).
   const recCfg = core.config.recording ?? {};
   const recordingEnabled = recCfg.enabled !== false;
@@ -194,6 +224,25 @@ export function mountFeedbackWidget(
   const shortcut = resolveShortcut(rawShortcut);
   const shortcutLabel = shortcut ? formatShortcut(shortcut) : "";
 
+  /**
+   * Wrap a UI handler so a render or click failure is counted by the shared
+   * guard instead of escaping into the host page. On failure the panels are
+   * closed: a half-rendered dialog the reporter cannot dismiss is worse than no
+   * dialog, and closing keeps the page usable rather than leaving an overlay
+   * stuck over it.
+   */
+  function guardUi<A extends unknown[]>(
+    site: string,
+    handler: (...args: A) => void
+  ): (...args: A) => void {
+    return core.guard.wrap(site, handler, () => {
+      resetModes();
+      closeMenu();
+      closePanel();
+      closeChecklistPanel();
+    });
+  }
+
   const host = el("div");
   host.setAttribute(HOST_ATTRIBUTE, "");
   host.style.pointerEvents = "none";
@@ -203,13 +252,13 @@ export function mountFeedbackWidget(
   style.textContent = widgetStyles(theme);
   shadow.appendChild(style);
 
-  // The beta preset relabels the button to "Report a problem" unless the caller
-  // set an explicit buttonLabel string.
+  // The beta and production presets relabel the button to "Report a problem"
+  // (it faces real users) unless the caller set an explicit buttonLabel string.
+  const realUserPreset =
+    core.config.preset === "beta" || core.config.preset === "production";
   const buttonLabel =
     uiConfig.strings?.buttonLabel ??
-    (core.config.preset === "beta"
-      ? strings.reportProblem
-      : strings.buttonLabel);
+    (realUserPreset ? strings.reportProblem : strings.buttonLabel);
   const fab = el("button", "fab");
   fab.type = "button";
   fab.title = shortcut ? `${buttonLabel} (${shortcutLabel})` : buttonLabel;
@@ -221,6 +270,18 @@ export function mountFeedbackWidget(
   const fabLabel = el("span", "fab-label");
   fabLabel.textContent = buttonLabel;
   const badge = el("span", "badge");
+  // Dismiss ✕: a sibling of the launcher (a button cannot nest inside a
+  // button), positioned against its corner by .fab-wrap.
+  const fabWrap = el("div", "fab-wrap");
+  const dismissBtn = el("button", "fab-dismiss");
+  dismissBtn.type = "button";
+  dismissBtn.textContent = "×";
+  dismissBtn.title = strings.dismiss;
+  dismissBtn.setAttribute("aria-label", strings.dismiss);
+  if (dismissEnabled) {
+    dismissBtn.classList.add("enabled");
+    fab.classList.add("has-dismiss");
+  }
   fab.append(fabIcon, fabLabel);
   if (shortcut) {
     const fabHotkey = el("span", "fab-hotkey");
@@ -232,6 +293,7 @@ export function mountFeedbackWidget(
   const recDot = el("span", "rec-dot");
   recDot.style.display = "none";
   fab.appendChild(recDot);
+  fabWrap.append(fab, dismissBtn);
 
   const menu = el("div", "menu");
   const menuItems: { button: HTMLButtonElement; run: () => void }[] = [];
@@ -243,9 +305,11 @@ export function mountFeedbackWidget(
     const kbd = el("kbd");
     kbd.textContent = String(menuItems.length + 1);
     button.append(text, kbd);
-    button.addEventListener("click", run);
+    const guardedRun = guardUi(`ui.menu:${label}`, run);
+    button.addEventListener("click", guardedRun);
     menu.appendChild(button);
-    menuItems.push({ button, run });
+    // The keyboard path (digit hotkeys) runs the same guarded handler.
+    menuItems.push({ button, run: guardedRun });
   }
 
   const hint = el("div", "hint");
@@ -384,7 +448,7 @@ export function mountFeedbackWidget(
   // valid checklist resolves (see whenChecklistReady below), so a widget with no
   // checklist has a shadow tree identical to before this feature existed.
   shadow.append(
-    fab,
+    fabWrap,
     menu,
     hint,
     highlight,
@@ -969,7 +1033,7 @@ export function mountFeedbackWidget(
     document.removeEventListener("mousemove", onElementHover, true);
     document.removeEventListener("click", onElementClick, true);
     hoverTarget = null;
-    fab.style.display = "flex";
+    fabWrap.style.display = "flex";
   }
 
   function discardDraft(): void {
@@ -1273,7 +1337,7 @@ export function mountFeedbackWidget(
 
   function startElementMode(): void {
     closeMenu();
-    fab.style.display = "none";
+    fabWrap.style.display = "none";
     showHint(strings.elementHint);
     document.addEventListener("mousemove", onElementHover, true);
     document.addEventListener("click", onElementClick, true);
@@ -1281,9 +1345,9 @@ export function mountFeedbackWidget(
 
   function startFullpageMode(): void {
     closeMenu();
-    fab.style.display = "none";
+    fabWrap.style.display = "none";
     captureIntoDraft("fullpage", null, () => captureFullPage());
-    fab.style.display = "flex";
+    fabWrap.style.display = "flex";
   }
 
   // Area mode: drag a rectangle over the overlay.
@@ -1301,7 +1365,7 @@ export function mountFeedbackWidget(
 
   function startAreaMode(): void {
     closeMenu();
-    fab.style.display = "none";
+    fabWrap.style.display = "none";
     showHint("Drag to select an area. Esc to cancel.");
     areaOverlay.style.display = "block";
   }
@@ -1559,6 +1623,11 @@ export function mountFeedbackWidget(
   }
 
   function onKeyDown(event: KeyboardEvent): void {
+    // A dismissed widget is fully out of the way — the shortcut must not bring
+    // it back, or the ✕ would not be a real "leave me alone".
+    if (dismissed) {
+      return;
+    }
     // While the annotation editor is open it owns the keyboard (its own
     // document listener handles Escape); do not let Escape close the panel.
     if (annotating) {
@@ -1628,41 +1697,85 @@ export function mountFeedbackWidget(
     }
   }
 
-  fab.addEventListener("click", () => {
+  // --- dismiss ---------------------------------------------------------------
+  // Hiding the whole shadow host takes the launcher, every panel and the
+  // overlays out in one move; `dismissed` additionally short-circuits the
+  // keyboard shortcut, so a dismissed widget has no way back in except show().
+  let dismissed = false;
+
+  function applyDismissed(next: boolean): void {
+    dismissed = next;
+    host.style.display = next ? "none" : "";
+  }
+
+  function dismissWidget(): void {
     if (recorder.recording) {
-      stopRecording().catch(() => undefined);
-      return;
+      recorder.cancel();
     }
-    if (isMenuOpen()) {
-      pendingChecklistItem = null;
-      closeMenu();
-    } else {
-      openMenu();
-    }
+    resetModes();
+    closeMenu();
+    closeChecklistPanel();
+    closePanel();
+    hideToast();
+    setDismissed(core.config.project);
+    applyDismissed(true);
+  }
+
+  function showWidget(): void {
+    clearDismissed(core.config.project);
+    applyDismissed(false);
+  }
+
+  dismissBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    dismissWidget();
   });
-  checklistFab.addEventListener("click", () => {
-    if (isChecklistPanelOpen()) {
-      closeChecklistPanel();
-    } else {
-      openChecklistPanel();
-    }
-  });
-  checklistClose.addEventListener("click", closeChecklistPanel);
-  // Close the checklist panel on a click outside it (but not on its own circle,
-  // which toggles). The capture panel keeps its explicit Cancel button.
-  document.addEventListener(
-    "pointerdown",
-    (event) => {
-      if (!isChecklistPanelOpen()) {
+  // Honour a dismissal from a previous page load before anything is shown.
+  if (dismissEnabled && readIsDismissed(core.config.project, dismissDays)) {
+    applyDismissed(true);
+  }
+
+  fab.addEventListener(
+    "click",
+    guardUi("ui.fab", () => {
+      if (recorder.recording) {
+        stopRecording().catch(() => undefined);
         return;
       }
-      const path = event.composedPath();
-      if (!path.includes(checklistPanel) && !path.includes(checklistFab)) {
-        closeChecklistPanel();
+      if (isMenuOpen()) {
+        pendingChecklistItem = null;
+        closeMenu();
+      } else {
+        openMenu();
       }
-    },
-    true
+    })
   );
+  checklistFab.addEventListener(
+    "click",
+    guardUi("ui.checklistFab", () => {
+      if (isChecklistPanelOpen()) {
+        closeChecklistPanel();
+      } else {
+        openChecklistPanel();
+      }
+    })
+  );
+  checklistClose.addEventListener(
+    "click",
+    guardUi("ui.checklistClose", closeChecklistPanel)
+  );
+  // Close the checklist panel on a click outside it (but not on its own circle,
+  // which toggles). The capture panel keeps its explicit Cancel button.
+  const guardedPointerDown = guardUi("ui.pointerdown", (event: PointerEvent) => {
+    if (!isChecklistPanelOpen()) {
+      return;
+    }
+    const path = event.composedPath();
+    if (!path.includes(checklistPanel) && !path.includes(checklistFab)) {
+      closeChecklistPanel();
+    }
+  });
+  document.addEventListener("pointerdown", guardedPointerDown, true);
   // Reveal the second circle once the checklist resolves (inline immediately,
   // or after a URL fetch). A null result (none configured / invalid / 404)
   // leaves the widget exactly as it is today.
@@ -1702,20 +1815,39 @@ export function mountFeedbackWidget(
     });
   }
   menuItem(strings.menuNoScreenshot, startNoScreenshot);
-  recSnapBtn.addEventListener("click", snapFrame);
-  recStopBtn.addEventListener("click", () => {
-    stopRecording().catch(() => undefined);
+  recSnapBtn.addEventListener("click", guardUi("ui.recSnap", snapFrame));
+  recStopBtn.addEventListener(
+    "click",
+    guardUi("ui.recStop", () => {
+      stopRecording().catch(() => undefined);
+    })
+  );
+  recCancelBtn.addEventListener("click", guardUi("ui.recCancel", cancelRecording));
+  cancelBtn.addEventListener("click", guardUi("ui.cancel", closePanel));
+  sendBtn.addEventListener(
+    "click",
+    guardUi("ui.send", () => {
+      sendDraft().catch(() => undefined);
+    })
+  );
+  const guardedKeyDown = guardUi("ui.keydown", onKeyDown);
+  document.addEventListener("keydown", guardedKeyDown, true);
+  // The UI's share of the self-disable path: drop the two document listeners it
+  // owns and take the shadow host out of the page, so a tripped breaker leaves
+  // the host DOM exactly as it found it.
+  core.guard.onTrip(() => {
+    document.removeEventListener("keydown", guardedKeyDown, true);
+    document.removeEventListener("pointerdown", guardedPointerDown, true);
+    recorder.cancel();
+    host.remove();
   });
-  recCancelBtn.addEventListener("click", cancelRecording);
-  cancelBtn.addEventListener("click", closePanel);
-  sendBtn.addEventListener("click", () => {
-    sendDraft().catch(() => undefined);
-  });
-  document.addEventListener("keydown", onKeyDown, true);
 
   refreshBadge();
 
   return {
+    dismiss: dismissWidget,
+    isDismissed: () => dismissed,
+    show: showWidget,
     unmount: () => {
       document.removeEventListener("keydown", onKeyDown, true);
       recorder.cancel();

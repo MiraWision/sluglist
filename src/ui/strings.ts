@@ -51,6 +51,8 @@ export interface FeedbackWidgetStrings {
   placeholderIdea: string;
   deliveryFailed: string;
   dialogTitle: string;
+  /** Dismiss ✕ on the launcher — aria-label + tooltip. */
+  dismiss: string;
   elementHint: string;
   menuArea: string;
   menuElement: string;
@@ -118,6 +120,7 @@ export const DEFAULT_STRINGS: FeedbackWidgetStrings = {
   placeholderIdea: "Describe your idea...",
   deliveryFailed: "Issue {id}: upload failed",
   dialogTitle: "New issue",
+  dismiss: "Hide feedback button",
   elementHint: "Click an element to report it. Esc to cancel.",
   menuArea: "Select area",
   menuElement: "Select element",

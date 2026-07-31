@@ -34,8 +34,25 @@ export interface FeedbackIdentity {
 /** Flat, primitive-only project fields attached to every issue. */
 export type FeedbackCustom = Record<string, string | number | boolean>;
 
-/** Usage preset. "beta" enables privacy defaults + the beta button label. */
-export type FeedbackWidgetPreset = "dev" | "beta";
+/**
+ * Usage preset. "beta" enables privacy defaults + the beta button label;
+ * "production" adds text scrubbing, no warning capture and the dismiss control.
+ */
+export type FeedbackWidgetPreset = "dev" | "beta" | "production";
+
+/** Dismiss control: let the reporter hide the widget for a while. */
+export interface FeedbackDismissConfig {
+  /**
+   * Show the ✕ on the launcher. Default true under the "production" preset,
+   * false otherwise.
+   */
+  enabled?: boolean;
+  /**
+   * Days before a dismissed widget comes back. Default 7. `0` means it stays
+   * hidden until the browser storage is cleared (or `show()` is called).
+   */
+  days?: number;
+}
 
 /** Action-trail capture controls. */
 export interface FeedbackActionsConfig {
@@ -88,6 +105,17 @@ export interface FeedbackPrivacy {
    * form. When unchecked the issue is sent without a screenshot. Default false.
    */
   screenshotConsent?: boolean;
+  /**
+   * Redact PII-shaped substrings (emails, long digit runs, hex/base64 tokens)
+   * from the TEXT surfaces of an artifact: `element_text`, `url`, every message
+   * and stack in `## Errors` (including network paths), and the selectors and
+   * labels in `## Actions`.
+   *
+   * Never applied to values the host supplies deliberately (`context`,
+   * `custom`, `identity`, checklist titles) nor to the reporter's own comment.
+   * Default true under the "production" preset, false otherwise.
+   */
+  scrubText?: boolean;
 }
 
 /**
@@ -112,6 +140,11 @@ export interface FeedbackWidgetConfig {
   checklist?: Checklist | string;
   connectors: FeedbackConnector[];
   /**
+   * Dismiss control (the ✕ on the launcher). Enabled by default only under the
+   * "production" preset; `sluglist.show()` always brings a dismissed widget back.
+   */
+  dismiss?: FeedbackDismissConfig;
+  /**
    * Flat project fields (string | number | boolean) attached to every issue's
    * frontmatter as `custom`. Validated at init: keys → snake_case, non-primitive
    * values dropped with a warning, max 20 keys, values truncated to 200 chars.
@@ -131,7 +164,10 @@ export interface FeedbackWidgetConfig {
   /**
    * Usage preset. Default "dev". "beta" turns on privacy defaults
    * (maskInputs + screenshotConsent) and the "Report a problem" button label
-   * for real users on a production beta. Any explicit option overrides it.
+   * for real users on a production beta. "production" is beta plus text
+   * scrubbing (`privacy.scrubText`), no `console.warn` capture, and the dismiss
+   * control. Any explicit option overrides it, except `errors.captureWarnings`
+   * under "production" — see `resolveErrors`.
    */
   preset?: FeedbackWidgetPreset;
   /** Screenshot privacy: PII masking and screenshot consent. */

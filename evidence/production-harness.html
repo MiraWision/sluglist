@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>sluglist — production preset harness</title>
+    <style>
+      body { font-family: -apple-system, system-ui, sans-serif; margin: 32px; color: #111; background: #fff; }
+      h1 { font-size: 20px; margin: 0 0 4px; }
+      p.sub { color: #6b7280; font-size: 13px; margin: 0 0 24px; }
+      .panel { max-width: 460px; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; }
+      .field { margin-bottom: 12px; }
+      label { display: block; font-size: 12px; color: #6b7280; margin-bottom: 4px; }
+      input { width: 100%; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; }
+      button.app { margin-top: 8px; padding: 9px 14px; border-radius: 8px; border: 1px solid #d1d5db; background: #f9fafb; font-size: 14px; cursor: pointer; }
+      footer { margin-top: 28px; font-size: 13px; color: #6b7280; }
+      footer a { color: #2563eb; cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <h1>Account settings</h1>
+    <p class="sub">Production-preset harness: dirty page text, a dismissible launcher, and the screenshot-consent checkbox.</p>
+
+    <div class="panel" id="target">
+      <div class="field">
+        <label>Full name</label>
+        <input id="name" value="Anna Smirnova" />
+      </div>
+      <div class="field">
+        <label>Email</label>
+        <input id="email" value="anna.smirnova@acme-corp.io" />
+      </div>
+      <div class="field">
+        <label>Card</label>
+        <input id="card" value="4111 1111 1111 1111" />
+      </div>
+      <button class="app" id="notify" data-testid="notify-anna.smirnova@acme-corp.io">
+        Notify anna.smirnova@acme-corp.io at +1 555 010 4477
+      </button>
+    </div>
+
+    <footer>
+      Something wrong? <a id="rescue">Report a problem</a> — the documented rescue path
+      (<code>ui.show()</code>) for anyone who dismissed the launcher.
+    </footer>
+
+    <script src="../dist/sluglist.global.js"></script>
+    <script>
+      const memory = new Sluglist.MemoryConnector();
+      const widget = Sluglist.createFeedbackWidget({
+        project: "acme",
+        preset: "production",
+        connectors: [memory],
+      });
+      const ui = Sluglist.mountFeedbackWidget(widget);
+      window.__ui = ui;
+      window.__widget = widget;
+
+      document.getElementById("rescue").addEventListener("click", () => ui.show());
+
+      // Helpers driven from the screenshot script.
+      window.openPanel = () => {
+        const shadow = document.querySelector("[data-feedback-widget]").shadowRoot;
+        shadow.querySelector(".fab").click();
+        // "Comment without screenshot" is last; the first item is the full-page
+        // capture, which is what a reporter normally clicks.
+        shadow.querySelectorAll(".menu button")[4].click();
+      };
+      window.dismissState = () => ({
+        dismissed: ui.isDismissed(),
+        stored: localStorage.getItem("sluglist:acme:dismissed"),
+        hostDisplay: document.querySelector("[data-feedback-widget]")?.style.display ?? "(removed)",
+      });
+    </script>
+  </body>
+</html>

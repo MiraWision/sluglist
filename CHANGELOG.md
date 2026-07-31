@@ -1,5 +1,61 @@
 # Changelog
 
+## 1.10.0 — Production preset, PII text scrub, dismiss, self-isolation
+
+Everything here is additive. The `FeedbackConnector` contract is unchanged and the `dev` preset
+behaves exactly as before — artifacts written without the new options are byte-identical.
+
+### `preset: "production"`
+
+- New preset: `beta` (mask inputs + screenshot consent + "Report a problem" label) plus text
+  scrubbing, the dismiss control, and `errors.captureWarnings` forced off. Explicit options still win
+  over the preset — except `captureWarnings`, which `production` forces to `false` and warns about,
+  since `console.warn` is the noisiest text channel in a real app.
+
+### PII text scrub
+
+- New `privacy.scrubText` (on by default under `production`, available on its own). Redacts emails →
+  `[email]`, runs of 6+ digits → `[digits]`, and hex/base64-shaped tokens → `[token]` across the text
+  surfaces of an artifact: `element_text`, `url` (including the query string), `selector`,
+  `dom_path`, every message and stack in `## Errors` (network paths included), and the selectors and
+  labels in `## Actions`.
+- Dates, ISO timestamps, version numbers, IPv4, viewport strings, stack-trace line numbers and
+  ordinary prose are deliberately left alone. Values *you* supply (`context`, `custom`, `identity`,
+  checklist titles) and the reporter's own comment are never scrubbed.
+- Format **1.2 → 1.3** (additive): a `scrubbed: true|false` issue field, emitted only when
+  `scrubText` was set explicitly.
+
+### Dismiss
+
+- The launcher gets a ✕ — hover-revealed on desktop, always visible (muted) on touch. Hides the
+  widget completely, shortcut included, and remembers it for `dismiss.days` (default 7; `0` = until
+  storage is cleared). New `dismiss: { enabled, days }` config, on by default only in `production`.
+- `mountFeedbackWidget()` now returns `show()`, `dismiss()` and `isDismissed()`. Wire `show()` to a
+  "Report a problem" link in your footer so the ✕ is never a one-way door.
+
+### Self-isolation
+
+- Every host global the widget wraps (`console.error`, `fetch`, `XMLHttpRequest`,
+  `history.pushState`) now calls the original **unconditionally** — a bug inside sluglist can no
+  longer fail your request, swallow your log or block your navigation.
+- Circuit breaker: after five internal failures in a session the widget uninstalls itself (originals
+  restored by reference, listeners removed, UI taken out of the DOM) and logs one warning. Host page
+  errors are captured as data and never count toward it.
+- A global another library wrapped on top of ours is left intact rather than clobbered; our wrapper
+  degrades to a transparent passthrough.
+- Fixed: the `beforeunload` and `pointerdown` listeners were never removed.
+
+### Endpoint, docs, CI guard
+
+- `examples/feedback-route.ts` hardened: bearer auth with a constant-time compare (401), fail-closed
+  when unconfigured (503), 10 MB body cap (413), mime allowlist (415), per-session file cap (409),
+  and path validation that accepts the nested recording-frame layout. Now testable, covered by 27
+  tests.
+- New `docs/production-checklist.md`: env gating, token generation, retention, storage access, a
+  privacy-policy paragraph to adapt, and a pre-flight list. Linked from the README.
+- New permanent CI guard `test/no-phone-home.test.ts`: a full session with every outbound channel
+  trapped must make zero network calls, with a negative check proving the trap works.
+
 ## 1.9.0 — Checklist UX v2, clips, smart links, polish
 
 ### Checklist panel v2

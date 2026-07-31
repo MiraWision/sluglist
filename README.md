@@ -234,6 +234,71 @@ If you need a support loop (triage, back-and-forth, resolution states), that is 
 sluglist deliberately stops at capture. Its output is a stable set of artifacts you can pipe into
 whatever tracker or workflow you already run.
 
+## Production
+
+`preset: "production"` is `beta` plus the three things a widget needs once it faces paying
+customers rather than your own testers: PII scrubbed out of the text it collects, a way for the
+reporter to make it go away, and no `console.warn` capture.
+
+```ts
+const widget = createFeedbackWidget({
+  project: "acme",
+  preset: "production",
+  connectors: [new HttpConnector("/api/feedback", () => session.token)],
+});
+const ui = mountFeedbackWidget(widget);
+```
+
+| | `dev` | `beta` | `production` |
+| --- | --- | --- | --- |
+| `privacy.maskInputs` | – | ✓ | ✓ |
+| `privacy.screenshotConsent` | – | ✓ | ✓ |
+| `privacy.scrubText` | – | – | ✓ |
+| `errors.captureWarnings` | opt-in | opt-in | forced off |
+| `dismiss.enabled` | – | – | ✓ |
+| Button label | "Feedback" | "Report a problem" | "Report a problem" |
+
+Every option can still be set explicitly and wins over the preset — except `errors.captureWarnings`
+under `production`, which is forced to `false` (warnings are the noisiest text channel in a real
+app; asking for them anyway logs a warning).
+
+**Text scrubbing.** With `scrubText` on, the text surfaces of every artifact — `element_text`, the
+issue `url`, each message and stack in `## Errors` (including failed-request paths), and the
+selectors and labels in `## Actions` — have emails replaced by `[email]`, runs of 6+ digits by
+`[digits]`, and hex/base64-shaped tokens by `[token]`. Dates, version numbers, viewport strings,
+stack-trace line numbers and ordinary prose are left alone. Values *you* supply (`context`,
+`custom`, `identity`, checklist titles) and the reporter's own comment are never scrubbed. Issues
+carry `scrubbed: true` in their frontmatter so a reader knows which artifacts went through it.
+`privacy: { scrubText: true }` also works without the preset.
+
+**Dismiss.** The launcher gets a ✕ — shown on hover on desktop, always visible (muted) on touch.
+Clicking it hides the widget completely, shortcut included, and remembers that for `dismiss.days`
+(default 7; `0` means until storage is cleared). Configure with `dismiss: { enabled, days }`.
+
+The rescue path is `ui.show()`, which clears the dismissal immediately. Wire it to a link in your
+own footer so the ✕ is never a one-way door:
+
+```ts
+footerLink.addEventListener("click", () => ui.show());
+```
+
+**Self-isolation.** Everything the widget wraps (`console.error`, `fetch`, `XMLHttpRequest`,
+`history.pushState`) calls the original host function unconditionally — a bug inside sluglist
+cannot fail your request, swallow your log or block your navigation. Internal failures are counted;
+after five in one session the widget uninstalls itself (originals restored by reference, listeners
+removed, UI taken out of the DOM), logs one warning, and the page carries on without it.
+
+**Zero phone-home:** the widget makes no network requests except to your configured connectors.
+Enforced by an automated test ([`test/no-phone-home.test.ts`](test/no-phone-home.test.ts)) that
+drives a full session with every outbound channel trapped and asserts the count is zero. Two
+documented exceptions, both to URLs you already control: a `checklist:` URL if you configure one,
+and — at capture time only — the page's own images and webfonts, which the DOM-to-PNG renderer
+re-fetches in order to inline them into the screenshot.
+
+Before pointing this at real users, work through
+**[docs/production-checklist.md](docs/production-checklist.md)** — env gating, token generation,
+retention, storage access, and a privacy-policy paragraph to adapt.
+
 ## Checklist mode
 
 Everything above fills a session **from the bottom** — the client freely creates issues. A **checklist**

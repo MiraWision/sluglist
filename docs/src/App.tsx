@@ -175,13 +175,30 @@ just sits there, no toast, no error I can see.
 - [5s before report] type (11 chars) input#name
 - [1s before report] click button[aria-label="Save"] ("Save") — frame 03`;
 
-const BETA_CODE = `createFeedbackWidget({
+const BETA_CODE = `const widget = createFeedbackWidget({
   project: "acme",
-  preset: "beta",              // mask inputs + consent + "Report a problem"
+  preset: "production",        // beta + text scrub + dismiss ✕
   connectors: [new HttpConnector("/api/feedback")],
   identity: { userId, email, name },   // → reporter in artifacts
   custom: { plan: "pro", appVersion },  // → custom block per issue
-});`;
+});
+
+const ui = mountFeedbackWidget(widget);
+// The rescue path for anyone who dismissed the launcher.
+footerLink.onclick = () => ui.show();`;
+
+const SCRUB_BEFORE = `element_text: "Notify anna.smirnova@acme.io at +1 555 010 4477"
+url: "/account/settings?token=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI0MiJ9"
+
+## Errors
+- [2s before report] console: card 4111 1111 1111 1111 declined`;
+
+const SCRUB_AFTER = `element_text: "Notify [email] at +[digits]"
+url: "/account/settings?[token]"
+scrubbed: true
+
+## Errors
+- [2s before report] console: card [digits] declined`;
 
 const FEATURES = [
   {
@@ -233,7 +250,10 @@ const MODES = [
 const CONFIG = [
   ["project", "string", "Slug written into session.yaml."],
   ["connectors", "FeedbackConnector[]", "Delivery targets; runs them all."],
-  ["enabled", "boolean", "Gate on env; skip in production."],
+  ["enabled", "boolean", "Gate on env; skip where you don't want it."],
+  ["preset", "\"dev\" | \"beta\" | \"production\"", "Privacy, scrub and dismiss defaults."],
+  ["privacy.scrubText", "boolean", "Redact PII from artifact text (on in production)."],
+  ["dismiss", "{ enabled, days }", "✕ on the launcher; ui.show() brings it back."],
   ["offlineQueue", "boolean", "IndexedDB outbox + retry (default on)."],
   ["container", "HTMLElement", "Mount target (default document.body)."],
   ["shortcut", "string | false", "Toggle key (default \"Shift+F\")."],
@@ -321,7 +341,7 @@ export function App() {
               Demo
             </a>
             <a className="hidden hover:text-[var(--color-ink)] sm:inline" href="#beta">
-              Beta
+              Production
             </a>
             <a className="hidden hover:text-[var(--color-ink)] sm:inline" href="#start">
               Docs
@@ -508,28 +528,86 @@ export function App() {
       </Section>
 
       <Section
-        eyebrow="Beta"
+        eyebrow="Production"
         id="beta"
         title="A &ldquo;Report a problem&rdquo; button for real users"
       >
         <div className="grid gap-6 md:grid-cols-2 md:items-start">
           <div>
             <p className="mb-4 text-[15px] text-[var(--color-ink-2)] leading-relaxed">
-              The <code className="font-mono text-[13px]">beta</code> preset turns
-              sluglist into a feedback button for people on a production MVP: it
-              masks form inputs and anything marked{" "}
+              The <code className="font-mono text-[13px]">production</code> preset
+              turns sluglist into a feedback button for paying customers. It masks
+              form inputs and anything marked{" "}
               <code className="font-mono text-[13px]">data-private</code> in the
-              screenshot, adds a screenshot-consent checkbox, and attaches the
-              reporter&rsquo;s identity plus any custom fields you pass.
+              screenshot, adds a screenshot-consent checkbox, scrubs PII out of the
+              text it collects, and gives the reporter a ✕ to make it go away —
+              with <code className="font-mono text-[13px]">ui.show()</code> as the
+              rescue path.
+            </p>
+            <p className="mb-4 text-[14px] text-[var(--color-muted)] leading-relaxed">
+              Nothing sluglist wraps can break your page:{" "}
+              <code className="font-mono text-[13px]">fetch</code>,{" "}
+              <code className="font-mono text-[13px]">console.error</code> and{" "}
+              <code className="font-mono text-[13px]">history</code> always call
+              the original, and after repeated internal failures the widget
+              uninstalls itself and gets out of the way.
             </p>
             <p className="text-[14px] text-[var(--color-muted)] leading-relaxed">
               Still one-way capture by design: no inbox, no statuses, no replies,
               no accounts. Deliver through a thin endpoint that owns your storage
-              keys — never ship write-keys to the browser.
+              keys — never ship write-keys to the browser. Before you ship, walk
+              the{" "}
+              <a
+                className="underline decoration-[var(--color-line)] underline-offset-2 hover:text-[var(--color-ink)]"
+                href={`${REPO}/blob/main/docs/production-checklist.md`}
+              >
+                production checklist
+              </a>
+              .
             </p>
           </div>
           <CodeBlock code={BETA_CODE} />
         </div>
+      </Section>
+
+      <Section
+        eyebrow="Privacy"
+        id="scrub"
+        title="PII never reaches the artifact"
+      >
+        <p className="mb-6 max-w-2xl text-[15px] text-[var(--color-ink-2)] leading-relaxed">
+          With <code className="font-mono text-[13px]">scrubText</code> on, emails,
+          long digit runs and hex/base64 tokens are redacted from every text
+          surface: element text, the issue url, each message and stack in{" "}
+          <code className="font-mono text-[13px]">## Errors</code> — failed-request
+          paths included — and the selectors and labels in{" "}
+          <code className="font-mono text-[13px]">## Actions</code>. Dates, version
+          numbers, viewport strings and stack-trace line numbers are left alone, so
+          the report stays readable.
+        </p>
+        <div className="grid gap-6 md:grid-cols-2 md:items-start">
+          {/* min-w-0: a grid item defaults to min-width:auto and would otherwise
+              refuse to shrink below the code block's content width, pushing the
+              whole page into a horizontal scroll on mobile. */}
+          <div className="min-w-0">
+            <p className="mb-2 font-mono text-[12px] text-[var(--color-muted)] uppercase tracking-widest">
+              Captured
+            </p>
+            <CodeBlock code={SCRUB_BEFORE} lang="markdown" />
+          </div>
+          <div className="min-w-0">
+            <p className="mb-2 font-mono text-[12px] text-[var(--color-muted)] uppercase tracking-widest">
+              Delivered
+            </p>
+            <CodeBlock code={SCRUB_AFTER} lang="markdown" />
+          </div>
+        </div>
+        <p className="mt-6 max-w-2xl text-[14px] text-[var(--color-muted)] leading-relaxed">
+          And nothing leaves your infrastructure: the widget makes no network
+          requests except to the connectors you configure — enforced by a test that
+          drives a full session with every outbound channel trapped and asserts the
+          count is zero.
+        </p>
       </Section>
 
       <Section eyebrow="Contract" id="artifacts" title="A stable artifact format">
