@@ -2,16 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "docs",
-      "runtimeExecutable": "/Users/yelysei/.nvm/versions/node/v20.19.2/bin/node",
-      "runtimeArgs": [
-        "docs/node_modules/vite/bin/vite.js",
-        "docs",
-        "--port",
-        "5178",
-        "--strictPort"
-      ],
-      "port": 5178
+      "name": "sluglist-site",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "docs/out", "-l", "4173"],
+      "port": 4173
     }
   ]
 }

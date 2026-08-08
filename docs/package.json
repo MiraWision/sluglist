@@ -5,26 +5,28 @@
   "type": "module",
   "homepage": "https://sluglist.dev",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
+    "dev": "next dev",
+    "build": "next build",
+    "preview": "npx serve out",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist"
+    "deploy": "gh-pages -d out --dotfiles"
   },
   "dependencies": {
     "html-to-image": "^1.11.13",
     "jszip": "^3.10.1",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "marked": "^15.0.6",
+    "next": "^16.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.1.14",
-    "@types/react": "^18.3.12",
-    "@types/react-dom": "^18.3.1",
-    "@vitejs/plugin-react": "^4.3.4",
+    "@tailwindcss/postcss": "^4.1.14",
+    "@tailwindcss/typography": "^0.5.16",
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
     "gh-pages": "^6.3.0",
     "tailwindcss": "^4.1.14",
-    "typescript": "^5.9.2",
-    "vite": "^6.0.7"
+    "typescript": "^5.9.2"
   }
 }

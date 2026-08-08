@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useMemo, useState } from "react";
 import {
   type ArtifactFile,
@@ -39,7 +41,7 @@ function createDemoConnector(
   };
 }
 
-export function Demo() {
+export default function Demo() {
   const [artifacts, setArtifacts] = useState<DemoArtifact[]>([]);
   const [active, setActive] = useState<string | null>(null);
 
@@ -117,7 +119,7 @@ export function Demo() {
   );
 
   return (
-    <div className="grid gap-6 md:grid-cols-2">
+    <div className="grid gap-6 md:grid-cols-2 [&>*]:min-w-0">
       <div>
         <ol className="space-y-3 text-[15px] text-[var(--color-ink-2)]">
           {[
@@ -166,7 +168,7 @@ export function Demo() {
             <div className="max-h-[340px] overflow-auto p-4">
               {activeArtifact?.url ? (
                 <img
-                  alt={activeArtifact.path}
+                  alt={`Captured artifact preview: ${activeArtifact.path}`}
                   className="w-full rounded-lg border border-[var(--color-line)]"
                   src={activeArtifact.url}
                 />

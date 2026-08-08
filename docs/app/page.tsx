@@ -1,8 +1,14 @@
-import { CodeBlock } from "./components/CodeBlock";
-import { Demo } from "./components/Demo";
+import type { Metadata } from "next";
+import Link from "next/link";
+import { CodeBlock } from "@/components/CodeBlock";
+import { DemoLazy } from "@/components/DemoLazy";
+import { JsonLd } from "@/components/JsonLd";
+import { Mono, Section, Terminal } from "@/components/Section";
+import { REPO, SITE_DESCRIPTION, SITE_TITLE, SITE_URL } from "@/lib/site";
 
-const REPO = "https://github.com/MiraWision/sluglist";
-const NPM = "https://www.npmjs.com/package/sluglist";
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
 // Agent story — commands and output copied from the real `sluglist dev` CLI
 // and the `sluglist-fix` skill's `.done` report shape.
@@ -114,7 +120,7 @@ mountFeedbackWidget(
   })
 );
 // then: npx sluglist dev`,
-    href: "#agents",
+    href: "/for/claude-code/",
   },
   {
     n: "2",
@@ -125,9 +131,7 @@ mountFeedbackWidget(
   connectors: [new HttpConnector(url, token)],
   checklist: "/checklist.json",
 });`,
-    // The live checklist panel is in the demo section; there is no separate
-    // #checklist section on this page.
-    href: "#demo",
+    href: "/for/client-acceptance/",
   },
   {
     n: "3",
@@ -139,7 +143,7 @@ mountFeedbackWidget(
   connectors: [new HttpConnector(url, token)],
   identity: { userId: user.id, email: user.email },
 });`,
-    href: "#beta",
+    href: "/for/beta-feedback/",
   },
 ];
 
@@ -304,108 +308,31 @@ const CONFIG = [
   ["strings", "Partial<Strings>", "Override any UI text (i18n)."],
 ];
 
-/**
- * Every grid on this page carries `[&>*]:min-w-0`. Grid items default to
- * `min-width: auto`, which means a child refuses to shrink below its content
- * width — and a code block's content is wider than a phone. Without it the
- * item forces the grid wider than the viewport, the whole page gains a
- * horizontal scroll, and the `overflow-x: auto` on the `<pre>` inside never
- * gets a chance to do its job.
- */
-function Section({
-  id,
-  eyebrow,
-  title,
-  children,
-}: {
-  id: string;
-  eyebrow: string;
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="mx-auto max-w-5xl px-6 py-16 md:py-24" id={id}>
-      <p className="mb-2 font-mono text-[12px] text-[var(--color-muted)] uppercase tracking-widest">
-        {eyebrow}
-      </p>
-      <h2 className="mb-8 font-semibold text-2xl tracking-tight md:text-3xl">
-        {title}
-      </h2>
-      {children}
-    </section>
-  );
-}
+const SOFTWARE_JSONLD = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "@id": `${SITE_URL}/#software`,
+  name: "sluglist",
+  headline: SITE_TITLE,
+  description: SITE_DESCRIPTION,
+  url: `${SITE_URL}/`,
+  applicationCategory: "DeveloperApplication",
+  operatingSystem: "Web browser",
+  softwareVersion: "1.11.0",
+  license: "https://opensource.org/license/mit",
+  isAccessibleForFree: true,
+  offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+  downloadUrl: "https://www.npmjs.com/package/sluglist",
+  softwareHelp: `${SITE_URL}/docs/`,
+  releaseNotes: `${SITE_URL}/changelog/`,
+  author: { "@id": `${SITE_URL}/#org` },
+  sameAs: [REPO],
+};
 
-function Mono({ children }: { children: React.ReactNode }) {
+export default function HomePage() {
   return (
-    <code className="rounded bg-[var(--color-canvas)] px-1.5 py-0.5 font-mono text-[0.9em] text-[var(--color-ink)]">
-      {children}
-    </code>
-  );
-}
-
-function Terminal({ title, code }: { title: string; code: string }) {
-  return (
-    <div className="overflow-hidden rounded-xl border border-white/10 bg-[#18181b] shadow-sm">
-      <div className="flex items-center gap-2 border-white/10 border-b px-4 py-2.5">
-        <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
-        <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
-        <span className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
-        <span className="ml-2 font-mono text-[11px] text-white/40">{title}</span>
-      </div>
-      <pre className="overflow-x-auto px-4 py-3.5 text-[12.5px] leading-relaxed">
-        <code className="font-mono text-[#e4e4e7]">{code}</code>
-      </pre>
-    </div>
-  );
-}
-
-function Logo() {
-  return (
-    <span className="inline-flex items-center gap-2 font-semibold tracking-tight">
-      <img
-        alt=""
-        className="h-7 w-7"
-        height={28}
-        src={`${import.meta.env.BASE_URL}icon.svg`}
-        width={28}
-      />
-      sluglist
-    </span>
-  );
-}
-
-export function App() {
-  return (
-    <div className="min-h-dvh">
-      <header className="sticky top-0 z-40 border-[var(--color-line)] border-b bg-[color-mix(in_oklab,var(--color-canvas)_85%,transparent)] backdrop-blur">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
-          <Logo />
-          <nav className="flex items-center gap-5 text-[14px] text-[var(--color-muted)]">
-            <a className="hover:text-[var(--color-ink)]" href="#agents">
-              Agents
-            </a>
-            <a className="hidden hover:text-[var(--color-ink)] sm:inline" href="#demo">
-              Demo
-            </a>
-            <a className="hidden hover:text-[var(--color-ink)] sm:inline" href="#beta">
-              Production
-            </a>
-            <a className="hidden hover:text-[var(--color-ink)] sm:inline" href="#start">
-              Docs
-            </a>
-            <a className="hover:text-[var(--color-ink)]" href={NPM}>
-              npm
-            </a>
-            <a
-              className="rounded-lg border border-[var(--color-line)] px-3 py-1.5 text-[var(--color-ink)] transition hover:bg-[var(--color-surface)]"
-              href={REPO}
-            >
-              GitHub
-            </a>
-          </nav>
-        </div>
-      </header>
+    <>
+      <JsonLd data={SOFTWARE_JSONLD} />
 
       {/* Hero */}
       <div className="relative overflow-hidden">
@@ -422,7 +349,7 @@ export function App() {
           <p className="mx-auto mt-5 max-w-xl text-[17px] text-[var(--color-ink-2)] md:text-lg">
             A drop-in widget for dev and staging sites. Pick an element,
             screenshot, annotate, and deliver clean artifacts through your own
-            connectors.
+            connectors — or let Claude Code read the feedback and fix it.
           </p>
           <div className="mx-auto mt-8 flex max-w-md flex-col items-center gap-3">
             <div className="flex w-full items-center justify-between gap-3 rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] px-4 py-2.5 font-mono text-[14px]">
@@ -432,12 +359,12 @@ export function App() {
               </span>
             </div>
             <div className="flex gap-3">
-              <a
+              <Link
                 className="rounded-xl bg-[var(--color-accent)] px-5 py-2.5 font-medium text-[14px] text-[var(--color-canvas)] transition hover:opacity-90"
-                href="#start"
+                href="/docs/quick-start/"
               >
                 Get started
-              </a>
+              </Link>
               <a
                 className="rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] px-5 py-2.5 font-medium text-[14px] transition hover:bg-[var(--color-canvas)]"
                 href="#demo"
@@ -499,13 +426,18 @@ export function App() {
 
           <p className="mt-6 text-[13px] text-[var(--color-muted)] leading-relaxed">
             Works with any agent that can read files. Claude Code is supported
-            out of the box via the bundled <Mono>sluglist-fix</Mono> skill.
+            out of the box via the bundled <Mono>sluglist-fix</Mono> skill. Full
+            guide:{" "}
+            <Link className="underline underline-offset-2" href="/for/claude-code/">
+              sluglist for Claude Code &amp; coding agents
+            </Link>
+            .
           </p>
         </div>
       </section>
 
       <Section eyebrow="Live" id="demo" title="Try it on this page">
-        <Demo />
+        <DemoLazy />
       </Section>
 
       <Section eyebrow="Why" id="features" title="Everything a feedback loop needs">
@@ -541,7 +473,11 @@ export function App() {
                 html-to-image
               </code>{" "}
               loads lazily on the first capture — nothing in your initial
-              bundle.
+              bundle. Full setup:{" "}
+              <Link className="underline underline-offset-2" href="/docs/quick-start/">
+                the quick-start guide
+              </Link>
+              .
             </p>
           </div>
         </div>
@@ -568,12 +504,12 @@ export function App() {
                 <span className="font-mono text-[13px] text-[var(--color-ink-2)]">
                   {s.n}
                 </span>
-                <a
+                <Link
                   className="font-semibold text-[15px] hover:underline"
                   href={s.href}
                 >
                   {s.title}
-                </a>
+                </Link>
               </div>
               <p className="text-[14px] text-[var(--color-ink-2)] leading-relaxed">
                 {s.body}
@@ -611,6 +547,11 @@ export function App() {
             <code className="font-mono text-[13px]">MemoryConnector</code> and{" "}
             <code className="font-mono text-[13px]">DownloadConnector</code> (zips
             a session). Failures retry with backoff and never block the UI.
+            Recipes for Vercel Blob, S3/R2 and Supabase:{" "}
+            <Link className="underline underline-offset-2" href="/docs/connectors/">
+              the connectors guide
+            </Link>
+            .
           </p>
           <CodeBlock code={CONNECTOR_CODE} />
         </div>
@@ -646,12 +587,12 @@ export function App() {
               no accounts. Deliver through a thin endpoint that owns your storage
               keys — never ship write-keys to the browser. Before you ship, walk
               the{" "}
-              <a
+              <Link
                 className="underline decoration-[var(--color-line)] underline-offset-2 hover:text-[var(--color-ink)]"
-                href={`${REPO}/blob/main/docs/production-checklist.md`}
+                href="/docs/production/"
               >
                 production checklist
-              </a>
+              </Link>
               .
             </p>
           </div>
@@ -703,7 +644,12 @@ export function App() {
               Every session is a folder: an upserted{" "}
               <code className="font-mono text-[13px]">session.yaml</code> index
               plus one markdown file per issue with YAML frontmatter. Structure
-              and fields are a contract — they only ever change additively.
+              and fields are a contract — they only ever change additively. The
+              full field dictionary lives in{" "}
+              <Link className="underline underline-offset-2" href="/docs/artifacts/">
+                the artifact format reference
+              </Link>
+              .
             </p>
             <CodeBlock code={ARTIFACTS} lang="text" />
           </div>
@@ -740,32 +686,6 @@ export function App() {
           </table>
         </div>
       </Section>
-
-      <footer className="border-[var(--color-line)] border-t">
-        <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-4 px-6 pt-10 text-[14px] text-[var(--color-muted)] sm:flex-row">
-          <Logo />
-          <div className="flex items-center gap-5">
-            <a className="hover:text-[var(--color-ink)]" href={REPO}>
-              GitHub
-            </a>
-            <a className="hover:text-[var(--color-ink)]" href={NPM}>
-              npm
-            </a>
-            <span>MIT © MiraWision</span>
-          </div>
-        </div>
-        {/* Stated plainly rather than buried: anyone who opens DevTools to check
-            the privacy claims above will find exactly one third-party request,
-            and this line explains it. */}
-        {/* pr-20 until lg: the demo widget's floating circles are fixed to the
-            bottom-right corner, and below ~1070px the centred container reaches
-            far enough right for them to sit on top of this line. */}
-        <div className="mx-auto max-w-5xl px-6 pt-6 pr-20 pb-10 text-[13px] text-[var(--color-muted)] lg:pr-6">
-          Analytics: <Mono>Umami</Mono>, EU data region — cookieless, no personal
-          data, no cross-site tracking. No consent banner needed, so there
-          isn&rsquo;t one.
-        </div>
-      </footer>
-    </div>
+    </>
   );
 }
