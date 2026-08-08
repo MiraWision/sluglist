@@ -1,0 +1,87 @@
+1:"$Sreact.fragment"
+2:I[38822,["/_next/static/chunks/1b58asu43-lub.js"],""]
+3:Tfd1,<p>Test your app locally, click feedback with the widget, and have it land in a <code>.sluglist/</code> folder in
+your project — then let an agent (e.g. Claude Code) read it and fix the issues. Browser JS can&#39;t
+write to disk, so a tiny sidecar process, <code>sluglist dev</code>, sits between the widget and the folder.</p>
+<h2>The local feedback loop</h2>
+<pre><code class="language-ts">import { createFeedbackWidget, mountFeedbackWidget, LocalConnector } from &quot;sluglist&quot;;
+
+const widget = createFeedbackWidget({
+  project: &quot;my-app&quot;,
+  connectors: [new LocalConnector()], // POSTs to http://127.0.0.1:4477 by default
+  enabled: process.env.NODE_ENV !== &quot;production&quot;,
+});
+mountFeedbackWidget(widget);
+</code></pre>
+<p>Run the sidecar next to your dev server:</p>
+<pre><code class="language-bash">npx sluglist dev                        # writes to ./.sluglist, port 4477
+npx sluglist dev --dir .feedback --port 5511
+</code></pre>
+<p>Click feedback → the full artifact set appears under <code>.sluglist/session-*/</code>. The dev server binds
+to <code>127.0.0.1</code> only and has <strong>no authentication</strong> — it is local-only by design; don&#39;t expose it or
+forward its port. If it isn&#39;t running, <code>LocalConnector</code> warns once and your other connectors keep
+working (the UI is never blocked).</p>
+<blockquote>
+<p>Add <code>.sluglist/</code> to your project&#39;s <code>.gitignore</code>.</p>
+</blockquote>
+<h2>Let an agent fix it (Claude Code skill)</h2>
+<p>The package ships a <code>sluglist-fix</code> skill that reads <code>.sluglist/</code> and fixes the reported issues.
+Install it into your project once:</p>
+<pre><code class="language-bash">mkdir -p .claude/skills &amp;&amp; cp -r node_modules/sluglist/skills/sluglist-fix .claude/skills/
+</code></pre>
+<p>Then, after clicking feedback, ask Claude Code to <em>&quot;fix feedback&quot;</em>: it reads each issue (comment,
+selector, <code>element_text</code>, screenshot, <code>## Errors</code>), localizes and fixes the code, and writes a
+<code>.done</code> report into the session folder.</p>
+<p>Why it works well: <a href="/docs/artifacts/">each artifact</a> is written for a file-reading agent —</p>
+<ul>
+<li>a <strong>CSS selector</strong> plus <code>dom_path</code> and <code>element_text</code> localize the element;</li>
+<li>a <strong>React component hint</strong> (<code>component: AnimalCard</code>, read from the fiber, no React dependency
+needed) localizes the source file;</li>
+<li><code>## Errors</code> carries recent console errors, uncaught exceptions and failed requests with relative
+timestamps;</li>
+<li><code>## Actions</code> carries the click/navigation trail, cross-referenced to record-mode frames.</li>
+</ul>
+<p>Works with any agent that can read files — the skill is a convenience, not a dependency.</p>
+<h2>Generate a checklist from a branch (the other direction)</h2>
+<p>The second bundled skill, <code>sluglist-checklist</code>, turns a branch diff into a client-facing acceptance
+checklist (user-visible changes only, phrased for a non-developer), written to
+<code>public/checklist.json</code> — which the widget loads with <code>checklist: &quot;/checklist.json&quot;</code>. Ask Claude
+Code to <em>&quot;generate a checklist from this branch&quot;</em>. See <a href="/docs/checklist/">Checklist mode</a>.</p>
+<h2>Programmatic capture</h2>
+<p>The UI is optional. Produce and deliver an issue without any chrome:</p>
+<pre><code class="language-ts">await widget.captureIssue({
+  comment: &quot;Logo overlaps the nav on narrow screens&quot;,
+  mode: &quot;element&quot;,
+  selector: &quot;header &gt; nav .logo&quot;,
+  screenshot: pngBlob,        // optional
+  category: &quot;bug&quot;,            // optional: bug | design | idea | ...
+  consoleErrors: [...],       // optional, appended as a &quot;## Console errors&quot; section
+});
+</code></pre>
+<p>See also: <a href="/for/claude-code/">sluglist for Claude Code &amp; coding agents</a> — the full workflow with
+terminal transcripts.</p>
+7:X
+c:X
+c:C
+0:{"buildId":"REC_Ee5nxVVfj7bExb5Bc","data":[{"rsc":["$","$1","c",{"children":[["$","div",null,{"className":"mx-auto max-w-3xl px-6 py-16 md:py-20","children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Docs\",\"item\":\"https://sluglist.dev/docs/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Agents & CLI: the local feedback loop\",\"item\":\"https://sluglist.dev/docs/agents/\"}]}"}}],["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"TechArticle\",\"headline\":\"Agents & CLI: the local feedback loop\",\"description\":\"Run npx sluglist dev, click feedback on your own app, and let Claude Code read the artifacts and fix the code via the bundled sluglist-fix skill.\",\"url\":\"https://sluglist.dev/docs/agents/\",\"author\":{\"@id\":\"https://sluglist.dev/#org\"},\"about\":{\"@id\":\"https://sluglist.dev/#software\"}}"}}],["$","nav",null,{"className":"mb-6 text-[13px] text-[var(--color-muted)]","children":[["$","$L2",null,{"className":"hover:text-[var(--color-ink)]","href":"/docs/","children":"Docs"}]," ","/ ","Agents & CLI"]}],["$","h1",null,{"className":"mb-8 font-bold text-3xl tracking-tight md:text-4xl","children":"Agents & CLI: the local feedback loop"}],["$","article",null,{"className":"prose prose-site max-w-none","dangerouslySetInnerHTML":{"__html":"$3"}}],"$L4"]}],null,"$L5"]}],"isPartial":"$@6","staleTime":"$7","varyParams":null},{"rsc":"$L8","isPartial":"$@9","staleTime":"$7","varyParams":null},{"rsc":"$La","isPartial":"$@b","staleTime":"$7","varyParams":"$c"},{"rsc":"$Ld","isPartial":"$@e","staleTime":"$7","varyParams":"$c"}],"isUpgradeableISRFallback":false,"a":"$@f","rootVaryParams":null,"needsRuntimeRequest":"$@10"}
+11:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"OutletBoundary"]
+12:"$Sreact.suspense"
+14:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"ViewportBoundary"]
+15:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"MetadataBoundary"]
+16:I[4094,["/_next/static/chunks/1b58asu43-lub.js"],"IconMark"]
+17:I[29713,["/_next/static/chunks/1b58asu43-lub.js"],"default"]
+18:I[59292,["/_next/static/chunks/1b58asu43-lub.js"],"default"]
+4:["$","nav",null,{"className":"mt-12 flex justify-between gap-4 border-[var(--color-line)] border-t pt-6 text-[14px]","children":[["$","$L2",null,{"className":"text-[var(--color-muted)] hover:text-[var(--color-ink)]","href":"/docs/production/","children":["← ","Production"]}],["$","$L2",null,{"className":"text-[var(--color-muted)] hover:text-[var(--color-ink)]","href":"/docs/artifacts/","children":["Artifact format"," →"]}]]}]
+5:["$","$L11",null,{"children":["$","$12",null,{"name":"Next.MetadataOutlet","children":"$@13"}]}]
+8:["$","$1","h",{"children":[null,["$","$L14",null,{"children":[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]}],["$","div",null,{"hidden":true,"children":["$","$L15",null,{"children":["$","$12",null,{"name":"Next.Metadata","children":[["$","title","0",{"children":"Agents & CLI: the local feedback loop — sluglist"}],["$","meta","1",{"name":"description","content":"Run npx sluglist dev, click feedback on your own app, and let Claude Code read the artifacts and fix the code via the bundled sluglist-fix skill."}],["$","meta","2",{"name":"robots","content":"index, follow, max-image-preview:large"}],["$","meta","3",{"name":"theme-color","content":"#18181b"}],["$","link","4",{"rel":"canonical","href":"https://sluglist.dev/docs/agents/"}],["$","meta","5",{"property":"og:title","content":"sluglist — visual feedback that your agent fixes"}],["$","meta","6",{"property":"og:description","content":"Drop-in visual feedback widget for dev and staging sites: pick an element, screenshot, annotate, and deliver clean artifacts. Feedback lands in a local folder that Claude Code reads and fixes."}],["$","meta","7",{"property":"og:url","content":"https://sluglist.dev/"}],["$","meta","8",{"property":"og:site_name","content":"sluglist"}],["$","meta","9",{"property":"og:image","content":"https://sluglist.dev/og-image.png"}],["$","meta","10",{"property":"og:image:width","content":"1200"}],["$","meta","11",{"property":"og:image:height","content":"630"}],["$","meta","12",{"property":"og:image:alt","content":"sluglist — a drop-in visual feedback widget whose artifacts a coding agent reads and fixes"}],["$","meta","13",{"property":"og:type","content":"website"}],["$","meta","14",{"name":"twitter:card","content":"summary_large_image"}],["$","meta","15",{"name":"twitter:title","content":"sluglist — visual feedback that your agent fixes"}],["$","meta","16",{"name":"twitter:description","content":"Drop-in visual feedback widget for dev and staging sites: pick an element, screenshot, annotate, and deliver clean artifacts. Feedback lands in a local folder that Claude Code reads and fixes."}],["$","meta","17",{"name":"twitter:image","content":"https://sluglist.dev/og-image.png"}],["$","meta","18",{"name":"twitter:image:alt","content":"sluglist — a drop-in visual feedback widget whose artifacts a coding agent reads and fixes"}],["$","link","19",{"rel":"icon","href":"/favicon.ico","sizes":"32x32"}],["$","link","20",{"rel":"icon","href":"/icon.svg","type":"image/svg+xml"}],["$","link","21",{"rel":"apple-touch-icon","href":"/apple-touch-icon.png"}],["$","$L16","22",{}]]}]}]}],null]}]
+a:["$","$1","c",{"children":[null,["$","$L17",null,{"parallelRouterKey":"children","template":["$","$L18",null,{}]}]]}]
+d:["$","$1","c",{"children":[null,["$","$L17",null,{"parallelRouterKey":"children","template":["$","$L18",null,{}]}]]}]
+10:true
+13:null
+7:300
+7:C
+f:0
+9:"$undefined"
+b:"$undefined"
+e:"$undefined"
+6:"$undefined"

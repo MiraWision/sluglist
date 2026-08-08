@@ -1,0 +1,116 @@
+1:"$Sreact.fragment"
+2:I[38822,["/_next/static/chunks/1b58asu43-lub.js"],""]
+3:T1380,<p>Delivered per session under <code>{project}/session-{YYYY-MM-DD}-{shortid}/</code>:</p>
+<pre><code>session.yaml            # upserted on every issue, always consistent
+01-{slug}.md            # one markdown file per issue, YAML frontmatter + body
+01-{slug}.png           # optional screenshot(s)
+01-{slug}-frames/       # record-mode clips
+  clip-01/01.png …
+02-{slug}.md
+...
+</code></pre>
+<p><code>session.yaml</code> carries the environment (browser, OS, viewport, screen, DPR, language(s), timezone,
+color scheme, reduced-motion) plus an index of issues. Each <code>NN-{slug}.md</code> repeats the per-issue
+metadata in frontmatter followed by the free-text comment.</p>
+<p><strong>The structure and frontmatter are a stable contract</strong> intended as input for downstream parsers
+and agents — they only ever change additively. <code>session.yaml</code> starts with
+<code>format_version: &quot;1.4&quot;</code>; a missing version means <code>&quot;1.0&quot;</code>. Within a major version, new fields are
+only ever added, never removed or repurposed. The full field dictionary, section rules and
+versioning policy live in
+<a href="https://github.com/MiraWision/sluglist/blob/main/SPEC.md">SPEC.md</a> — safe to build parsers
+against.</p>
+<h2>An issue file, annotated</h2>
+<pre><code class="language-markdown">---
+id: &quot;01&quot;
+url: /dashboard/animals
+selector: &#39;button[aria-label=&quot;Save&quot;]&#39;
+selector_strategy: aria          # how the selector was derived
+selector_unique: true            # it matches exactly one element
+mode: element                    # element | area | fullpage | comment
+category: bug
+element_text: &quot;Save&quot;
+dom_path: &quot;body &gt; main &gt; form &gt; button&quot;
+component: AnimalForm            # React component hint (element mode, best-effort)
+screen: dashboard
+viewport: 1512x982
+screenshot: 01-save-does-nothing.png
+masked: true                     # inputs were masked in the render
+errors_count: 1
+actions_count: 4
+recording: true
+frames_count: 3
+frames_dir: 01-save-does-nothing-frames
+created_at: 2026-07-23T14:05:10Z
+reporter:                        # present only when identity is configured
+  user_id: u_18293
+  email: &quot;anna@acme.io&quot;
+  name: Anna K.
+---
+
+The Save button does nothing after I edit an animal — the form
+just sits there, no toast, no error I can see.
+
+## Errors
+- [3s before report] console: PATCH /api/animals/128 500 (Internal Server Error)
+- [2s before report] exception: Uncaught TypeError: Cannot read properties of undefined (reading &#39;id&#39;)
+    at save (/assets/animals-4f2a.js:210:19)
+
+## Actions
+- [22s before report] navigate /dashboard → /dashboard/animals
+- [12s before report] click #edit-128 (&quot;Edit&quot;) — frame 02
+- [5s before report] type (11 chars) input#name
+- [1s before report] click button[aria-label=&quot;Save&quot;] (&quot;Save&quot;) — frame 03
+</code></pre>
+<h2>Sections an issue can carry</h2>
+<ul>
+<li><code>## Errors</code> — recent console errors, uncaught exceptions, promise rejections and failed network
+calls, each with a relative timestamp. See <a href="/docs/capture/">error capture</a>.</li>
+<li><code>## Actions</code> — the action trail: clicks, SPA navigations, submits, typing (character count only,
+never content). Record-mode lines are tagged <code>— clip N, frame NN</code>.</li>
+<li><code>## Console errors</code> — programmatic captures can append their own list.</li>
+</ul>
+<h2>Optional frontmatter blocks</h2>
+<ul>
+<li><code>reporter</code> — from <code>identity</code> config (never collected by default).</li>
+<li><code>custom</code> — flat project fields fixed at init.</li>
+<li><code>context</code> — live host state from <code>setContext</code>, merged at capture time.</li>
+<li><code>form</code> — the reporter&#39;s own answers (<a href="/docs/capture/">form fields</a>).</li>
+<li><code>attachments</code> — files the reporter attached, with <code>original_name</code> kept as data, never as a path.</li>
+<li><code>screenshot_failed: true</code> + <code>screenshot_error</code> — when a render failed and the issue was delivered
+comment-only.</li>
+<li><code>scrubbed: true</code> — the artifact went through the <a href="/docs/production/">PII text scrub</a>.</li>
+</ul>
+<h2>Checklist verdicts</h2>
+<p>When <a href="/docs/checklist/">checklist mode</a> is active, <code>session.yaml</code> additionally carries a
+<code>checklist:</code> block — the coverage map of pass/fail/unchecked verdicts, each linking to the issue
+that documents a failure.</p>
+<h2>Selector quality</h2>
+<p>Selectors prefer <code>data-testid</code> → <code>id</code> → <code>aria</code> → landmark path, and never emit Tailwind utility or
+hashed CSS-Modules classes. <code>selector_strategy</code> names which rung was used and <code>selector_unique</code>
+says whether it matches exactly one element — an agent can trust the selector or fall back to
+<code>dom_path</code> + <code>element_text</code>.</p>
+7:X
+c:X
+c:C
+0:{"buildId":"REC_Ee5nxVVfj7bExb5Bc","data":[{"rsc":["$","$1","c",{"children":[["$","div",null,{"className":"mx-auto max-w-3xl px-6 py-16 md:py-20","children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Docs\",\"item\":\"https://sluglist.dev/docs/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Artifact format (contract)\",\"item\":\"https://sluglist.dev/docs/artifacts/\"}]}"}}],["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"TechArticle\",\"headline\":\"Artifact format (contract)\",\"description\":\"Every session is a folder: session.yaml plus one markdown file per issue with YAML frontmatter. A stable, additively-versioned contract for downstream parsers and agents.\",\"url\":\"https://sluglist.dev/docs/artifacts/\",\"author\":{\"@id\":\"https://sluglist.dev/#org\"},\"about\":{\"@id\":\"https://sluglist.dev/#software\"}}"}}],["$","nav",null,{"className":"mb-6 text-[13px] text-[var(--color-muted)]","children":[["$","$L2",null,{"className":"hover:text-[var(--color-ink)]","href":"/docs/","children":"Docs"}]," ","/ ","Artifact format"]}],["$","h1",null,{"className":"mb-8 font-bold text-3xl tracking-tight md:text-4xl","children":"Artifact format (contract)"}],["$","article",null,{"className":"prose prose-site max-w-none","dangerouslySetInnerHTML":{"__html":"$3"}}],"$L4"]}],null,"$L5"]}],"isPartial":"$@6","staleTime":"$7","varyParams":null},{"rsc":"$L8","isPartial":"$@9","staleTime":"$7","varyParams":null},{"rsc":"$La","isPartial":"$@b","staleTime":"$7","varyParams":"$c"},{"rsc":"$Ld","isPartial":"$@e","staleTime":"$7","varyParams":"$c"}],"isUpgradeableISRFallback":false,"a":"$@f","rootVaryParams":null,"needsRuntimeRequest":"$@10"}
+11:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"OutletBoundary"]
+12:"$Sreact.suspense"
+14:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"ViewportBoundary"]
+15:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"MetadataBoundary"]
+16:I[4094,["/_next/static/chunks/1b58asu43-lub.js"],"IconMark"]
+17:I[29713,["/_next/static/chunks/1b58asu43-lub.js"],"default"]
+18:I[59292,["/_next/static/chunks/1b58asu43-lub.js"],"default"]
+4:["$","nav",null,{"className":"mt-12 flex justify-between gap-4 border-[var(--color-line)] border-t pt-6 text-[14px]","children":[["$","$L2",null,{"className":"text-[var(--color-muted)] hover:text-[var(--color-ink)]","href":"/docs/agents/","children":["← ","Agents & CLI"]}],["$","span",null,{}]]}]
+5:["$","$L11",null,{"children":["$","$12",null,{"name":"Next.MetadataOutlet","children":"$@13"}]}]
+8:["$","$1","h",{"children":[null,["$","$L14",null,{"children":[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]}],["$","div",null,{"hidden":true,"children":["$","$L15",null,{"children":["$","$12",null,{"name":"Next.Metadata","children":[["$","title","0",{"children":"Artifact format (contract) — sluglist"}],["$","meta","1",{"name":"description","content":"Every session is a folder: session.yaml plus one markdown file per issue with YAML frontmatter. A stable, additively-versioned contract for downstream parsers and agents."}],["$","meta","2",{"name":"robots","content":"index, follow, max-image-preview:large"}],["$","meta","3",{"name":"theme-color","content":"#18181b"}],["$","link","4",{"rel":"canonical","href":"https://sluglist.dev/docs/artifacts/"}],["$","meta","5",{"property":"og:title","content":"sluglist — visual feedback that your agent fixes"}],["$","meta","6",{"property":"og:description","content":"Drop-in visual feedback widget for dev and staging sites: pick an element, screenshot, annotate, and deliver clean artifacts. Feedback lands in a local folder that Claude Code reads and fixes."}],["$","meta","7",{"property":"og:url","content":"https://sluglist.dev/"}],["$","meta","8",{"property":"og:site_name","content":"sluglist"}],["$","meta","9",{"property":"og:image","content":"https://sluglist.dev/og-image.png"}],["$","meta","10",{"property":"og:image:width","content":"1200"}],["$","meta","11",{"property":"og:image:height","content":"630"}],["$","meta","12",{"property":"og:image:alt","content":"sluglist — a drop-in visual feedback widget whose artifacts a coding agent reads and fixes"}],["$","meta","13",{"property":"og:type","content":"website"}],["$","meta","14",{"name":"twitter:card","content":"summary_large_image"}],["$","meta","15",{"name":"twitter:title","content":"sluglist — visual feedback that your agent fixes"}],["$","meta","16",{"name":"twitter:description","content":"Drop-in visual feedback widget for dev and staging sites: pick an element, screenshot, annotate, and deliver clean artifacts. Feedback lands in a local folder that Claude Code reads and fixes."}],["$","meta","17",{"name":"twitter:image","content":"https://sluglist.dev/og-image.png"}],["$","meta","18",{"name":"twitter:image:alt","content":"sluglist — a drop-in visual feedback widget whose artifacts a coding agent reads and fixes"}],["$","link","19",{"rel":"icon","href":"/favicon.ico","sizes":"32x32"}],["$","link","20",{"rel":"icon","href":"/icon.svg","type":"image/svg+xml"}],["$","link","21",{"rel":"apple-touch-icon","href":"/apple-touch-icon.png"}],["$","$L16","22",{}]]}]}]}],null]}]
+a:["$","$1","c",{"children":[null,["$","$L17",null,{"parallelRouterKey":"children","template":["$","$L18",null,{}]}]]}]
+d:["$","$1","c",{"children":[null,["$","$L17",null,{"parallelRouterKey":"children","template":["$","$L18",null,{}]}]]}]
+10:true
+13:null
+7:300
+7:C
+f:0
+9:"$undefined"
+b:"$undefined"
+e:"$undefined"
+6:"$undefined"

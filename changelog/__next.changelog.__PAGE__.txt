@@ -1,0 +1,425 @@
+1:"$Sreact.fragment"
+2:T7487,<h1>Changelog</h1>
+<h2>1.11.0 — Capture resilience, mobile graceful mode, form fields, attachments, i18n</h2>
+<p>Everything here is additive. The <code>FeedbackConnector</code> contract is unchanged, and a widget configured
+the way it was before this release behaves exactly as it did. Every new feature is optional: none of
+them adds a required parameter or a setup step.</p>
+<h3><code>project</code> is now optional</h3>
+<ul>
+<li><code>createFeedbackWidget({ connectors: [...] })</code> is a complete call. An omitted <code>project</code> defaults to
+the page&#39;s hostname as a slug (<code>app.acme.com</code> → <code>app-acme-com</code>). An explicit slug is still
+validated exactly as before. Naming it is still the better choice — it is what your artifacts sort
+under.</li>
+</ul>
+<h3>A failed screenshot no longer costs the issue</h3>
+<ul>
+<li>Any render failure — a throw, a render slower than <strong>8s</strong> (was 60s), or a blank canvas — now
+delivers the issue <strong>comment-only</strong> instead of silently dropping the screenshot. The reporter keeps
+everything they typed and sees &quot;Screenshot failed — sending without it&quot;.</li>
+<li>Format <strong>1.3 → 1.4</strong> (additive): <code>screenshot_failed: true</code> and <code>screenshot_error: &quot;&lt;why&gt;&quot;</code> on such
+issues. The message is scrubbed like any other page-derived text.</li>
+<li><strong>Fixed: one cross-origin image without CORS headers used to fail every capture mode</strong>, in every
+engine. Measured across Chromium 151, Firefox 153 and WebKit 26.5. The unreadable image now renders
+blank and the rest of the page still captures.</li>
+<li>Record mode: a failed frame is skipped and the recording continues, with the gap marked in
+<code>## Actions</code> as <code>— frame skipped (render failed)</code>.</li>
+<li>New optional <code>capture: { timeoutMs, detectBlank }</code> for unusually heavy pages.</li>
+<li><code>backdrop-filter</code> is not rendered by any engine — now documented in Notes and limits rather than
+discovered in production.</li>
+</ul>
+<h3>Mobile graceful mode</h3>
+<ul>
+<li>On a coarse pointer (detected from the pointer, never the user agent) the menu offers <strong>full page</strong>
+and <strong>comment only</strong>. Element mode (hover) and area mode (a drag the browser spends on scrolling)
+are hidden rather than offered and then failing. Record mode is hidden.</li>
+<li>Panels are usable at 360–390px: capped height with internal scrolling, 44px targets, 16px inputs so
+iOS does not zoom in and strand the reporter, and the textarea scrolls itself clear of the keyboard.</li>
+<li><strong>Fixed:</strong> the mobile launcher rule targeted <code>.fab</code>, which stopped being the fixed element when the
+dismiss ✕ was added — the launcher never moved. It now also clears the home indicator
+(<code>safe-area-inset-bottom</code>).</li>
+<li>Shortcut hints are no longer shown on devices without a keyboard.</li>
+</ul>
+<h3>Reporter form fields (<code>form</code>)</h3>
+<ul>
+<li>Ask the reporter what only they can answer. <code>scope: &quot;session&quot;</code> is asked once, on the first issue,
+and lands in <code>session.yaml</code>; <code>scope: &quot;issue&quot;</code> is asked every time and lands in the issue
+frontmatter (both additive, format 1.4).</li>
+<li>Types <code>text | email | select | checkbox</code>; <code>required</code> blocks sending with the row highlighted;
+<code>email</code> is pattern-checked; values capped at 500 chars; at most 8 fields, with invalid ones dropped
+with a warning rather than breaking the widget.</li>
+<li><strong>Form values are never scrubbed</strong>, including under the production preset — the reporter typed them
+for you on purpose.</li>
+<li>With no <code>form</code> configured the panel is unchanged.</li>
+</ul>
+<h3>Attachments</h3>
+<ul>
+<li>The reporter can attach their own files through a picker, drag &amp; drop, or <strong>paste</strong> (Cmd/Ctrl+V) —
+the last being the common case, since a client&#39;s evidence usually arrives in their clipboard.</li>
+<li>Attached images join the thumbnail row and annotate like any capture; other types render as a
+labelled tile.</li>
+<li>Whitelist by default: images, video, pdf, txt/csv/json/md, xlsx/docx — checked on <strong>both</strong> the
+extension and the mime. <strong>Executables and archives are never accepted</strong>, not even through <code>accept</code>.</li>
+<li>Limits: 10MB per file, 5 files per issue, both configurable. Nothing is compressed client-side; an
+oversized file is an honest error naming the actual limit.</li>
+<li>Format 1.4 (additive): an <code>attachments:</code> list per issue; files land next to it as
+<code>NN-slug-att-01.&lt;ext&gt;</code> with the reporter&#39;s own name kept as <code>original_name</code>, never as a path.</li>
+<li><strong>Off by default under <code>preset: &quot;production&quot;</code></strong> — accepting uploads from anonymous users is a
+decision, not a default. <code>examples/feedback-route.ts</code> gained a matching server-side whitelist and
+size cap (415 / 413), and <code>docs/production-checklist.md</code> a section on what is your side of the line.</li>
+</ul>
+<h3>Localization</h3>
+<ul>
+<li>Ready-made bundles for <code>en</code>, <code>ru</code>, <code>uk</code>, <code>es</code>, <code>de</code>: <code>import { labels } from &quot;sluglist/labels&quot;</code>,
+then <code>mountFeedbackWidget(widget, { strings: labels.uk })</code>. Partial overrides work by spreading;
+anything omitted falls back to English.</li>
+<li>Plurals now go through the bundle&#39;s own rule, so Russian and Ukrainian get all three forms
+(<code>1 кадр / 2 кадра / 5 кадров</code>), including the 11–14 exception. <code>slavicPluralForm</code> is exported.</li>
+<li>Four remaining hardcoded strings moved into the label registry; a test now enforces that there are
+no others.</li>
+</ul>
+<h3>Docs</h3>
+<ul>
+<li>README opens with a one-line quick start and three scenarios (Dev loop / Client acceptance /
+Beta &amp; Production), with an &quot;Attach your user&quot; recipe putting <code>identity</code>, <code>setContext</code> and <code>form</code>
+in one place. Notes and limits rewritten from the measured browser matrix.</li>
+<li>SPEC.md updated to 1.4 (it had drifted at 1.2 while the code emitted 1.3).</li>
+<li>The <code>sluglist-fix</code> skill reads attachments (images as screenshots, text files as evidence), <code>form</code>
+answers, and understands <code>screenshot_failed</code>.</li>
+</ul>
+<h2>1.10.0 — Production preset, PII text scrub, dismiss, self-isolation</h2>
+<p>Everything here is additive. The <code>FeedbackConnector</code> contract is unchanged and the <code>dev</code> preset
+behaves exactly as before — artifacts written without the new options are byte-identical.</p>
+<h3><code>preset: &quot;production&quot;</code></h3>
+<ul>
+<li>New preset: <code>beta</code> (mask inputs + screenshot consent + &quot;Report a problem&quot; label) plus text
+scrubbing, the dismiss control, and <code>errors.captureWarnings</code> forced off. Explicit options still win
+over the preset — except <code>captureWarnings</code>, which <code>production</code> forces to <code>false</code> and warns about,
+since <code>console.warn</code> is the noisiest text channel in a real app.</li>
+</ul>
+<h3>PII text scrub</h3>
+<ul>
+<li>New <code>privacy.scrubText</code> (on by default under <code>production</code>, available on its own). Redacts emails →
+<code>[email]</code>, runs of 6+ digits → <code>[digits]</code>, and hex/base64-shaped tokens → <code>[token]</code> across the text
+surfaces of an artifact: <code>element_text</code>, <code>url</code> (including the query string), <code>selector</code>,
+<code>dom_path</code>, every message and stack in <code>## Errors</code> (network paths included), and the selectors and
+labels in <code>## Actions</code>.</li>
+<li>Dates, ISO timestamps, version numbers, IPv4, viewport strings, stack-trace line numbers and
+ordinary prose are deliberately left alone. Values <em>you</em> supply (<code>context</code>, <code>custom</code>, <code>identity</code>,
+checklist titles) and the reporter&#39;s own comment are never scrubbed.</li>
+<li>Format <strong>1.2 → 1.3</strong> (additive): a <code>scrubbed: true|false</code> issue field, emitted only when
+<code>scrubText</code> was set explicitly.</li>
+</ul>
+<h3>Dismiss</h3>
+<ul>
+<li>The launcher gets a ✕ — hover-revealed on desktop, always visible (muted) on touch. Hides the
+widget completely, shortcut included, and remembers it for <code>dismiss.days</code> (default 7; <code>0</code> = until
+storage is cleared). New <code>dismiss: { enabled, days }</code> config, on by default only in <code>production</code>.</li>
+<li><code>mountFeedbackWidget()</code> now returns <code>show()</code>, <code>dismiss()</code> and <code>isDismissed()</code>. Wire <code>show()</code> to a
+&quot;Report a problem&quot; link in your footer so the ✕ is never a one-way door.</li>
+</ul>
+<h3>Self-isolation</h3>
+<ul>
+<li>Every host global the widget wraps (<code>console.error</code>, <code>fetch</code>, <code>XMLHttpRequest</code>,
+<code>history.pushState</code>) now calls the original <strong>unconditionally</strong> — a bug inside sluglist can no
+longer fail your request, swallow your log or block your navigation.</li>
+<li>Circuit breaker: after five internal failures in a session the widget uninstalls itself (originals
+restored by reference, listeners removed, UI taken out of the DOM) and logs one warning. Host page
+errors are captured as data and never count toward it.</li>
+<li>A global another library wrapped on top of ours is left intact rather than clobbered; our wrapper
+degrades to a transparent passthrough.</li>
+<li>Fixed: the <code>beforeunload</code> and <code>pointerdown</code> listeners were never removed.</li>
+</ul>
+<h3>Endpoint, docs, CI guard</h3>
+<ul>
+<li><code>examples/feedback-route.ts</code> hardened: bearer auth with a constant-time compare (401), fail-closed
+when unconfigured (503), 10 MB body cap (413), mime allowlist (415), per-session file cap (409),
+and path validation that accepts the nested recording-frame layout. Now testable, covered by 27
+tests.</li>
+<li>New <code>docs/production-checklist.md</code>: env gating, token generation, retention, storage access, a
+privacy-policy paragraph to adapt, and a pre-flight list. Linked from the README.</li>
+<li>New permanent CI guard <code>test/no-phone-home.test.ts</code>: a full session with every outbound channel
+trapped must make zero network calls, with a negative check proving the trap works.</li>
+</ul>
+<h2>1.9.0 — Checklist UX v2, clips, smart links, polish</h2>
+<h3>Checklist panel v2</h3>
+<ul>
+<li><strong>Simpler model:</strong> click a row to <strong>check it off</strong> (grey + strikethrough); click the per-row <strong>slug
+button</strong> to <strong>flag a problem</strong> (opens the normal issue flow, auto-marks the item and links the issue
+back). Replaces the three verdict buttons. Unchecking a flagged item confirms first and keeps the
+issue link in <code>session.yaml</code> (a delivered issue is not retractable).</li>
+<li><strong>Self-navigating accordion:</strong> finishing a section collapses it and opens the next incomplete one
+(scrolled into view); manual open/close always works. A <strong>summary</strong> line
+(<code>5 of 12 checked · 2 issues · 7 left</code>) replaces the bare counter; the circle badge counts what&#39;s
+left, then shows <code>✓</code>. Panel <strong>auto-opens once per session</strong> when nothing is checked yet; the Done
+button is gone (close via ✕ / click-outside / Esc / shortcut). New <code>config.checklist.description</code>.</li>
+<li><strong>Smart links:</strong> <code>url</code> (static routes only) renders an &quot;Open ↗&quot; navigation chip; <code>url_match</code> (a
+wildcard like <code>/assessments/*</code>) highlights the item with a &quot;You&#39;re here&quot; tag when the current path
+matches — never navigates. Use <code>hint</code> + <code>url_match</code> for dynamic routes instead of guessing an id.</li>
+</ul>
+<h3>Recording clips</h3>
+<ul>
+<li>Each <strong>Record→Stop</strong> cycle is now its own <strong>clip</strong>. Two recordings on one issue stay two independent
+clips end to end — in the modal (<code>Clip 1 · 5 frames</code>, first frame as cover, delete per clip) and in
+the artifacts (<code>NN-slug-frames/clip-01/…</code>, <code>clip-02/…</code>; <code>## Actions</code> tagged <code>— clip N, frame NN</code>).
+Fixes the bug where a second recording merged into the first&#39;s flat frame list.</li>
+<li>Format <strong>1.1 → 1.2</strong> (additive): a <code>clips:</code> list in issue frontmatter (<code>{ id, frames }</code> per clip) and
+the <code>&lt;frames_dir&gt;/&lt;clip-id&gt;/NN.png</code> layout it discriminates. Pre-1.2 recordings (flat
+<code>&lt;frames_dir&gt;/NN.png</code>, no <code>clips:</code>) stay readable.</li>
+</ul>
+<h3>Polish</h3>
+<ul>
+<li>Floating circles hide while any panel is open — the <strong>Send</strong> button is never covered (was overlapped
+on mobile), and modal focus order is freed.</li>
+<li><code>&lt;Kbd&gt;</code> hints show the live, platform-formatted shortcut (<code>⇧F</code> / <code>Shift+F</code>, incl. a custom one) on
+<strong>+ Add screenshot</strong> and the button tooltip.</li>
+<li>Issue-count badge is now <strong>neutral</strong> (brand accent); red is reserved for delivery problems.</li>
+<li>Frame <strong>pluralization</strong> (<code>1 frame</code> / <code>2 frames</code>), <strong>category placeholders</strong> (Bug / Design / Idea), and
+<strong>aria-labels + roles</strong> on all icon buttons and the panel.</li>
+</ul>
+<h3>Skills &amp; docs</h3>
+<ul>
+<li><code>sluglist-checklist</code>: link rules (static → <code>url</code>, dynamic → <code>hint</code> + wildcard <code>url_match</code>, mixed →
+both) with an explicit &quot;never invent a route id&quot;. <code>sluglist-fix</code>: clips read as separate sequences;
+v2 vocabulary (checked-clean / checked-with-issue / not-tested).</li>
+<li>SPEC.md → v1.2 (clips, config appendix, <code>skip</code> valid-on-read); README + landing demo updated to v2.</li>
+</ul>
+<h3>Scope (unchanged)</h3>
+<p>The checklist is a session input; verdicts are its output — no lifecycle after the session. <code>skip</code>
+stays valid on read but the v2 UI never generates it. <code>FeedbackConnector</code> is unchanged.</p>
+<h2>1.8.0 — Checklist mode (structured acceptance)</h2>
+<h3>Acceptance checklist + verdicts</h3>
+<ul>
+<li><strong><code>config.checklist</code></strong> — pass an inline <code>Checklist</code> (sections of items) or a URL string (fetched
+<code>GET</code> → JSON at init). A <strong>second circle</strong> appears above the feedback button with a progress badge;
+the client walks the list and records <strong>pass / fail / skip</strong> per item. Entirely opt-in — with no
+checklist the widget is byte-identical to before (the elements aren&#39;t even attached).</li>
+<li><strong>Fail opens the normal issue flow</strong>, linked both ways: the item stores the issue id, and the issue&#39;s
+frontmatter carries <code>checklist_item</code>. A fail always has evidence — cancelling the capture leaves the
+item unset.</li>
+<li>Verdicts are written <strong>put-per-verdict</strong>: every click upserts <code>session.yaml</code> (same idempotent path as
+per-issue writes), so progress survives the tab closing. Result: a <strong>coverage map</strong> — confirmed,
+failed (with issue links), and never-checked.</li>
+<li>Format <strong>1.0 → 1.1</strong> (additive): a <code>checklist:</code> block in <code>session.yaml</code> and the <code>checklist_item</code>
+issue field. Missing <code>format_version</code> still means <code>1.0</code>; parsers ignore unknown fields.</li>
+<li><strong><code>sluglist-checklist</code> skill</strong> (new): Claude Code turns a branch diff into a client-facing checklist
+(<code>git diff &lt;base&gt;...HEAD</code>, user-visible changes only, grouped by feature, client voice) →
+<code>public/checklist.json</code>. The <code>sluglist-fix</code> skill now reads the coverage map: fails are tasks,
+unchecked items are reported as gaps.</li>
+</ul>
+<h3>Scope (deliberate)</h3>
+<p>The checklist is a session input; verdicts are its output. No lifecycle after the session — no
+reopening, no cross-session sync, no server-side status, and issues are never blocked on completion.
+Every session runs the checklist fresh. <code>FeedbackConnector</code> is unchanged.</p>
+<h2>1.7.0 — Format versioning + agent context</h2>
+<h3>Artifact format is now versioned + specified</h3>
+<ul>
+<li><code>session.yaml</code> starts with <code>format_version: &quot;1.0&quot;</code> (always the first line). Parsers treat a missing
+field as <code>&quot;1.0&quot;</code>. Within a major version the format only ever changes additively.</li>
+<li>New <strong><a href="SPEC.md">SPEC.md</a></strong>: the full field dictionary (session.yaml + issue frontmatter), the
+<code>## Errors</code> / <code>## Actions</code> rules, and the versioning policy — every field verified against the
+generator. Safe to build parsers against.</li>
+</ul>
+<h3>Agent context (three additive frontmatter signals)</h3>
+<ul>
+<li><strong><code>component</code></strong> — in element mode, a best-effort read of the nearest named React component from the
+element&#39;s fiber (no React dependency, fully guarded; <code>null</code> when absent/anonymous/minified). A direct
+pointer from a report to the source file.</li>
+<li><strong>Network failures in <code>## Errors</code></strong> — <code>fetch</code>/<code>XHR</code> wrappers record <em>only</em> requests that finish with
+status ≥ 400 or a network error: <code>network: POST /api/animals → 500 (240ms)</code>. Never bodies, headers or
+query strings. New <code>errors.captureNetwork</code> option (default true).</li>
+<li><strong><code>sluglist.setContext({...})</code></strong> — attach runtime host state (tenant, feature flags, build version)
+to every subsequent issue as a <code>context</code> block. Same validation as <code>custom</code>; merges on repeat calls.
+Unlike <code>config.custom</code> (static at init), it reflects state at capture time.</li>
+</ul>
+<h3>Domain</h3>
+<ul>
+<li>Canonical site is now <strong>sluglist.dev</strong> (GitHub Pages via a <code>CNAME</code>); canonical/OG URLs, sitemap and
+package <code>homepage</code> updated. No breaking format or connector changes.</li>
+</ul>
+<h2>1.6.0 — Record mode: manual frames + recording attaches to the open draft</h2>
+<h3>Manual frames while recording</h3>
+<ul>
+<li>The recording bar gained a <strong><code>+ Frame</code></strong> button (and the <strong>S</strong> key outside text fields) to snap an
+extra frame at any moment — for states auto-capture misses (hover popovers, transient toasts).
+Manual snaps bypass the throttle but still respect <code>maxFrames</code>; <code>Recorder.snap()</code> is exposed.</li>
+<li>The recording bar now explains itself: &quot;Frames auto-capture on clicks &amp; navigation&quot; under the
+frame counter, so it&#39;s clear what record mode is doing.</li>
+</ul>
+<h3>Recording no longer replaces an open draft</h3>
+<ul>
+<li><strong>Stop &amp; describe</strong> with a draft open (e.g. record mode started from <code>+ Add screenshot</code>) now
+appends the frames to that draft instead of discarding it — screenshots added before the recording
+are kept, and one issue ships both (<code>screenshots</code> + <code>frames_dir</code>, no format change).</li>
+<li>In the panel, a recording renders as a single stacked &quot;deck&quot; tile (tilted cards behind the first
+frame, red-dot <code>N frames</code> badge) next to the regular screenshots. Click expands the numbered frame
+ribbon; <code>×</code> drops the recording from the draft. Screenshots stay annotatable/removable, and
+<code>+ Add screenshot</code> remains available after a recording.</li>
+<li>Cancelling a recording that was started from an open draft returns to the draft unchanged.</li>
+</ul>
+<h3>Other</h3>
+<ul>
+<li>Menu reordered by expected frequency of use: Full page → Select area → Select element →
+Record steps → Comment without screenshot. The <code>1</code>–<code>5</code> hotkeys now follow the position
+automatically (no gaps when record mode is disabled).</li>
+<li>Screenshot consent now covers recording frames too: unchecking &quot;Attach screenshot&quot; sends the
+issue without frames as well (they are screenshots).</li>
+</ul>
+<p>No breaking changes; no artifact format changes.</p>
+<h2>1.5.0 — Action trail + record mode</h2>
+<h3>Action trail (new)</h3>
+<ul>
+<li><code>config.actions</code> — a background ring buffer of the user&#39;s recent actions (clicks, SPA navigations,
+submits, typing), attached to each issue as a <code>## Actions</code> section (relative time) plus an additive
+<code>actions_count</code> frontmatter field. The twin of the error capture.</li>
+<li><strong>Hard PII rule (all modes):</strong> the trail records the fact and place of an action, never entered
+content. <code>type</code> logs only a character count; password fields are not logged at all by default.
+Navigation paths drop the query string.</li>
+</ul>
+<h3>Record mode (new)</h3>
+<ul>
+<li>A <code>Record steps</code> menu item captures a frame (masked full-page screenshot) at the start and on each
+click / navigate / submit (not typing), throttled and capped. Frames link to the trail: <code>## Actions</code>
+lines gain a <code>— frame NN</code> suffix, turning an issue into automatic steps-to-reproduce with images.</li>
+<li>Additive format: <code>NN-slug-frames/NN.png</code> + <code>recording</code>/<code>frames_count</code>/<code>frames_dir</code> frontmatter +
+<code>frames: N</code> in the session index. <code>config.recording {enabled, maxFrames, frameMinInterval}</code>.</li>
+<li>The <code>sluglist dev</code> sidecar / <code>LocalConnector</code> accept a single <code>frames/</code> subfolder (still
+traversal-safe). The <code>sluglist-fix</code> skill now reads Actions as steps-to-reproduce and lines frames up
+with them.</li>
+</ul>
+<h3>Other</h3>
+<ul>
+<li>Default shortcut changed to <strong><code>Shift+F</code></strong> (was <code>Shift+Alt+F</code>). The focus guard still ignores it
+while typing in an input/textarea/contenteditable; override via <code>config.shortcut</code>.</li>
+<li>Updated the brand logo (favicon + docs). The widget button keeps its existing mark.</li>
+</ul>
+<p>No breaking changes; all artifact additions are additive. <code>FeedbackConnector</code> unchanged.</p>
+<h2>1.4.0 — Local feedback loop, error capture, shortcut fix, brand logo</h2>
+<h3>Local feedback loop (new)</h3>
+<ul>
+<li><strong><code>sluglist dev</code> CLI</strong> (<code>npx sluglist dev</code>): a local sidecar that writes feedback artifacts into a
+<code>.sluglist/</code> folder (<code>--dir</code> / <code>--port</code>). Binds to <code>127.0.0.1</code> only, path-traversal-safe, logs each
+file. Ships a <code>sluglist-fix</code> skill (<code>skills/sluglist-fix/</code>) that reads <code>.sluglist/</code> and fixes issues.</li>
+<li><strong><code>LocalConnector</code></strong>: posts artifacts to the sidecar (default <code>127.0.0.1:4477</code>); warns once and stays
+out of the way when the server isn&#39;t running.</li>
+</ul>
+<h3>Error capture (new)</h3>
+<ul>
+<li><code>config.errors</code> — a ring buffer fed by <code>console.error</code>, uncaught <code>error</code> events and
+<code>unhandledrejection</code>. Each issue gets a <code>## Errors</code> section (source + relative time) and an additive
+<code>errors_count</code> frontmatter field. <code>capture</code> / <code>bufferSize</code> / <code>captureWarnings</code> options.</li>
+</ul>
+<h3>Shortcut</h3>
+<ul>
+<li><strong>Fixed:</strong> the default <code>Shift+Alt+F</code> never fired on macOS because matching used <code>event.key</code> (which is
+a dead/special char for Option+letter). Matching is now by physical <code>event.code</code>.</li>
+<li><code>config.shortcut</code> (<code>&quot;Shift+Alt+F&quot;</code> string or <code>false</code>) with a proper parser and focus guard.</li>
+</ul>
+<h3>Branding</h3>
+<ul>
+<li>Adopted the brand logo across the favicon, docs header, and the widget button.</li>
+</ul>
+<p>No breaking changes; all artifact additions are additive. <code>FeedbackConnector</code> unchanged.</p>
+<h2>1.3.0 — Beta feedback mode</h2>
+<p><strong>Beta feedback mode</strong> for real users on a production beta (still one-way capture: no inbox,
+statuses or replies). All additive and backward compatible:</p>
+<ul>
+<li><strong>Identity</strong> — <code>config.identity: { userId, email, name }</code> → session-level <code>reporter</code> in <code>session.yaml</code>
+and each issue&#39;s frontmatter.</li>
+<li><strong>Custom fields</strong> — <code>config.custom</code> (flat primitives) → <code>custom</code> block per issue. Validated at init:
+snake_case keys, non-primitives dropped with a warning, max 20 keys, values clipped to 200 chars.</li>
+<li><strong>PII masking</strong> — <code>config.privacy.maskInputs</code> / <code>maskSelectors</code>; <code>[data-private]</code> is always masked.
+Values are redacted to solid blocks before the screenshot render and the live DOM is restored exactly
+(layout preserved). Additive <code>masked: true|false</code> in frontmatter.</li>
+<li><strong>Screenshot consent</strong> — <code>config.privacy.screenshotConsent</code> adds an &quot;Attach screenshot&quot; checkbox
+(default checked); unchecking sends the issue with <code>screenshot: null</code>.</li>
+<li><strong>Preset</strong> — <code>config.preset: &quot;dev&quot; | &quot;beta&quot;</code>. <code>beta</code> defaults <code>maskInputs</code> + <code>screenshotConsent</code> on
+and relabels the button &quot;Report a problem&quot;; any explicit option overrides the preset.</li>
+<li><strong>Examples</strong> — <code>examples/HttpConnector.ts</code> + <code>examples/feedback-route.ts</code> (thin rate-limited endpoint)
+showing safe production delivery without exposing storage keys in the browser.</li>
+</ul>
+<h2>1.1.1 — Fix text annotation closing the editor</h2>
+<ul>
+<li>Placing text on a screenshot no longer commits and closes the annotation
+editor. The text tool inserts its input under the cursor, so the browser&#39;s
+synthesized click resolved to the backdrop and tripped the click-to-close
+handler. Backdrop-close now requires the press to <em>start</em> on the backdrop
+(standard click-outside guard), matching arrow/box behavior.</li>
+</ul>
+<h2>1.1.0 — Non-blocking capture</h2>
+<ul>
+<li><strong>Capture no longer blocks the panel.</strong> Selecting an element, area or full page
+now opens the comment panel immediately with a loading placeholder, and the
+screenshot renders in the background. You can start writing your comment right
+away instead of waiting on a modal spinner.</li>
+<li>The comment field keeps focus and text while a shot finishes rendering; only
+the thumbnail row updates when it arrives.</li>
+<li>Sending waits for any still-rendering screenshot so it is never dropped.</li>
+<li>Removed the blocking capture overlay and its <code>capturingCancel</code> string.</li>
+</ul>
+<h2>1.0.0 — Initial public release</h2>
+<p>First published version. A framework-agnostic, embeddable visual feedback widget
+for dev and staging sites.</p>
+<h3>Capture</h3>
+<ul>
+<li>Four modes: <strong>element</strong> (hover-highlight + click), <strong>area</strong> (drag a rectangle),
+<strong>full page</strong> (whole scrollable document), and <strong>comment only</strong>.</li>
+<li>Screenshots via <code>html-to-image</code>, loaded lazily on the first capture.</li>
+<li>Element capture crops the element out of a full-document render, preserving its
+real background (gradients, images, surrounding context).</li>
+</ul>
+<h3>Annotation</h3>
+<ul>
+<li>Arrow, box and text tools with a color picker and undo.</li>
+<li>Keyboard shortcuts (A / B / T, Ctrl/Cmd+Z, Esc, click backdrop to close).</li>
+<li>Annotations are flattened onto the screenshot at full resolution.</li>
+</ul>
+<h3>Selectors &amp; metadata</h3>
+<ul>
+<li>Smart descriptive selectors: <code>data-testid</code>/<code>test</code>/<code>cy</code> → clean <code>id</code> →
+<code>aria-label</code>/<code>role</code> → landmark-anchored tag path. Never emits Tailwind utility
+or hashed (CSS Modules / styled-components) classes; skips auto-generated ids.</li>
+<li>Per-issue metadata: <code>selector_strategy</code>, <code>selector_unique</code>, <code>element_text</code>,
+<code>dom_path</code>, <code>screen</code>, plus session-level browser / OS / viewport / screen /
+DPR / language(s) / timezone / color-scheme / reduced-motion and buffered
+<code>console.error</code>s.</li>
+</ul>
+<h3>Delivery</h3>
+<ul>
+<li>Pluggable <strong>connectors</strong> (<code>FeedbackConnector.put</code>); the core never knows about
+storage. Built-in <code>MemoryConnector</code> and <code>DownloadConnector</code> (zip). Fan-out to
+several at once; failures retry with backoff and never block the UI.</li>
+<li><strong>Offline outbox</strong>: undelivered artifacts are persisted to IndexedDB and
+retried on the next load.</li>
+<li>Stable, additive-only artifact contract: <code>session.yaml</code> index + one
+<code>NN-slug.md</code> (YAML frontmatter + comment) + screenshots per session.</li>
+</ul>
+<h3>Integration</h3>
+<ul>
+<li>Configurable button (position, accent), hotkey, categories, <code>onIssueCaptured</code>
+callback, mount <code>container</code>, and full string overrides (i18n).</li>
+<li>Style-isolated via shadow DOM; mountable anywhere (including a Chrome
+extension content script).</li>
+<li>Ships as ESM and CJS with TypeScript types.</li>
+</ul>
+5:X
+a:X
+a:C
+0:{"buildId":"REC_Ee5nxVVfj7bExb5Bc","data":[{"rsc":["$","$1","c",{"children":[["$","div",null,{"className":"mx-auto max-w-3xl px-6 py-16 md:py-20","children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"WebPage\",\"name\":\"sluglist changelog\",\"url\":\"https://sluglist.dev/changelog/\",\"isPartOf\":{\"@id\":\"https://sluglist.dev/#website\"},\"about\":{\"@id\":\"https://sluglist.dev/#software\"}}"}}],["$","article",null,{"className":"prose prose-site max-w-none","dangerouslySetInnerHTML":{"__html":"$2"}}]]}],null,"$L3"]}],"isPartial":"$@4","staleTime":"$5","varyParams":null},{"rsc":"$L6","isPartial":"$@7","staleTime":"$5","varyParams":null},{"rsc":"$L8","isPartial":"$@9","staleTime":"$5","varyParams":"$a"}],"isUpgradeableISRFallback":false,"a":"$@b","rootVaryParams":null,"needsRuntimeRequest":"$@c"}
+d:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"OutletBoundary"]
+e:"$Sreact.suspense"
+10:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"ViewportBoundary"]
+11:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"MetadataBoundary"]
+12:I[4094,["/_next/static/chunks/1b58asu43-lub.js"],"IconMark"]
+13:I[29713,["/_next/static/chunks/1b58asu43-lub.js"],"default"]
+14:I[59292,["/_next/static/chunks/1b58asu43-lub.js"],"default"]
+3:["$","$Ld",null,{"children":["$","$e",null,{"name":"Next.MetadataOutlet","children":"$@f"}]}]
+6:["$","$1","h",{"children":[null,["$","$L10",null,{"children":[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]}],["$","div",null,{"hidden":true,"children":["$","$L11",null,{"children":["$","$e",null,{"name":"Next.Metadata","children":[["$","title","0",{"children":"Changelog — sluglist"}],["$","meta","1",{"name":"description","content":"Release notes for the sluglist feedback widget: every version, every feature, and the additive artifact-format history."}],["$","meta","2",{"name":"robots","content":"index, follow, max-image-preview:large"}],["$","meta","3",{"name":"theme-color","content":"#18181b"}],["$","link","4",{"rel":"canonical","href":"https://sluglist.dev/changelog/"}],["$","meta","5",{"property":"og:title","content":"sluglist — visual feedback that your agent fixes"}],["$","meta","6",{"property":"og:description","content":"Drop-in visual feedback widget for dev and staging sites: pick an element, screenshot, annotate, and deliver clean artifacts. Feedback lands in a local folder that Claude Code reads and fixes."}],["$","meta","7",{"property":"og:url","content":"https://sluglist.dev/"}],["$","meta","8",{"property":"og:site_name","content":"sluglist"}],["$","meta","9",{"property":"og:image","content":"https://sluglist.dev/og-image.png"}],["$","meta","10",{"property":"og:image:width","content":"1200"}],["$","meta","11",{"property":"og:image:height","content":"630"}],["$","meta","12",{"property":"og:image:alt","content":"sluglist — a drop-in visual feedback widget whose artifacts a coding agent reads and fixes"}],["$","meta","13",{"property":"og:type","content":"website"}],["$","meta","14",{"name":"twitter:card","content":"summary_large_image"}],["$","meta","15",{"name":"twitter:title","content":"sluglist — visual feedback that your agent fixes"}],["$","meta","16",{"name":"twitter:description","content":"Drop-in visual feedback widget for dev and staging sites: pick an element, screenshot, annotate, and deliver clean artifacts. Feedback lands in a local folder that Claude Code reads and fixes."}],["$","meta","17",{"name":"twitter:image","content":"https://sluglist.dev/og-image.png"}],["$","meta","18",{"name":"twitter:image:alt","content":"sluglist — a drop-in visual feedback widget whose artifacts a coding agent reads and fixes"}],["$","link","19",{"rel":"icon","href":"/favicon.ico","sizes":"32x32"}],["$","link","20",{"rel":"icon","href":"/icon.svg","type":"image/svg+xml"}],["$","link","21",{"rel":"apple-touch-icon","href":"/apple-touch-icon.png"}],["$","$L12","22",{}]]}]}]}],null]}]
+8:["$","$1","c",{"children":[null,["$","$L13",null,{"parallelRouterKey":"children","template":["$","$L14",null,{}]}]]}]
+c:true
+f:null
+5:300
+5:C
+b:0
+7:"$undefined"
+9:"$undefined"
+4:"$undefined"

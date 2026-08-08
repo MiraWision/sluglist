@@ -1,0 +1,108 @@
+1:"$Sreact.fragment"
+2:I[38822,["/_next/static/chunks/1b58asu43-lub.js"],""]
+3:T1456,<p>Feedback normally fills a session <strong>from the bottom</strong> — the client freely creates issues. A
+<strong>checklist</strong> fills it <strong>from the top</strong>: the developer pre-seeds a list of &quot;what shipped and what
+to verify&quot;, and the client walks it with one natural motion — <strong>click a row to check it off; click
+the slug button on a row to flag a problem</strong> (that opens the normal issue flow, linked back to the
+item).</p>
+<p>The panel is an accordion of sections that self-navigates: finish a section and it collapses,
+opening the next one. A summary line (<code>5 of 12 checked · 2 issues · 7 left</code>) replaces a bare
+counter, and the circle&#39;s badge counts what&#39;s left, turning to ✓ when everything is checked. The
+result is a <strong>coverage map</strong> in <code>session.yaml</code>: what&#39;s confirmed, what was flagged (with links to
+the issues), and what was never checked.</p>
+<p>It&#39;s entirely opt-in: a second circle appears above the feedback button <strong>only</strong> when a checklist
+is configured. Without one, the widget looks and works exactly as before.</p>
+<pre><code class="language-ts">const widget = createFeedbackWidget({
+  project: &quot;acme&quot;,
+  connectors: [/* ... */],
+  checklist: {
+    id: &quot;export-release-2026-07&quot;,
+    title: &quot;Export + notifications release&quot;,
+    description: &quot;Walk each item and check it off. Flag anything that looks wrong.&quot;,
+    sections: [
+      {
+        title: &quot;Export&quot;,
+        items: [
+          { id: &quot;export-button&quot;, title: &quot;On Reports, the Export button downloads a CSV&quot;, url: &quot;/reports&quot; },
+          { id: &quot;csv-columns&quot;, title: &quot;The CSV has all the expected columns&quot;, hint: &quot;Open it in a spreadsheet&quot; },
+          // Dynamic route: no fabricated id — a human hint + a wildcard match.
+          { id: &quot;assessment-header&quot;, title: &quot;Opening any assessment shows the new header&quot;,
+            hint: &quot;Open the dashboard and pick any assessment&quot;, url: &quot;/dashboard&quot;, url_match: &quot;/assessments/*&quot; },
+        ],
+      },
+      { title: &quot;Notifications&quot;, items: [{ id: &quot;email-sent&quot;, title: &quot;An email arrives after an export&quot; }] },
+    ],
+  },
+});
+</code></pre>
+<h2>Smart links</h2>
+<p><code>url</code> must be a <strong>static</strong> route — it renders as an &quot;Open ↗&quot; chip that navigates there. For a
+<strong>dynamic</strong> route (an id/uuid in the path) don&#39;t guess an id: give a human <code>hint</code> and a wildcard
+<code>url_match</code> (<code>&quot;/assessments/*&quot;</code>). It never navigates — it just lights the item up with a &quot;You&#39;re
+here&quot; tag when the tester is on a matching page. The two can coexist (a list <code>url</code> + a detail
+<code>url_match</code>).</p>
+<p>Pass a <strong>URL string</strong> instead of an object to fetch the checklist at init (<code>GET</code> → JSON of the same
+shape) — handy when a skill generates it: <code>checklist: &quot;/checklist.json&quot;</code>. An unreachable or invalid
+checklist warns and is skipped; capture still works.</p>
+<h2>Verdicts: the coverage map</h2>
+<p>Verdicts land in <code>session.yaml</code> (put-per-verdict, upserted on every click):</p>
+<pre><code class="language-yaml">checklist:
+  id: export-release-2026-07
+  title: &quot;Export + notifications release&quot;
+  items:
+    - id: export-button
+      section: &quot;Export&quot;
+      title: &quot;On Reports, the Export button downloads a CSV&quot;
+      verdict: pass
+      issue: null
+      ts: 2026-07-24T14:05:10Z
+    - id: csv-columns
+      section: &quot;Export&quot;
+      title: &quot;The CSV has all the expected columns&quot;
+      verdict: fail
+      issue: &quot;03&quot;          # the issue that documents the failure
+      ts: 2026-07-24T14:06:00Z
+    - id: email-sent
+      section: &quot;Notifications&quot;
+      title: &quot;An email arrives after an export&quot;
+      verdict: null        # not checked
+      issue: null
+      ts: null
+</code></pre>
+<h2>Generate a checklist from a branch</h2>
+<p>The package ships a <code>sluglist-checklist</code> skill: point Claude Code at a branch and it builds a
+client-facing checklist from the diff (user-visible pages/components/text only — refactors, tests
+and config are excluded), grouped by feature and phrased for a non-developer, written to
+<code>public/checklist.json</code>. Ask it to <em>&quot;generate a checklist from this branch&quot;</em>.</p>
+<h2>Scope — the checklist is a session input, verdicts are its output</h2>
+<p>The checklist enters a session and the verdicts leave with it. There is <strong>no lifecycle beyond the
+session</strong>: items are never reopened, verdicts never sync between sessions, nothing is stored as a
+&quot;done on the server&quot;, and issues are never blocked on completing the checklist. Every session runs
+the checklist from scratch. This is deliberate — it keeps sluglist a capture tool, not a workflow
+tracker.</p>
+<p>See also: <a href="/for/client-acceptance/">the client-acceptance workflow</a> end to end.</p>
+7:X
+c:X
+c:C
+0:{"buildId":"REC_Ee5nxVVfj7bExb5Bc","data":[{"rsc":["$","$1","c",{"children":[["$","div",null,{"className":"mx-auto max-w-3xl px-6 py-16 md:py-20","children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Docs\",\"item\":\"https://sluglist.dev/docs/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Checklist mode: structured acceptance\",\"item\":\"https://sluglist.dev/docs/checklist/\"}]}"}}],["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"TechArticle\",\"headline\":\"Checklist mode: structured acceptance\",\"description\":\"Pre-seed an acceptance checklist the client walks and checks off. Verdicts land in session.yaml as a coverage map — and an agent can generate the list from a branch diff.\",\"url\":\"https://sluglist.dev/docs/checklist/\",\"author\":{\"@id\":\"https://sluglist.dev/#org\"},\"about\":{\"@id\":\"https://sluglist.dev/#software\"}}"}}],["$","nav",null,{"className":"mb-6 text-[13px] text-[var(--color-muted)]","children":[["$","$L2",null,{"className":"hover:text-[var(--color-ink)]","href":"/docs/","children":"Docs"}]," ","/ ","Checklist mode"]}],["$","h1",null,{"className":"mb-8 font-bold text-3xl tracking-tight md:text-4xl","children":"Checklist mode: structured acceptance"}],["$","article",null,{"className":"prose prose-site max-w-none","dangerouslySetInnerHTML":{"__html":"$3"}}],"$L4"]}],null,"$L5"]}],"isPartial":"$@6","staleTime":"$7","varyParams":null},{"rsc":"$L8","isPartial":"$@9","staleTime":"$7","varyParams":null},{"rsc":"$La","isPartial":"$@b","staleTime":"$7","varyParams":"$c"},{"rsc":"$Ld","isPartial":"$@e","staleTime":"$7","varyParams":"$c"}],"isUpgradeableISRFallback":false,"a":"$@f","rootVaryParams":null,"needsRuntimeRequest":"$@10"}
+11:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"OutletBoundary"]
+12:"$Sreact.suspense"
+14:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"ViewportBoundary"]
+15:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"MetadataBoundary"]
+16:I[4094,["/_next/static/chunks/1b58asu43-lub.js"],"IconMark"]
+17:I[29713,["/_next/static/chunks/1b58asu43-lub.js"],"default"]
+18:I[59292,["/_next/static/chunks/1b58asu43-lub.js"],"default"]
+4:["$","nav",null,{"className":"mt-12 flex justify-between gap-4 border-[var(--color-line)] border-t pt-6 text-[14px]","children":[["$","$L2",null,{"className":"text-[var(--color-muted)] hover:text-[var(--color-ink)]","href":"/docs/connectors/","children":["← ","Connectors"]}],["$","$L2",null,{"className":"text-[var(--color-muted)] hover:text-[var(--color-ink)]","href":"/docs/production/","children":["Production"," →"]}]]}]
+5:["$","$L11",null,{"children":["$","$12",null,{"name":"Next.MetadataOutlet","children":"$@13"}]}]
+8:["$","$1","h",{"children":[null,["$","$L14",null,{"children":[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]}],["$","div",null,{"hidden":true,"children":["$","$L15",null,{"children":["$","$12",null,{"name":"Next.Metadata","children":[["$","title","0",{"children":"Checklist mode: structured acceptance — sluglist"}],["$","meta","1",{"name":"description","content":"Pre-seed an acceptance checklist the client walks and checks off. Verdicts land in session.yaml as a coverage map — and an agent can generate the list from a branch diff."}],["$","meta","2",{"name":"robots","content":"index, follow, max-image-preview:large"}],["$","meta","3",{"name":"theme-color","content":"#18181b"}],["$","link","4",{"rel":"canonical","href":"https://sluglist.dev/docs/checklist/"}],["$","meta","5",{"property":"og:title","content":"sluglist — visual feedback that your agent fixes"}],["$","meta","6",{"property":"og:description","content":"Drop-in visual feedback widget for dev and staging sites: pick an element, screenshot, annotate, and deliver clean artifacts. Feedback lands in a local folder that Claude Code reads and fixes."}],["$","meta","7",{"property":"og:url","content":"https://sluglist.dev/"}],["$","meta","8",{"property":"og:site_name","content":"sluglist"}],["$","meta","9",{"property":"og:image","content":"https://sluglist.dev/og-image.png"}],["$","meta","10",{"property":"og:image:width","content":"1200"}],["$","meta","11",{"property":"og:image:height","content":"630"}],["$","meta","12",{"property":"og:image:alt","content":"sluglist — a drop-in visual feedback widget whose artifacts a coding agent reads and fixes"}],["$","meta","13",{"property":"og:type","content":"website"}],["$","meta","14",{"name":"twitter:card","content":"summary_large_image"}],["$","meta","15",{"name":"twitter:title","content":"sluglist — visual feedback that your agent fixes"}],["$","meta","16",{"name":"twitter:description","content":"Drop-in visual feedback widget for dev and staging sites: pick an element, screenshot, annotate, and deliver clean artifacts. Feedback lands in a local folder that Claude Code reads and fixes."}],["$","meta","17",{"name":"twitter:image","content":"https://sluglist.dev/og-image.png"}],["$","meta","18",{"name":"twitter:image:alt","content":"sluglist — a drop-in visual feedback widget whose artifacts a coding agent reads and fixes"}],["$","link","19",{"rel":"icon","href":"/favicon.ico","sizes":"32x32"}],["$","link","20",{"rel":"icon","href":"/icon.svg","type":"image/svg+xml"}],["$","link","21",{"rel":"apple-touch-icon","href":"/apple-touch-icon.png"}],["$","$L16","22",{}]]}]}]}],null]}]
+a:["$","$1","c",{"children":[null,["$","$L17",null,{"parallelRouterKey":"children","template":["$","$L18",null,{}]}]]}]
+d:["$","$1","c",{"children":[null,["$","$L17",null,{"parallelRouterKey":"children","template":["$","$L18",null,{}]}]]}]
+10:true
+13:null
+7:300
+7:C
+f:0
+9:"$undefined"
+b:"$undefined"
+e:"$undefined"
+6:"$undefined"

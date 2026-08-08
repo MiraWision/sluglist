@@ -1,0 +1,151 @@
+1:"$Sreact.fragment"
+2:I[38822,["/_next/static/chunks/1b58asu43-lub.js"],""]
+3:T170d,<p>sluglist is a framework-agnostic, dependency-light widget that lets people leave visual feedback
+directly on a running web app: pick an element, grab an area or the full page, annotate the
+screenshot, add a comment — and the widget produces a standard set of artifacts and hands them to
+pluggable <strong>connectors</strong>. The core knows nothing about where feedback is stored; delivery is fully
+encapsulated in the connector you provide.</p>
+<h2>Install</h2>
+<pre><code class="language-bash">npm install sluglist
+</code></pre>
+<h2>One line of config</h2>
+<p>A connector, and nothing else:</p>
+<pre><code class="language-ts">import { createFeedbackWidget, mountFeedbackWidget, DownloadConnector } from &quot;sluglist&quot;;
+
+mountFeedbackWidget(createFeedbackWidget({ connectors: [new DownloadConnector()] }));
+</code></pre>
+<p>That is a complete, working widget: launcher, capture modes, annotation, error and action capture,
+the offline outbox, a project slug derived from your hostname. Everything else — presets, privacy,
+identity, form fields, attachments, checklists, localization — is optional. Add a piece when you
+need it; none of them is a setup step.</p>
+<h2>Without a build step</h2>
+<p>Load it from a CDN (deps inlined, exposed as <code>Sluglist</code>):</p>
+<pre><code class="language-html">&lt;script src=&quot;https://unpkg.com/sluglist&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+  const { createFeedbackWidget, mountFeedbackWidget, DownloadConnector } = Sluglist;
+  mountFeedbackWidget(createFeedbackWidget({ connectors: [new DownloadConnector()] }));
+&lt;/script&gt;
+</code></pre>
+<p>Ships as ESM and CJS; <code>html-to-image</code> is loaded lazily on the first capture, so it is not part of
+your initial bundle. Undelivered issues are persisted to IndexedDB and retried on the next load, so
+a failed upload or a closed tab does not lose feedback.</p>
+<h2>Three ways sluglist is used</h2>
+<h3>1 · Dev loop — you and an agent</h3>
+<p>Click feedback on your own app, have it land in a folder, let Claude Code fix it.</p>
+<pre><code class="language-ts">import { createFeedbackWidget, mountFeedbackWidget, LocalConnector } from &quot;sluglist&quot;;
+
+mountFeedbackWidget(createFeedbackWidget({ connectors: [new LocalConnector()] }));
+</code></pre>
+<pre><code class="language-bash">npx sluglist dev        # sidecar that writes to ./.sluglist
+</code></pre>
+<p>See <a href="/docs/agents/">Agents &amp; CLI</a> for the full loop.</p>
+<h3>2 · Client acceptance — someone signs off a release</h3>
+<p>Put the build on staging with a <strong>checklist</strong> of what shipped. The client walks it, checks items off
+and flags problems; you get a coverage map instead of a chat thread.</p>
+<pre><code class="language-ts">mountFeedbackWidget(
+  createFeedbackWidget({
+    project: &quot;acme&quot;,
+    connectors: [new HttpConnector(&quot;/api/feedback&quot;, () =&gt; token)],
+    checklist: &quot;/checklist.json&quot;,   // or an inline object
+  })
+);
+</code></pre>
+<p>See <a href="/docs/checklist/">Checklist mode</a>.</p>
+<h3>3 · Beta / Production — real users report problems</h3>
+<p>A &quot;Report a problem&quot; button for people who are not your team: PII masked and scrubbed, a way to
+make the widget go away, and delivery through an endpoint you own.</p>
+<pre><code class="language-ts">mountFeedbackWidget(
+  createFeedbackWidget({
+    project: &quot;acme&quot;,
+    preset: &quot;production&quot;,
+    connectors: [new HttpConnector(&quot;/api/feedback&quot;, () =&gt; session.token)],
+    identity: { userId: user.id, email: user.email },
+  })
+);
+</code></pre>
+<p>See <a href="/docs/production/">Production &amp; privacy</a>.</p>
+<h2>Attach your user</h2>
+<p>Three ways to know who reported something, and they are not interchangeable — the difference is
+<em>where the value comes from</em>.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Source</th>
+<th>When it is captured</th>
+<th>Lands in</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>identity</code></td>
+<td>your app already knows it</td>
+<td>fixed at init</td>
+<td><code>reporter</code> in session.yaml + every issue</td>
+</tr>
+<tr>
+<td><code>setContext</code></td>
+<td>live host state (tenant, flags, build)</td>
+<td>at capture time</td>
+<td><code>context</code> per issue</td>
+</tr>
+<tr>
+<td><code>form</code></td>
+<td>only the reporter can answer it</td>
+<td>typed by them</td>
+<td><code>form</code> in session.yaml or per issue</td>
+</tr>
+</tbody></table>
+<pre><code class="language-ts">const widget = createFeedbackWidget({
+  project: &quot;acme&quot;,
+  connectors: [/* … */],
+
+  // 1. What you know: static, set once.
+  identity: { userId: user.id, email: user.email, name: user.name },
+
+  // 3. What only they know: asked in the panel.
+  form: [
+    { id: &quot;email&quot;, label: &quot;Your email&quot;, type: &quot;email&quot;, scope: &quot;session&quot; },
+    { id: &quot;severity&quot;, label: &quot;How bad is it?&quot;, type: &quot;select&quot;,
+      options: [&quot;blocking&quot;, &quot;annoying&quot;, &quot;cosmetic&quot;], required: true, scope: &quot;issue&quot; },
+  ],
+});
+
+// 2. What changes while they use the app.
+widget.setContext({ tenantId: &quot;acme&quot;, featureFlags: &quot;new-nav&quot;, buildVersion: APP_VERSION });
+</code></pre>
+<p>Reach for <code>identity</code> when you have the user object, <code>setContext</code> when the answer depends on where
+they are in the app, and <code>form</code> when nobody but the person reporting can tell you.</p>
+<h2>Next steps</h2>
+<ul>
+<li><a href="/docs/capture/">Capture modes, annotation &amp; attachments</a></li>
+<li><a href="/docs/connectors/">Connectors: deliver feedback anywhere</a></li>
+<li><a href="/docs/checklist/">Checklist mode</a></li>
+<li><a href="/docs/production/">Production &amp; privacy</a></li>
+<li><a href="/docs/agents/">Agents &amp; CLI</a></li>
+<li><a href="/docs/artifacts/">Artifact format</a></li>
+</ul>
+7:X
+c:X
+c:C
+0:{"buildId":"REC_Ee5nxVVfj7bExb5Bc","data":[{"rsc":["$","$1","c",{"children":[["$","div",null,{"className":"mx-auto max-w-3xl px-6 py-16 md:py-20","children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Docs\",\"item\":\"https://sluglist.dev/docs/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Quick start\",\"item\":\"https://sluglist.dev/docs/quick-start/\"}]}"}}],["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"TechArticle\",\"headline\":\"Quick start\",\"description\":\"Install the sluglist feedback widget and mount it with one line of config: a connector, and nothing else. ESM, CJS or a script tag from a CDN.\",\"url\":\"https://sluglist.dev/docs/quick-start/\",\"author\":{\"@id\":\"https://sluglist.dev/#org\"},\"about\":{\"@id\":\"https://sluglist.dev/#software\"}}"}}],["$","nav",null,{"className":"mb-6 text-[13px] text-[var(--color-muted)]","children":[["$","$L2",null,{"className":"hover:text-[var(--color-ink)]","href":"/docs/","children":"Docs"}]," ","/ ","Quick start"]}],["$","h1",null,{"className":"mb-8 font-bold text-3xl tracking-tight md:text-4xl","children":"Quick start"}],["$","article",null,{"className":"prose prose-site max-w-none","dangerouslySetInnerHTML":{"__html":"$3"}}],"$L4"]}],null,"$L5"]}],"isPartial":"$@6","staleTime":"$7","varyParams":null},{"rsc":"$L8","isPartial":"$@9","staleTime":"$7","varyParams":null},{"rsc":"$La","isPartial":"$@b","staleTime":"$7","varyParams":"$c"},{"rsc":"$Ld","isPartial":"$@e","staleTime":"$7","varyParams":"$c"}],"isUpgradeableISRFallback":false,"a":"$@f","rootVaryParams":null,"needsRuntimeRequest":"$@10"}
+11:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"OutletBoundary"]
+12:"$Sreact.suspense"
+14:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"ViewportBoundary"]
+15:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"MetadataBoundary"]
+16:I[4094,["/_next/static/chunks/1b58asu43-lub.js"],"IconMark"]
+17:I[29713,["/_next/static/chunks/1b58asu43-lub.js"],"default"]
+18:I[59292,["/_next/static/chunks/1b58asu43-lub.js"],"default"]
+4:["$","nav",null,{"className":"mt-12 flex justify-between gap-4 border-[var(--color-line)] border-t pt-6 text-[14px]","children":[["$","span",null,{}],["$","$L2",null,{"className":"text-[var(--color-muted)] hover:text-[var(--color-ink)]","href":"/docs/capture/","children":["Capture"," →"]}]]}]
+5:["$","$L11",null,{"children":["$","$12",null,{"name":"Next.MetadataOutlet","children":"$@13"}]}]
+8:["$","$1","h",{"children":[null,["$","$L14",null,{"children":[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]}],["$","div",null,{"hidden":true,"children":["$","$L15",null,{"children":["$","$12",null,{"name":"Next.Metadata","children":[["$","title","0",{"children":"Quick start — sluglist"}],["$","meta","1",{"name":"description","content":"Install the sluglist feedback widget and mount it with one line of config: a connector, and nothing else. ESM, CJS or a script tag from a CDN."}],["$","meta","2",{"name":"robots","content":"index, follow, max-image-preview:large"}],["$","meta","3",{"name":"theme-color","content":"#18181b"}],["$","link","4",{"rel":"canonical","href":"https://sluglist.dev/docs/quick-start/"}],["$","meta","5",{"property":"og:title","content":"sluglist — visual feedback that your agent fixes"}],["$","meta","6",{"property":"og:description","content":"Drop-in visual feedback widget for dev and staging sites: pick an element, screenshot, annotate, and deliver clean artifacts. Feedback lands in a local folder that Claude Code reads and fixes."}],["$","meta","7",{"property":"og:url","content":"https://sluglist.dev/"}],["$","meta","8",{"property":"og:site_name","content":"sluglist"}],["$","meta","9",{"property":"og:image","content":"https://sluglist.dev/og-image.png"}],["$","meta","10",{"property":"og:image:width","content":"1200"}],["$","meta","11",{"property":"og:image:height","content":"630"}],["$","meta","12",{"property":"og:image:alt","content":"sluglist — a drop-in visual feedback widget whose artifacts a coding agent reads and fixes"}],["$","meta","13",{"property":"og:type","content":"website"}],["$","meta","14",{"name":"twitter:card","content":"summary_large_image"}],["$","meta","15",{"name":"twitter:title","content":"sluglist — visual feedback that your agent fixes"}],["$","meta","16",{"name":"twitter:description","content":"Drop-in visual feedback widget for dev and staging sites: pick an element, screenshot, annotate, and deliver clean artifacts. Feedback lands in a local folder that Claude Code reads and fixes."}],["$","meta","17",{"name":"twitter:image","content":"https://sluglist.dev/og-image.png"}],["$","meta","18",{"name":"twitter:image:alt","content":"sluglist — a drop-in visual feedback widget whose artifacts a coding agent reads and fixes"}],["$","link","19",{"rel":"icon","href":"/favicon.ico","sizes":"32x32"}],["$","link","20",{"rel":"icon","href":"/icon.svg","type":"image/svg+xml"}],["$","link","21",{"rel":"apple-touch-icon","href":"/apple-touch-icon.png"}],["$","$L16","22",{}]]}]}]}],null]}]
+a:["$","$1","c",{"children":[null,["$","$L17",null,{"parallelRouterKey":"children","template":["$","$L18",null,{}]}]]}]
+d:["$","$1","c",{"children":[null,["$","$L17",null,{"parallelRouterKey":"children","template":["$","$L18",null,{}]}]]}]
+10:true
+13:null
+7:300
+7:C
+f:0
+9:"$undefined"
+b:"$undefined"
+e:"$undefined"
+6:"$undefined"

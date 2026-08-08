@@ -1,0 +1,133 @@
+1:"$Sreact.fragment"
+2:I[38822,["/_next/static/chunks/1b58asu43-lub.js"],""]
+3:T1482,<p>A connector is the only place that knows about storage, auth and credentials. The widget core
+produces artifacts and hands them over; delivery is fully yours.</p>
+<pre><code class="language-ts">interface ArtifactFile {
+  path: string; // POSIX path inside the session folder, e.g. &quot;01-broken-header.png&quot;
+  blob: Blob;
+  mime: string; // &quot;text/yaml&quot; | &quot;text/markdown&quot; | &quot;image/png&quot;
+}
+
+interface FeedbackConnector {
+  id: string; // used in logs and error reporting
+  put(sessionId: string, file: ArtifactFile): Promise&lt;void&gt;;
+}
+</code></pre>
+<p>Built in: <code>MemoryConnector</code> (accumulates in memory, for tests), <code>DownloadConnector</code> (zips a whole
+session via JSZip) and <code>LocalConnector</code> (POSTs to the <a href="/docs/agents/"><code>sluglist dev</code> sidecar</a>).
+Real targets (blob storage, an API route, a tracker) are your own connector. <code>connectors</code> is an
+array, so one issue can fan out to several destinations at once; a failing connector never blocks
+the others or the UI, and delivery retries with backoff.</p>
+<h2>The recommended shape: a thin API route</h2>
+<p>Because the browser should never hold storage credentials, the recommended shape is a <strong>thin API
+route</strong> on your side that takes the artifact and writes it server-side. The connector just posts to
+it.</p>
+<p><strong>Client connector (generic API route):</strong></p>
+<pre><code class="language-ts">class ApiRouteConnector implements FeedbackConnector {
+  id = &quot;api-route&quot;;
+  constructor(private endpoint: string, private token: string) {}
+  async put(sessionId: string, file: ArtifactFile) {
+    const base64 = btoa(
+      String.fromCharCode(...new Uint8Array(await file.blob.arrayBuffer()))
+    );
+    const res = await fetch(this.endpoint, {
+      method: &quot;POST&quot;,
+      headers: { &quot;content-type&quot;: &quot;application/json&quot;, &quot;x-feedback-token&quot;: this.token },
+      body: JSON.stringify({ sessionId, path: file.path, mime: file.mime, base64 }),
+    });
+    if (!res.ok) throw new Error(`upload failed: ${res.status}`);
+  }
+}
+</code></pre>
+<h2>Server route — Vercel Blob</h2>
+<p><code>POST /api/feedback</code>:</p>
+<pre><code class="language-ts">import { put } from &quot;@vercel/blob&quot;;
+
+export async function POST(req: Request) {
+  if (req.headers.get(&quot;x-feedback-token&quot;) !== process.env.FEEDBACK_TOKEN)
+    return new Response(&quot;Unauthorized&quot;, { status: 401 });
+  const { sessionId, path, mime, base64 } = await req.json();
+  const bytes = Buffer.from(base64, &quot;base64&quot;);
+  const { url } = await put(`feedback/${sessionId}/${path}`, bytes, {
+    access: &quot;public&quot;,
+    contentType: mime,
+    addRandomSuffix: false,
+  });
+  return Response.json({ ok: true, url });
+}
+</code></pre>
+<h2>Server route — S3 / R2</h2>
+<p>Same client connector:</p>
+<pre><code class="language-ts">import { PutObjectCommand, S3Client } from &quot;@aws-sdk/client-s3&quot;;
+const s3 = new S3Client({ region: process.env.AWS_REGION });
+
+export async function POST(req: Request) {
+  const { sessionId, path, mime, base64 } = await req.json();
+  await s3.send(new PutObjectCommand({
+    Bucket: process.env.FEEDBACK_BUCKET,
+    Key: `feedback/${sessionId}/${path}`,
+    Body: Buffer.from(base64, &quot;base64&quot;),
+    ContentType: mime,
+  }));
+  return Response.json({ ok: true });
+}
+</code></pre>
+<h2>Supabase Storage</h2>
+<p>Client-direct, with an insert-only RLS policy on the bucket:</p>
+<pre><code class="language-ts">import { createClient } from &quot;@supabase/supabase-js&quot;;
+
+class SupabaseConnector implements FeedbackConnector {
+  id = &quot;supabase&quot;;
+  private sb = createClient(URL, ANON_KEY);
+  async put(sessionId: string, file: ArtifactFile) {
+    const { error } = await this.sb.storage
+      .from(&quot;feedback&quot;)
+      .upload(`${sessionId}/${file.path}`, file.blob, {
+        contentType: file.mime,
+        upsert: true, // session.yaml is re-written each issue
+      });
+    if (error) throw error;
+  }
+}
+</code></pre>
+<h2>Piping into a tracker</h2>
+<p>The artifacts are <a href="/docs/artifacts/">a stable, documented format</a> — one markdown file per issue
+with YAML frontmatter. A connector (or a small job behind your endpoint) can turn each issue into a
+GitHub issue, a Linear ticket, or a Slack message: parse the frontmatter, attach the screenshot,
+link the session folder. Delivery stays a detail of <em>your</em> connector; the widget never learns where
+feedback ends up.</p>
+<h2>Delivery guarantees</h2>
+<ul>
+<li><strong>Fan-out:</strong> every configured connector receives every file; one failing connector never blocks
+the others.</li>
+<li><strong>Retries:</strong> failed deliveries retry with backoff, off the UI thread.</li>
+<li><strong>Offline outbox:</strong> undelivered issues are persisted to IndexedDB and retried on the next page
+load — a closed tab does not lose feedback. Disable with <code>offlineQueue: false</code>.</li>
+<li><strong>No phone-home:</strong> the widget makes no network requests except to your configured connectors —
+enforced by an automated test that drives a full session with every outbound channel trapped.</li>
+</ul>
+7:X
+c:X
+c:C
+0:{"buildId":"REC_Ee5nxVVfj7bExb5Bc","data":[{"rsc":["$","$1","c",{"children":[["$","div",null,{"className":"mx-auto max-w-3xl px-6 py-16 md:py-20","children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Docs\",\"item\":\"https://sluglist.dev/docs/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Connectors: deliver feedback anywhere\",\"item\":\"https://sluglist.dev/docs/connectors/\"}]}"}}],["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"TechArticle\",\"headline\":\"Connectors: deliver feedback anywhere\",\"description\":\"A connector is the only place that knows about storage. Recipes for an API route, Vercel Blob, S3/R2 and Supabase Storage — with no write-keys in the browser.\",\"url\":\"https://sluglist.dev/docs/connectors/\",\"author\":{\"@id\":\"https://sluglist.dev/#org\"},\"about\":{\"@id\":\"https://sluglist.dev/#software\"}}"}}],["$","nav",null,{"className":"mb-6 text-[13px] text-[var(--color-muted)]","children":[["$","$L2",null,{"className":"hover:text-[var(--color-ink)]","href":"/docs/","children":"Docs"}]," ","/ ","Connectors"]}],["$","h1",null,{"className":"mb-8 font-bold text-3xl tracking-tight md:text-4xl","children":"Connectors: deliver feedback anywhere"}],["$","article",null,{"className":"prose prose-site max-w-none","dangerouslySetInnerHTML":{"__html":"$3"}}],"$L4"]}],null,"$L5"]}],"isPartial":"$@6","staleTime":"$7","varyParams":null},{"rsc":"$L8","isPartial":"$@9","staleTime":"$7","varyParams":null},{"rsc":"$La","isPartial":"$@b","staleTime":"$7","varyParams":"$c"},{"rsc":"$Ld","isPartial":"$@e","staleTime":"$7","varyParams":"$c"}],"isUpgradeableISRFallback":false,"a":"$@f","rootVaryParams":null,"needsRuntimeRequest":"$@10"}
+11:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"OutletBoundary"]
+12:"$Sreact.suspense"
+14:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"ViewportBoundary"]
+15:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"MetadataBoundary"]
+16:I[4094,["/_next/static/chunks/1b58asu43-lub.js"],"IconMark"]
+17:I[29713,["/_next/static/chunks/1b58asu43-lub.js"],"default"]
+18:I[59292,["/_next/static/chunks/1b58asu43-lub.js"],"default"]
+4:["$","nav",null,{"className":"mt-12 flex justify-between gap-4 border-[var(--color-line)] border-t pt-6 text-[14px]","children":[["$","$L2",null,{"className":"text-[var(--color-muted)] hover:text-[var(--color-ink)]","href":"/docs/capture/","children":["← ","Capture"]}],["$","$L2",null,{"className":"text-[var(--color-muted)] hover:text-[var(--color-ink)]","href":"/docs/checklist/","children":["Checklist mode"," →"]}]]}]
+5:["$","$L11",null,{"children":["$","$12",null,{"name":"Next.MetadataOutlet","children":"$@13"}]}]
+8:["$","$1","h",{"children":[null,["$","$L14",null,{"children":[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]}],["$","div",null,{"hidden":true,"children":["$","$L15",null,{"children":["$","$12",null,{"name":"Next.Metadata","children":[["$","title","0",{"children":"Connectors: deliver feedback anywhere — sluglist"}],["$","meta","1",{"name":"description","content":"A connector is the only place that knows about storage. Recipes for an API route, Vercel Blob, S3/R2 and Supabase Storage — with no write-keys in the browser."}],["$","meta","2",{"name":"robots","content":"index, follow, max-image-preview:large"}],["$","meta","3",{"name":"theme-color","content":"#18181b"}],["$","link","4",{"rel":"canonical","href":"https://sluglist.dev/docs/connectors/"}],["$","meta","5",{"property":"og:title","content":"sluglist — visual feedback that your agent fixes"}],["$","meta","6",{"property":"og:description","content":"Drop-in visual feedback widget for dev and staging sites: pick an element, screenshot, annotate, and deliver clean artifacts. Feedback lands in a local folder that Claude Code reads and fixes."}],["$","meta","7",{"property":"og:url","content":"https://sluglist.dev/"}],["$","meta","8",{"property":"og:site_name","content":"sluglist"}],["$","meta","9",{"property":"og:image","content":"https://sluglist.dev/og-image.png"}],["$","meta","10",{"property":"og:image:width","content":"1200"}],["$","meta","11",{"property":"og:image:height","content":"630"}],["$","meta","12",{"property":"og:image:alt","content":"sluglist — a drop-in visual feedback widget whose artifacts a coding agent reads and fixes"}],["$","meta","13",{"property":"og:type","content":"website"}],["$","meta","14",{"name":"twitter:card","content":"summary_large_image"}],["$","meta","15",{"name":"twitter:title","content":"sluglist — visual feedback that your agent fixes"}],["$","meta","16",{"name":"twitter:description","content":"Drop-in visual feedback widget for dev and staging sites: pick an element, screenshot, annotate, and deliver clean artifacts. Feedback lands in a local folder that Claude Code reads and fixes."}],["$","meta","17",{"name":"twitter:image","content":"https://sluglist.dev/og-image.png"}],["$","meta","18",{"name":"twitter:image:alt","content":"sluglist — a drop-in visual feedback widget whose artifacts a coding agent reads and fixes"}],["$","link","19",{"rel":"icon","href":"/favicon.ico","sizes":"32x32"}],["$","link","20",{"rel":"icon","href":"/icon.svg","type":"image/svg+xml"}],["$","link","21",{"rel":"apple-touch-icon","href":"/apple-touch-icon.png"}],["$","$L16","22",{}]]}]}]}],null]}]
+a:["$","$1","c",{"children":[null,["$","$L17",null,{"parallelRouterKey":"children","template":["$","$L18",null,{}]}]]}]
+d:["$","$1","c",{"children":[null,["$","$L17",null,{"parallelRouterKey":"children","template":["$","$L18",null,{}]}]]}]
+10:true
+13:null
+7:300
+7:C
+f:0
+9:"$undefined"
+b:"$undefined"
+e:"$undefined"
+6:"$undefined"

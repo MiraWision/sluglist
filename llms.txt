@@ -1,0 +1,41 @@
+# sluglist
+
+> Universal embeddable feedback widget for dev, staging and beta sites. MIT-licensed,
+> framework-agnostic, no hosted service: reporters pick an element, screenshot, annotate and
+> comment, and the widget delivers a stable set of artifacts (session.yaml + one markdown file per
+> issue with YAML frontmatter + PNG screenshots) to pluggable connectors the developer owns.
+> Feedback can land in a local folder that a coding agent (e.g. Claude Code) reads and fixes via
+> the bundled sluglist-fix skill.
+
+Key facts:
+- Install: `npm install sluglist` (ESM + CJS) or a script tag from unpkg.
+- One-line setup: `mountFeedbackWidget(createFeedbackWidget({ connectors: [new DownloadConnector()] }))`.
+- Capture modes: element (smart CSS selector), area, full page, record-steps (numbered frames), comment-only.
+- Local agent loop: `npx sluglist dev` sidecar writes reports to ./.sluglist for an agent to read.
+- Checklist mode: pre-seeded acceptance checklist; verdicts form a coverage map in session.yaml.
+- Production preset: input masking, screenshot consent, PII text scrubbing, dismiss ✕.
+- Zero phone-home: no network requests except to the developer's configured connectors (test-enforced).
+- Artifact format is a stable, additively-versioned contract (format_version 1.4).
+
+## Docs
+
+- [Quick start](https://sluglist.dev/docs/quick-start/): install, one-line setup, the three usage scenarios
+- [Capture](https://sluglist.dev/docs/capture/): modes, annotation, errors, action trail, form fields, attachments, mobile
+- [Connectors](https://sluglist.dev/docs/connectors/): delivery to your own storage — API route, Vercel Blob, S3/R2, Supabase
+- [Checklist mode](https://sluglist.dev/docs/checklist/): structured acceptance with a coverage map
+- [Production](https://sluglist.dev/docs/production/): presets, PII scrubbing, localization, the production checklist
+- [Agents & CLI](https://sluglist.dev/docs/agents/): the local feedback loop and Claude Code skills
+- [Artifact format](https://sluglist.dev/docs/artifacts/): the stable contract, field by field
+
+## Use cases
+
+- [Claude Code & coding agents](https://sluglist.dev/for/claude-code/): feedback that fixes itself
+- [Client acceptance](https://sluglist.dev/for/client-acceptance/): checklist sign-off on staging
+- [Beta & production feedback](https://sluglist.dev/for/beta-feedback/): a privacy-safe "Report a problem" button
+
+## Reference
+
+- [Changelog](https://sluglist.dev/changelog/)
+- [GitHub repository](https://github.com/MiraWision/sluglist)
+- [npm package](https://www.npmjs.com/package/sluglist)
+- [Artifact SPEC](https://github.com/MiraWision/sluglist/blob/main/SPEC.md)

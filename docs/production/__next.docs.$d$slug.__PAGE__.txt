@@ -1,0 +1,170 @@
+1:"$Sreact.fragment"
+2:I[38822,["/_next/static/chunks/1b58asu43-lub.js"],""]
+3:T1f60,<p>Beyond dev and staging, sluglist can power a <strong>&quot;Report a problem&quot;</strong> button for real users on a
+production MVP or beta. It stays one-way capture; the extra pieces are reporter identity, per-issue
+custom fields, and PII masking so screenshots are safe to store.</p>
+<h2>Presets</h2>
+<p><code>preset: &quot;beta&quot;</code> masks inputs, adds screenshot consent and relabels the launcher.
+<code>preset: &quot;production&quot;</code> is <code>beta</code> plus the three things a widget needs once it faces paying
+customers: PII scrubbed out of the text it collects, a way for the reporter to make it go away, and
+no <code>console.warn</code> capture.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th><code>dev</code></th>
+<th><code>beta</code></th>
+<th><code>production</code></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>privacy.maskInputs</code></td>
+<td>–</td>
+<td>✓</td>
+<td>✓</td>
+</tr>
+<tr>
+<td><code>privacy.screenshotConsent</code></td>
+<td>–</td>
+<td>✓</td>
+<td>✓</td>
+</tr>
+<tr>
+<td><code>privacy.scrubText</code></td>
+<td>–</td>
+<td>–</td>
+<td>✓</td>
+</tr>
+<tr>
+<td><code>errors.captureWarnings</code></td>
+<td>opt-in</td>
+<td>opt-in</td>
+<td>forced off</td>
+</tr>
+<tr>
+<td><code>dismiss.enabled</code></td>
+<td>–</td>
+<td>–</td>
+<td>✓</td>
+</tr>
+<tr>
+<td>Button label</td>
+<td>&quot;Feedback&quot;</td>
+<td>&quot;Report a problem&quot;</td>
+<td>&quot;Report a problem&quot;</td>
+</tr>
+</tbody></table>
+<pre><code class="language-ts">const widget = createFeedbackWidget({
+  project: &quot;acme&quot;,
+  preset: &quot;production&quot;,
+  connectors: [new HttpConnector(&quot;/api/feedback&quot;, () =&gt; session.token)],
+  identity: { userId: user.id, email: user.email, name: user.name },
+  custom: { plan: user.plan, appVersion: APP_VERSION },
+});
+const ui = mountFeedbackWidget(widget);
+</code></pre>
+<p>Every option can still be set explicitly and wins over the preset — except
+<code>errors.captureWarnings</code> under <code>production</code>, which is forced to <code>false</code> (warnings are the noisiest
+text channel in a real app; asking for them anyway logs a warning).</p>
+<p>Mark anything sensitive with <code>data-private</code> and it is always redacted in screenshots, regardless of
+<code>maskInputs</code>. Values are masked only for the screenshot render; the live DOM is restored exactly.</p>
+<h2>Text scrubbing</h2>
+<p>With <code>scrubText</code> on, the text surfaces of every artifact — <code>element_text</code>, the issue <code>url</code>, each
+message and stack in <code>## Errors</code> (including failed-request paths), and the selectors and labels in
+<code>## Actions</code> — have emails replaced by <code>[email]</code>, runs of 6+ digits by <code>[digits]</code>, and
+hex/base64-shaped tokens by <code>[token]</code>. Dates, version numbers, viewport strings, stack-trace line
+numbers and ordinary prose are left alone. Values <em>you</em> supply (<code>context</code>, <code>custom</code>, <code>identity</code>,
+checklist titles) and the reporter&#39;s own comment are never scrubbed. Issues carry <code>scrubbed: true</code>
+in their frontmatter so a reader knows which artifacts went through it.</p>
+<h2>Dismiss</h2>
+<p>The launcher gets a ✕ — shown on hover on desktop, always visible (muted) on touch. Clicking it
+hides the widget completely, shortcut included, and remembers that for <code>dismiss.days</code> (default 7;
+<code>0</code> means until storage is cleared).</p>
+<p>The rescue path is <code>ui.show()</code>, which clears the dismissal immediately. Wire it to a link in your
+own footer so the ✕ is never a one-way door:</p>
+<pre><code class="language-ts">footerLink.addEventListener(&quot;click&quot;, () =&gt; ui.show());
+</code></pre>
+<h2>Self-isolation</h2>
+<p>Everything the widget wraps (<code>console.error</code>, <code>fetch</code>, <code>XMLHttpRequest</code>, <code>history.pushState</code>) calls
+the original host function unconditionally — a bug inside sluglist cannot fail your request,
+swallow your log or block your navigation. Internal failures are counted; after five in one session
+the widget uninstalls itself (originals restored by reference, listeners removed, UI taken out of
+the DOM), logs one warning, and the page carries on without it.</p>
+<p><strong>Zero phone-home:</strong> the widget makes no network requests except to your configured connectors —
+enforced by an automated test that drives a full session with every outbound channel trapped and
+asserts the count is zero.</p>
+<h2>Localization</h2>
+<p>Real users are the ones who need the widget in their own language. Bundles ship for <strong>en</strong>
+(default), <strong>ru</strong>, <strong>uk</strong>, <strong>es</strong> and <strong>de</strong> — one line:</p>
+<pre><code class="language-ts">import { labels } from &quot;sluglist/labels&quot;;
+
+mountFeedbackWidget(widget, { strings: labels.uk });
+</code></pre>
+<p>Override a single string by spreading: <code>{ strings: { ...labels.uk, send: &quot;Полетіли&quot; } }</code>. Anything
+a bundle leaves out falls back to English. The locale is <strong>chosen by you, not sniffed from the
+browser</strong>. Plurals go through the bundle&#39;s own rule, so Slavic languages get all three forms,
+including the 11–14 exception (<code>slavicPluralForm</code> is exported for custom bundles).</p>
+<h2>Metadata collected</h2>
+<p>Automatically, no personal data: URL path, viewport and screen size, device pixel ratio, browser
+and OS (parsed from the user agent), UI language(s), timezone, color scheme, reduced-motion, and up
+to the last 20 <code>console.error</code> messages. Deliberately not collected: full user agent, IP, cookies,
+storage, geolocation, or any DOM content beyond the screenshot pixels.</p>
+<p>Reporter <code>identity</code> and <code>custom</code> fields are collected only when you explicitly configure them; by
+default neither is present in the artifacts.</p>
+<h2>The production checklist</h2>
+<p>Before pointing the widget at real users, walk this list. These are decisions that are <strong>yours,
+not the library&#39;s</strong> — sluglist deliberately has no opinion about where your data lives, how long
+you keep it, or what your privacy policy says.</p>
+<ol>
+<li><p><strong>Turn on the production preset</strong> (everything in the table above, at once).</p>
+</li>
+<li><p><strong>Gate the widget on your environment</strong> — decide at build time whether it is even constructed:</p>
+<pre><code class="language-ts">if (process.env.NEXT_PUBLIC_FEEDBACK === &quot;on&quot;) {
+  mountFeedbackWidget(createFeedbackWidget({ /* … */ }));
+}
+</code></pre>
+<p><code>enabled: false</code> also works at runtime, but environment gating is stronger: it keeps the code
+out of the paths you never intend to run it on.</p>
+</li>
+<li><p><strong>Generate and store a delivery token.</strong> Your endpoint should reject any request without a
+matching bearer token, and refuse to start if the server has no token configured.</p>
+</li>
+<li><p><strong>Own the endpoint.</strong> Never ship storage write-keys in the browser. Post to a thin route that
+owns the credentials, does the write, rate-limits, and — if you enable attachments — enforces a
+server-side mime whitelist and size cap (415 / 413).</p>
+</li>
+<li><p><strong>Decide retention.</strong> The artifacts contain screenshots of your app as a user saw it; decide how
+long they live and who can read them.</p>
+</li>
+<li><p><strong>Add a privacy-policy paragraph.</strong> Tell users what the &quot;Report a problem&quot; button collects; the
+<a href="#metadata-collected">metadata list above</a> is the honest inventory to adapt.</p>
+</li>
+</ol>
+<p>The repository version of this checklist with the full endpoint example lives in
+<a href="https://github.com/MiraWision/sluglist/blob/main/docs/production-checklist.md"><code>docs/production-checklist.md</code></a>
+and <a href="https://github.com/MiraWision/sluglist/blob/main/examples/feedback-route.ts"><code>examples/feedback-route.ts</code></a>.</p>
+7:X
+c:X
+c:C
+0:{"buildId":"REC_Ee5nxVVfj7bExb5Bc","data":[{"rsc":["$","$1","c",{"children":[["$","div",null,{"className":"mx-auto max-w-3xl px-6 py-16 md:py-20","children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Docs\",\"item\":\"https://sluglist.dev/docs/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Production & beta: presets, privacy, PII scrubbing\",\"item\":\"https://sluglist.dev/docs/production/\"}]}"}}],["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"TechArticle\",\"headline\":\"Production & beta: presets, privacy, PII scrubbing\",\"description\":\"The beta and production presets: input masking, screenshot consent, PII text scrubbing, dismiss, localization, and the checklist to walk before real users see the widget.\",\"url\":\"https://sluglist.dev/docs/production/\",\"author\":{\"@id\":\"https://sluglist.dev/#org\"},\"about\":{\"@id\":\"https://sluglist.dev/#software\"}}"}}],["$","nav",null,{"className":"mb-6 text-[13px] text-[var(--color-muted)]","children":[["$","$L2",null,{"className":"hover:text-[var(--color-ink)]","href":"/docs/","children":"Docs"}]," ","/ ","Production"]}],["$","h1",null,{"className":"mb-8 font-bold text-3xl tracking-tight md:text-4xl","children":"Production & beta: presets, privacy, PII scrubbing"}],["$","article",null,{"className":"prose prose-site max-w-none","dangerouslySetInnerHTML":{"__html":"$3"}}],"$L4"]}],null,"$L5"]}],"isPartial":"$@6","staleTime":"$7","varyParams":null},{"rsc":"$L8","isPartial":"$@9","staleTime":"$7","varyParams":null},{"rsc":"$La","isPartial":"$@b","staleTime":"$7","varyParams":"$c"},{"rsc":"$Ld","isPartial":"$@e","staleTime":"$7","varyParams":"$c"}],"isUpgradeableISRFallback":false,"a":"$@f","rootVaryParams":null,"needsRuntimeRequest":"$@10"}
+11:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"OutletBoundary"]
+12:"$Sreact.suspense"
+14:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"ViewportBoundary"]
+15:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"MetadataBoundary"]
+16:I[4094,["/_next/static/chunks/1b58asu43-lub.js"],"IconMark"]
+17:I[29713,["/_next/static/chunks/1b58asu43-lub.js"],"default"]
+18:I[59292,["/_next/static/chunks/1b58asu43-lub.js"],"default"]
+4:["$","nav",null,{"className":"mt-12 flex justify-between gap-4 border-[var(--color-line)] border-t pt-6 text-[14px]","children":[["$","$L2",null,{"className":"text-[var(--color-muted)] hover:text-[var(--color-ink)]","href":"/docs/checklist/","children":["← ","Checklist mode"]}],["$","$L2",null,{"className":"text-[var(--color-muted)] hover:text-[var(--color-ink)]","href":"/docs/agents/","children":["Agents & CLI"," →"]}]]}]
+5:["$","$L11",null,{"children":["$","$12",null,{"name":"Next.MetadataOutlet","children":"$@13"}]}]
+8:["$","$1","h",{"children":[null,["$","$L14",null,{"children":[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]}],["$","div",null,{"hidden":true,"children":["$","$L15",null,{"children":["$","$12",null,{"name":"Next.Metadata","children":[["$","title","0",{"children":"Production & beta: presets, privacy, PII scrubbing — sluglist"}],["$","meta","1",{"name":"description","content":"The beta and production presets: input masking, screenshot consent, PII text scrubbing, dismiss, localization, and the checklist to walk before real users see the widget."}],["$","meta","2",{"name":"robots","content":"index, follow, max-image-preview:large"}],["$","meta","3",{"name":"theme-color","content":"#18181b"}],["$","link","4",{"rel":"canonical","href":"https://sluglist.dev/docs/production/"}],["$","meta","5",{"property":"og:title","content":"sluglist — visual feedback that your agent fixes"}],["$","meta","6",{"property":"og:description","content":"Drop-in visual feedback widget for dev and staging sites: pick an element, screenshot, annotate, and deliver clean artifacts. Feedback lands in a local folder that Claude Code reads and fixes."}],["$","meta","7",{"property":"og:url","content":"https://sluglist.dev/"}],["$","meta","8",{"property":"og:site_name","content":"sluglist"}],["$","meta","9",{"property":"og:image","content":"https://sluglist.dev/og-image.png"}],["$","meta","10",{"property":"og:image:width","content":"1200"}],["$","meta","11",{"property":"og:image:height","content":"630"}],["$","meta","12",{"property":"og:image:alt","content":"sluglist — a drop-in visual feedback widget whose artifacts a coding agent reads and fixes"}],["$","meta","13",{"property":"og:type","content":"website"}],["$","meta","14",{"name":"twitter:card","content":"summary_large_image"}],["$","meta","15",{"name":"twitter:title","content":"sluglist — visual feedback that your agent fixes"}],["$","meta","16",{"name":"twitter:description","content":"Drop-in visual feedback widget for dev and staging sites: pick an element, screenshot, annotate, and deliver clean artifacts. Feedback lands in a local folder that Claude Code reads and fixes."}],["$","meta","17",{"name":"twitter:image","content":"https://sluglist.dev/og-image.png"}],["$","meta","18",{"name":"twitter:image:alt","content":"sluglist — a drop-in visual feedback widget whose artifacts a coding agent reads and fixes"}],["$","link","19",{"rel":"icon","href":"/favicon.ico","sizes":"32x32"}],["$","link","20",{"rel":"icon","href":"/icon.svg","type":"image/svg+xml"}],["$","link","21",{"rel":"apple-touch-icon","href":"/apple-touch-icon.png"}],["$","$L16","22",{}]]}]}]}],null]}]
+a:["$","$1","c",{"children":[null,["$","$L17",null,{"parallelRouterKey":"children","template":["$","$L18",null,{}]}]]}]
+d:["$","$1","c",{"children":[null,["$","$L17",null,{"parallelRouterKey":"children","template":["$","$L18",null,{}]}]]}]
+10:true
+13:null
+7:300
+7:C
+f:0
+9:"$undefined"
+b:"$undefined"
+e:"$undefined"
+6:"$undefined"
