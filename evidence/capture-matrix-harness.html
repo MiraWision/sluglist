@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>sluglist — cross-browser capture matrix harness</title>
+    <style>
+      /* A webfont declared through @font-face, which is what the DOM-to-canvas
+         renderer has to re-fetch and inline. Deliberately a local file so the
+         run is offline; the code path is identical to a hosted font. */
+      @font-face {
+        font-family: "MatrixTest";
+        src: local("Georgia"), local("Times New Roman");
+        font-display: swap;
+      }
+      body {
+        font-family: -apple-system, system-ui, sans-serif;
+        margin: 0;
+        color: #111;
+        background: #fff;
+      }
+      main { padding: 24px 32px 80px; max-width: 900px; }
+      h1 { font-size: 20px; margin: 0 0 4px; }
+      p.sub { color: #6b7280; font-size: 13px; margin: 0 0 20px; }
+      section {
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 16px;
+      }
+      h2 { font-size: 14px; margin: 0 0 10px; }
+      /* 1. position: fixed — a sticky bar that must not be painted twice or
+         stranded at the top of a long full-page capture. */
+      .fixed-bar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 44px;
+        background: #111827;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        padding: 0 16px;
+        font-size: 13px;
+        z-index: 10;
+      }
+      main { padding-top: 68px; }
+      /* 2. CSS filter + backdrop-filter — historically the most fragile pair in
+         a cloned DOM, and the one Safari renders differently. */
+      .filtered {
+        filter: saturate(1.8) contrast(1.1) drop-shadow(0 4px 8px rgba(0,0,0,0.25));
+        background: linear-gradient(120deg, #6366f1, #ec4899);
+        color: #fff;
+        padding: 18px;
+        border-radius: 10px;
+      }
+      .backdrop-wrap {
+        position: relative;
+        height: 120px;
+        border-radius: 10px;
+        overflow: hidden;
+        background: repeating-linear-gradient(45deg, #fde68a 0 12px, #fca5a5 12px 24px);
+      }
+      .backdrop {
+        position: absolute;
+        inset: 20px;
+        backdrop-filter: blur(6px) saturate(1.4);
+        -webkit-backdrop-filter: blur(6px) saturate(1.4);
+        background: rgba(255, 255, 255, 0.35);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+      }
+      /* 3. Webfont text. */
+      .webfont { font-family: "MatrixTest", Georgia, serif; font-size: 22px; }
+      /* 4. Emoji — a separate font stack the renderer has to resolve. */
+      .emoji { font-size: 26px; letter-spacing: 6px; }
+      img.remote { width: 64px; height: 64px; image-rendering: pixelated; border: 1px solid #e5e7eb; }
+      .grid { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+      .cap { font-size: 11px; color: #6b7280; }
+      /* 5. A tall block so full-page capture is a real full-page capture. */
+      .tall { height: 700px; background: linear-gradient(#f8fafc, #e2e8f0); border-radius: 10px; }
+      button.app {
+        padding: 9px 14px; border-radius: 8px; border: 1px solid #d1d5db;
+        background: #f9fafb; font-size: 14px; cursor: pointer;
+      }
+      #result { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; white-space: pre-wrap; }
+    </style>
+  </head>
+  <body>
+    <div class="fixed-bar">position: fixed bar — must appear once, at the top</div>
+    <main>
+      <h1>Capture matrix harness</h1>
+      <p class="sub">
+        Every element on this page is a known DOM-to-canvas failure mode. Run each capture
+        mode against it in each browser and compare the PNGs.
+      </p>
+
+      <section id="webfont-section">
+        <h2>1 · Webfont text</h2>
+        <div class="webfont">Sphinx of black quartz, judge my vow — 0123456789</div>
+      </section>
+
+      <section id="crossorigin-section">
+        <h2>2 · Cross-origin images</h2>
+        <div class="grid">
+          <div>
+            <img class="remote" src="http://localhost:5176/cors/pixel.png" alt="cors" />
+            <div class="cap">CORS allowed</div>
+          </div>
+          <div>
+            <img class="remote" src="http://localhost:5176/nocors/pixel.png" alt="no cors" />
+            <div class="cap">no CORS header</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="filter-section">
+        <h2>3 · CSS filter and backdrop-filter</h2>
+        <div class="filtered">filter: saturate + contrast + drop-shadow</div>
+        <div style="height: 12px"></div>
+        <div class="backdrop-wrap">
+          <div class="backdrop">backdrop-filter: blur(6px)</div>
+        </div>
+      </section>
+
+      <section id="emoji-section">
+        <h2>4 · Emoji</h2>
+        <div class="emoji">🐌 ✅ 🚀 🇺🇦 👩🏽‍💻</div>
+      </section>
+
+      <section id="target-section">
+        <h2>5 · Element-mode target</h2>
+        <button class="app" id="target" data-testid="matrix-target">Click me — element capture target</button>
+      </section>
+
+      <section>
+        <h2>6 · Long content (full-page capture)</h2>
+        <div class="tall"></div>
+      </section>
+
+      <section>
+        <h2>Result</h2>
+        <div id="result">(no capture yet)</div>
+      </section>
+    </main>
+
+    <script src="../dist/sluglist.global.js"></script>
+    <script>
+      const memory = new Sluglist.MemoryConnector();
+      const widget = Sluglist.createFeedbackWidget({
+        project: "acme",
+        connectors: [memory],
+        // Attachments and the form are exercised by the E2E harness; this page
+        // is only about whether the renderer survives the content above.
+      });
+      const ui = Sluglist.mountFeedbackWidget(widget);
+      window.__widget = widget;
+      window.__memory = memory;
+
+      const out = document.getElementById("result");
+      function log(line) {
+        out.textContent = `${line}\n${out.textContent}`.slice(0, 4000);
+      }
+
+      /**
+       * Run one capture mode directly against the API (not through the panel),
+       * measure it, and report size + how flat the result is. A "blank" render
+       * is the failure this page is built to catch, so we compute the same
+       * dominant-colour ratio the widget uses.
+       */
+      window.runCapture = async (mode) => {
+        const started = performance.now();
+        try {
+          let blob;
+          if (mode === "fullpage") {
+            blob = await Sluglist.captureFullPage();
+          } else if (mode === "element") {
+            blob = await Sluglist.captureElement(document.getElementById("filter-section"));
+          } else {
+            blob = await Sluglist.captureArea({ x: 40, y: 100, width: 400, height: 260 });
+          }
+          const ms = Math.round(performance.now() - started);
+          const ratio = await flatness(blob);
+          const result = {
+            mode,
+            ok: true,
+            ms,
+            bytes: blob.size,
+            dominantColor: Number(ratio.toFixed(4)),
+            blank: ratio > 0.98,
+          };
+          log(JSON.stringify(result));
+          window.__last = { ...result, blob };
+          return result;
+        } catch (error) {
+          const result = {
+            mode,
+            ok: false,
+            ms: Math.round(performance.now() - started),
+            reason: error && error.reason,
+            message: String((error && error.message) || error),
+          };
+          log(JSON.stringify(result));
+          window.__last = result;
+          return result;
+        }
+      };
+
+      /** Share of the most common pixel colour — the blank-render heuristic. */
+      async function flatness(blob) {
+        const bitmap = await createImageBitmap(blob);
+        const w = Math.min(64, bitmap.width);
+        const h = Math.min(64, bitmap.height);
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        ctx.drawImage(bitmap, 0, 0, w, h);
+        const { data } = ctx.getImageData(0, 0, w, h);
+        const counts = new Map();
+        let best = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          const key = `${data[i]},${data[i + 1]},${data[i + 2]},${data[i + 3]}`;
+          const next = (counts.get(key) ?? 0) + 1;
+          counts.set(key, next);
+          if (next > best) best = next;
+        }
+        return best / (data.length / 4);
+      }
+
+      /** Save the last capture into evidence/ through the dev server. */
+      window.saveLast = async (name) => {
+        if (!window.__last?.blob) return "no blob";
+        await fetch(`/save/${name}`, { method: "POST", body: window.__last.blob });
+        return `saved ${name}`;
+      };
+
+      /** Run all three modes in order and return the summary rows. */
+      window.runAll = async () => {
+        const rows = [];
+        for (const mode of ["fullpage", "area", "element"]) {
+          rows.push(await window.runCapture(mode));
+        }
+        return rows;
+      };
+
+      window.uaInfo = () => ({
+        ua: navigator.userAgent,
+        dpr: window.devicePixelRatio,
+        viewport: `${window.innerWidth}x${window.innerHeight}`,
+      });
+    </script>
+  </body>
+</html>

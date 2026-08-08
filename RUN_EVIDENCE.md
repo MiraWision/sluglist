@@ -1,418 +1,378 @@
-# RUN_EVIDENCE — production readiness (preset, scrub, dismiss, self-isolation, endpoint)
+# RUN_EVIDENCE — resilience, mobile, form fields, attachments, docs, i18n
 
-Date: 2026-07-31. **Additive-only**; the `FeedbackConnector` contract is unchanged; the `dev` preset
-behaves exactly as before. Artifact format `1.2 → 1.3` (minor, additive: the `scrubbed` issue field).
-**312 tests pass** (was 182 at the start of this iteration — 130 added), type-check clean, build clean.
+Date: 2026-08-08. **Additive-only**; the `FeedbackConnector` contract is unchanged. Artifact format
+`1.3 → 1.4` (minor, additive: `screenshot_failed`/`screenshot_error`, `form`, `attachments`).
+**392 tests pass** (was 312 at the start of this iteration — 80 added), type-check clean, build clean,
+landing page builds clean.
 
-Scope was deliberately narrow. Out of scope and *not* attempted: OCR / automatic PII detection on
-screenshots, consent banners and cookie mechanics (the client's privacy-policy territory), artifact
-encryption (the client's storage is their perimeter), and any new UI features.
+Every feature added here is optional. The headline check is Phase 7 run 1: a widget created with
+**nothing but a connector** completes a whole issue with a clean console. That run is in
+[`evidence/iteration-e2e/`](evidence/iteration-e2e/).
 
-External artifacts of the dirty-data run live under
-[`evidence/production-e2e/`](evidence/production-e2e/), produced by
-[`test/e2e-production.test.ts`](test/e2e-production.test.ts).
+External artifacts:
+
+| What | Where | Produced by |
+|---|---|---|
+| Browser × mode matrix + PNGs | [`evidence/capture-matrix/`](evidence/capture-matrix/) | Playwright over `evidence/capture-matrix-harness.html` |
+| Fallback issues (throw / timeout / blank) | [`evidence/capture-fallback/`](evidence/capture-fallback/) | Playwright over `evidence/fallback-harness.html` |
+| Zero-config + full-config + mobile run | [`evidence/iteration-e2e/`](evidence/iteration-e2e/) | Playwright over `evidence/iteration-e2e-harness.html` |
+| Landing page, three-scenario section | [`evidence/landing-scenarios.png`](evidence/landing-scenarios.png) | built `docs/` |
 
 ---
 
 ## Phase 0 — Pre-flight audit
 
-### 0.1 Preset mechanism
+### 0.1 Screenshot pipeline — REAL, with no failure handling
 
-| Surface | State | Decision |
+| Surface | State as found | Decision |
 |---|---|---|
-| [`src/preset.ts`](src/preset.ts) | **REAL but privacy-only** — 25 lines, one function `resolvePrivacy`; `beta` → `{maskInputs, screenshotConsent}`, `dev` → `undefined` | Extended, not replaced. Added `resolveErrors` and `resolveDismiss` alongside it so each preset concern is one small pure function. |
-| `preset` read outside preset.ts | [`widget.ts`](src/widget.ts) (stores resolved privacy on `core.config`), [`ui/mount.ts`](src/ui/mount.ts) (button relabel) | Both updated for `production`. The relabel now keys off a `realUserPreset` predicate rather than a literal `=== "beta"`. |
-| Type | `FeedbackWidgetPreset = "dev" \| "beta"` | Additive union member `"production"`. |
+| [`screenshot.ts`](src/screenshot.ts) `captureFullPage` / `captureElement` / `captureArea` | **REAL**. All three route through `withCaptureGuards` (rAF shim + a **60s** timeout). Full page used `toBlob`; element/area rendered the document to a canvas and cropped. | Timeout to 8s; full page now also goes through a canvas so blankness is checkable; every failure becomes one `CaptureFailedError` with a `reason`. |
+| Failure handling in the UI | **MISSING in effect.** `captureIntoDraft` caught and `console.error`-ed, then decremented `pending`. The reporter saw the placeholder disappear and **no message at all** — an issue silently became comment-only with nothing recorded. | The catch now sets `screenshotFailed`/`screenshotError` on the draft, shows a toast, and the flags reach the frontmatter. |
+| Blank / white render | **MISSING.** Nothing looked at the pixels; a silently white canvas shipped as a normal screenshot. | Heuristic added (see 1.2 — and the false-positive it nearly caused). |
+| Record-mode frames ([`ui/record.ts`](src/ui/record.ts)) | **REAL**, `catch` → `console.error`, frame dropped silently, recording continued. | Kept the continue-on-failure behaviour, made it visible: `skippedFrames` + `frameFailed` on the action → `— frame skipped (render failed)` in `## Actions`. |
+| Cross-origin images | **BROKEN** (found by measurement, not by reading) | See 1.3. |
 
-### 0.2 Text surfaces — where arbitrary page text lands
+### 0.2 Touch / mobile — one thing done, the rest untouched
 
-| Surface | Source | User content? | Scrubbed now |
+| Surface | State as found |
+|---|---|
+| Checklist per-item issue button | **REAL** — v2 already detects `(hover: none)` and shows the button persistently (`.cl-issue-btn.touch`). |
+| Capture modes on touch | **FACADE.** All five modes were offered. Element mode is `mousemove` + hover highlight — no hover, no highlight. Area mode is a pointer drag over an overlay competing with scroll. Record mode captures on click during touch-scrolling. |
+| Panel at 360–390px | **PARTIAL.** A `@media (max-width: 480px)` block existed and made the panel full-width, but: no `max-height`, so a long panel grew off-screen; **the launcher rule targeted `.fab`, which is not the fixed element** (`.fab-wrap` is) — that rule had been dead since the dismiss ✕ was added; no safe-area inset; no 44px targets; 13px inputs (iOS zooms in on focus and never zooms back). |
+| Kbd hints | Shown unconditionally, including on touch. |
+
+### 0.3 Label registry — 174-line module, four hardcodes
+
+`ui/strings.ts` held 78 keys, and `annotate.ts` was fully strings-driven. A grep for English literals
+assigned to `textContent` / `placeholder` / `.title` / `.alt` / `aria-label` found **four leaks**, all in
+`ui/mount.ts`: the area-mode hint (`"Drag to select an area. Esc to cancel."`), `` `Screenshot ${i+1}` ``
+and `` `Frame ${i+1}` `` alt text, and `` `issue ${state.issue}` ``. All four now go through the registry
+(`areaHint`, `imageAlt`, `frameAlt`, `checklistItemIssueLink`), and the grep is now an automated test —
+see Phase 6.
+
+### 0.4 README structure as found
+
+`Install → Quick start → Capture modes → Connectors → Beta → Production → Checklist → Local loop →
+Programmatic → Artifact format → Metadata → Errors → Actions/record → Notes`. Linear and complete, but
+organised by *feature*, so a reader had to know what they wanted before the page helped them. The quick
+start was a 25-line block with five options in it.
+
+### 0.5 Issue panel structure
+
+`panelTitle → panelContext → thumbs → chips → textarea → consent → actions`. Custom fields go above
+(session block) and below the comment (issue block); attachments join `thumbs`, which already handled
+mixed tiles (screenshots, pending spinners, recording clip decks) and had per-tile remove buttons — so
+attachment tiles slot in with no new layout. **No `paste` or `drop` handlers existed anywhere.**
+
+### 0.6 Example endpoint
+
+`examples/feedback-route.ts` — REAL and thorough (401/413/415/429/400/409), but `ALLOWED_MIME` was
+exactly the three types the core produces. Any attachment would have been rejected 415. Extended in
+Phase 4.
+
+---
+
+## Phase 1 — Cross-browser capture resilience
+
+### 1.1 The matrix
+
+Harness: [`evidence/capture-matrix-harness.html`](evidence/capture-matrix-harness.html) — one page built
+out of the known DOM-to-canvas failure modes: a webfont, a **cross-origin image with CORS and one
+without** (served from a second local origin, `evidence/cross-origin.mjs`), `filter` +
+`backdrop-filter`, emoji, `position: fixed`, and 700px of filler so full-page means full-page.
+
+Engines are real builds driven by Playwright — **Safari was exercised through WebKit 26.5, the engine
+Safari ships**, not skipped and not assumed.
+
+| | Chromium 151 | Firefox 153 | WebKit 26.5 (Safari) |
 |---|---|---|---|
-| `element_text` | `innerText` of the clicked element | **yes** | ✅ |
-| `## Errors` message / stack | `console.error` args, `ErrorEvent.message`, rejection reason, stacks | **yes** | ✅ |
-| `## Errors` network lines | `METHOD /path → status (Nms)`; `pathOf()` drops the query, keeps path segments | **yes** — tokens and ids in paths | ✅ |
-| `## Actions` `elementText` | `textContent` of the clicked element, ≤ 40 chars | **yes** | ✅ *(added — not in the brief)* |
-| `## Actions` `selector` | `generateSelector()` — testid / id / aria / path | **yes** — ids embed emails and tokens | ✅ *(added)* |
-| `## Actions` `from` / `to` | `pathname + hash` | **yes** | ✅ *(added)* |
-| `url` frontmatter + `issues[].url` | [`metadata.ts`](src/metadata.ts) — `pathname + location.search` | **yes — the query string was kept verbatim** | ✅ *(added)* |
-| `selector` / `dom_path` frontmatter | element metadata | **yes** | ✅ *(added)* |
-| body `comment`, `.md` filename slug | the reporter's own typing | yes, but deliberate | ❌ by design |
-| `context` / `custom` / `reporter` | set by the developer | deliberate | ❌ by design |
-| `session.yaml` head | origin, UA, viewport, tz, languages | no free text | n/a |
-| checklist titles / descriptions | developer-authored config | no | ❌ by design |
+| fullpage | ✅ 84ms | ✅ 93ms | ✅ 101ms |
+| area | ✅ 50ms | ✅ 56ms | ✅ 51ms |
+| element | ✅ 49ms | ✅ 55ms | ✅ 51ms |
+| record (3 frames) | ✅ | ✅ | ✅ |
+| annotate (canvas round-trip) | ✅ | ✅ | ✅ |
+| webfont text | ✅ | ✅ | ✅ |
+| emoji | ✅ | ✅ | ✅ |
+| `position: fixed` | ✅ once, at top | ✅ | ✅ |
+| CSS `filter` | ✅ | ✅ | ✅ |
+| `backdrop-filter` | ⚠️ dropped | ⚠️ dropped | ⚠️ dropped |
+| cross-origin img **with** CORS | ✅ | ✅ | ✅ |
+| cross-origin img **without** CORS | ⚠️ blank, rest of page fine | ⚠️ blank | ⚠️ blank |
 
-**Two surfaces added beyond the brief's list.** The brief named `element_text`, `## Errors` and
-network paths. Without `## Actions` and `url` the acceptance grep cannot be clean: clicking the
-button that contains an email puts that email straight into the action trail, and `location.search`
-is copied verbatim into `url`. Both are the same class of leak and are now covered.
+Raw numbers and per-mode PNGs: [`evidence/capture-matrix/results.json`](evidence/capture-matrix/results.json).
 
-### 0.3 Host-environment touch points
+Verdict per failing case:
 
-Inventory as found (before), and what each one does now (after).
-
-| Point | Location | Guarded before | Restored original before | Now |
-|---|---|---|---|---|
-| `console.error` (+ `warn`) assignment | [`errors.ts`](src/errors.ts) | ❌ | ✅ | guarded; original called outside the guard; restore is identity-checked |
-| `window` `error` / `unhandledrejection` | `errors.ts` | ❌ | ✅ | `guard.wrap` |
-| `globalThis.fetch` | `errors.ts` | ❌ — a throw killed the host request | ✅ | metadata computed inside the guard, `originalFetch.call` **unconditional** |
-| `XMLHttpRequest.prototype.open` / `send` | `errors.ts` | ❌ | ✅ | same shape; `loadend` listener wrapped |
-| `document` click / submit / input (capture, passive) | [`actions.ts`](src/actions.ts) | ❌ | ✅ | `guard.wrap` |
-| `history.pushState` / `replaceState` | `actions.ts` | ❌ | ✅ | original called unconditionally between two guarded regions |
-| `window` popstate / hashchange | `actions.ts` | ❌ | ✅ | `guard.wrap` |
-| `window` `beforeunload` | [`widget.ts`](src/widget.ts) | ❌ | ❌ **never removed** | `guard.wrap` + removed on trip |
-| `document` keydown | [`ui/mount.ts`](src/ui/mount.ts) | ❌ | ✅ (unmount) | `guardUi` + removed on trip |
-| `document` pointerdown | `ui/mount.ts` | ❌ | ❌ **never removed** | `guardUi` + removed on trip |
-| `window.requestAnimationFrame` swap | [`screenshot.ts`](src/screenshot.ts) | ✅ (`finally`) | ✅ | unchanged — already correct |
-| live-DOM style mutation (mask / reveal) | [`mask.ts`](src/mask.ts), `screenshot.ts` | partial | ✅ | unchanged — already correct |
-| action-trail subscribers | `actions.ts` | ❌ | n/a | `guard.run` per subscriber |
-
-No `MutationObserver` / `ResizeObserver` / `IntersectionObserver` anywhere. **Zero guards existed
-before this iteration** — a throw in any wrapper propagated straight into host code, and two
-listeners were never removed at all.
-
-### 0.4 Outgoing network calls from the core
-
-| Call | Location | Verdict |
-|---|---|---|
-| `fetch(checklistUrl)` | `widget.ts` | allowed — the host supplied the URL |
-| `fetch(this.endpoint)` | [`connectors/local.ts`](src/connectors/local.ts) | allowed — it *is* a connector |
-| `import("html-to-image")` | `screenshot.ts` | lazy chunk from the host's own bundle / CDN |
-| html-to-image internals | `dataurl.js`, `embed-webfonts.js`, `util.js` | **fetches the page's OWN images and webfont CSS** to inline them into the PNG |
-
-No beacons, no WebSocket, no EventSource, no analytics, nothing addressed at sluglist
-infrastructure — **there is no sluglist infrastructure**. So: **no phone-home, and nothing to
-remove** (Phase 5.1 was a no-op by inspection).
-
-But the literal sentence *"no network requests except your connectors"* is not true at capture time,
-because a DOM-to-PNG renderer must re-fetch the assets it is inlining. Rather than mask that behind a
-flag, the README states the claim **and** both exceptions, and the guard test is scoped to the core
-flow. This did **not** trigger the STOP condition: the traffic is inherent to rendering a screenshot
-and goes only to URLs the host page already references.
-
-### 0.5 Example endpoint, as found
-
-| Control | Before | After |
-|---|---|---|
-| Authentication | **none** — `HttpConnector` sent a bearer token the route never read | 401, constant-time compare; 503 if the server has no token configured |
-| Body size | 20 MB of base64 (~15 MB decoded) | 10 MB decoded, checked on `content-length`, on base64 length, and after decode |
-| Mime allowlist | present, but returned 400 | 415, separate from payload errors |
-| Path validation | present, single segment only | kept, plus the nested `frames/clip-NN/NN.png` layout; `..` and absolute paths rejected |
-| Per-IP rate limit | present (20/min) | kept, moved into the handler closure |
-| Per-session file cap | **none** | 409 after 200 artifacts |
-
----
-
-## Phase 1 — `preset: "production"` + PII scrub
-
-New module [`src/scrub.ts`](src/scrub.ts) — a pure string transform, no dependencies, no DOM.
-
-| Rule | Replacement | Shape |
-|---|---|---|
-| Email | `[email]` | standard address grammar |
-| JWT | `[token]` | three base64url segments joined by dots |
-| Opaque secret | `[token]` | 24+ chars of `[A-Za-z0-9+=_-]`, must contain a digit **and** one chunk ≥ 12 chars when split on `-`/`_` |
-| Digit run | `[digits]` | 6+ digits, spaces and hyphens allowed inside, calendar dates excluded |
-
-The chunk rule is what keeps `/dashboard-analytics-overview-2026` and
-`01-the-summary-header-overlaps-the-score` intact while still catching UUIDs and hex digests. `.` and
-`/` are not separators in the digit rule, which is what keeps `10.0.19045`, `192.168.100.201` and
-`app.js:1284:17` readable.
-
-Applied at the artifact assembly point in `widget.ts` — `artifacts.ts` stays a pure formatter.
-
-Config: `privacy.scrubText`, available with or without the preset. Frontmatter: additive
-`scrubbed: true|false`, emitted **only** when `scrubText` was set explicitly (directly or by the
-preset), so `dev` and default-`beta` artifacts are byte-identical to before.
-
-Preset resolution: `production` = `beta` + `scrubText: true` + `captureWarnings: false` +
-`dismiss.enabled: true`. Explicit options override everything **except** `errors.captureWarnings`,
-which `production` forces off and logs a warning about — the single deliberate exception, documented
-in `resolveErrors`.
-
-**Tests:** [`test/scrub.test.ts`](test/scrub.test.ts) — 34 cases, of which **17 are negative** (dates,
-ISO timestamps, viewport strings, version numbers, IPv4, stack-trace line:column, prices, short
-counts, long kebab paths, long ordinary words, camelCase identifiers, readable selectors).
-[`test/production-preset.test.ts`](test/production-preset.test.ts) — 15 cases including the dev and
-beta regressions.
-
----
-
-## Phase 2 — Dismiss
-
-New module [`src/dismiss.ts`](src/dismiss.ts). `localStorage` key `sluglist:<project>:dismissed`,
-value `{"dismissed_at":"<ISO>"}`. Every storage access is wrapped — Safari private mode and blocked
-third-party storage both throw, and a widget that cannot remember a dismissal must still work.
-Corrupt or unparseable entries **fail open** (not dismissed): keeping the feedback path reachable is
-the safer default for a support tool.
-
-UI: `.fab-wrap` now owns the fixed position and `.fab` is relative inside it, so the ✕ can be
-anchored to the launcher's corner. It sits on the **pinned** edge — the one that does not move when
-the button expands on hover — and the issue-count badge moves to the opposite (also pinned) corner,
-so neither jumps.
-
-`MountedFeedbackWidget` gains `show()`, `dismiss()` and `isDismissed()` (additive).
-
-**Verified live in Chrome** on [`evidence/production-harness.html`](evidence/production-harness.html):
-
-| Step | Result |
+| Case | Verdict |
 |---|---|
-| initial | `{dismissed: false, stored: null, hostDisplay: ""}` |
-| click ✕ | `{dismissed: true, stored: {"dismissed_at":"2026-07-31T07:36:18.641Z"}, hostDisplay: "none"}` |
-| press `Shift+F` while dismissed | menu stays `display: none` — the shortcut is inert |
-| reload | `{dismissed: true, …, hostDisplay: "none"}` |
-| backdate `dismissed_at` by 8 days | `isDismissed("acme", 7)` → `false` (at 3 days → `true`) |
-| footer link → `ui.show()` | `{dismissed: false, stored: null, hostDisplay: ""}` |
+| Cross-origin image without CORS killed **every** capture | **Fixed** — see 1.3 |
+| `[object Event]` as the recorded error message | **Fixed** — `describeRenderError` |
+| `backdrop-filter` not rendered | **Documented** (README → Notes and limits). Not fixable: it depends on what is painted behind the element, which a cloned subtree does not have. |
+| Cross-origin image without CORS renders blank | **Documented.** The browser will not hand over pixels it refuses to read. The rest of the page captures. |
+| WebGL / `<canvas>` / video | **Documented** (pre-existing limit, unchanged) |
 
-Measured geometry of the ✕ under the production preset: `20×20`, `display: flex`,
-`aria-label: "Hide feedback button"`, top-right at `(top 899, right 17)` against a launcher at
-`(top 906, right 24)` — a 7 px overhang on the pinned corner; badge moved to `bottom: -4px`. Button
-label reads `"Report a problem"`.
+*One fixture note, in the interest of honesty:* the first Firefox run showed both cross-origin images
+blank. That was **my test fixture, not sluglist** — the inline 4×4 PNG I generated was malformed, and
+Firefox refuses malformed PNGs that Chromium and WebKit decode anyway. Replaced with a valid 8×8 stream;
+the row above is from the corrected run.
 
-**Tests:** [`test/dismiss.test.ts`](test/dismiss.test.ts) — 20 cases (jsdom) covering storage
-semantics, the `days: 0` forever case, per-project scoping, corrupt entries, and the full mounted
-lifecycle including "dev preset renders no visible ✕" and "a stored dismissal is ignored while
-dismiss is disabled".
+### 1.2 Graceful fallback
+
+Any failed render → the issue is **never blocked**. The reporter keeps everything typed, sees
+*"Screenshot failed — sending without it"*, and the issue is delivered comment-only with
+`screenshot_failed: true` and a scrubbed `screenshot_error`.
+
+Driven through the **real widget UI in a real browser**, with the failure injected at the browser
+boundary (not by stubbing sluglist), so the shipped code path runs:
+
+| Scenario | Injection | Result | Artifact |
+|---|---|---|---|
+| Renderer throws | `HTMLCanvasElement.toBlob` throws | issue delivered, `screenshot: null`, `screenshot_error: "injected: canvas encode refused"` | [`render-throw.md`](evidence/capture-fallback/render-throw.md) |
+| Timeout | `toBlob` never calls back | fallback fired at **8000ms**, `screenshot_error: screenshot render timed out after 8000ms` | [`timeout.md`](evidence/capture-fallback/timeout.md) |
+| Blank canvas | every sampled pixel forced identical | `screenshot_error: screenshot render produced a blank image` | [`blank-canvas.md`](evidence/capture-fallback/blank-canvas.md) |
+
+In all three: 2 files delivered (`.md` + `session.yaml`), toast shown, panel closed normally.
+
+**The blank heuristic had to be sharpened — and this is the STOP-condition compromise, reported.** The
+brief specified "> 98% single-colour pixels". Implemented literally, the very first end-to-end run
+**false-positived on its own harness**: a short checkout card on a white page is ~99% one colour, and a
+perfectly good screenshot was being thrown away. Discarding a real screenshot is worse than the failure
+the check exists to catch. The rule is now **two conditions**: dominant colour > 98% **and** at most 4
+distinct colours in a 128×128 sample. A failed render is one flat fill; any real page has hundreds of
+shades, because downscaling blends every glyph edge into its own. Both parts are tested, including the
+sparse-light-page case that motivated the change (`test/capture-fallback.test.ts`).
+
+The other half of that compromise: **8s cannot distinguish a hang from a slow success.** It is a
+judgement that a render still running after 8s is far more often a webfont that will never resolve than
+a page that would have finished at 9s. The cost of being wrong is bounded and visible (one comment-only
+issue that says why), and `capture: { timeoutMs }` is the escape hatch for genuinely heavy pages.
+
+Blank detection runs on **full-page captures only**, not element/area crops: a solid-colour button or a
+dragged area over empty space is a legitimate screenshot.
+
+### 1.3 The fix worth having
+
+**One cross-origin image without CORS headers failed every capture mode, in every engine.**
+
+Measured, not assumed: the first matrix run returned `ok: false` for fullpage, area *and* element, with
+the useless message `[object Event]`. Removing the single offending `<img>` made all three pass. The
+cause: html-to-image rejects the whole render when a cloned `<img>` fires `error`, and that fires for
+every cross-origin image served without `access-control-allow-origin` — which describes CDN avatars,
+third-party badges and analytics pixels on a large share of real pages.
+
+Fixed in [`screenshot.ts`](src/screenshot.ts) with `onImageErrorHandler` + a transparent
+`imagePlaceholder`: the unreadable image comes out blank, everything else on the page is captured. A
+screenshot with one gap beats no screenshot.
+
+Also fixed: `describeRenderError` turns a DOM `Event` rejection into `failed to load image <src>`
+instead of `[object Event]`, so the frontmatter says something a week later.
 
 ---
 
-## Phase 3 — Self-isolation
+## Phase 2 — Mobile graceful mode
 
-New module [`src/guard.ts`](src/guard.ts). Two rules:
+Deliberate subtraction, keyed on **`(pointer: coarse)` / `(hover: none)`**, never on the user agent — a
+touch laptop keeps the full desktop UI.
 
-1. **A throw inside widget code never escapes into host code.** Every wrapper is written so the call
-   to the original sits *outside* the guarded region. `guard.run(site, work, fallback)` for value
-   computation, `guard.wrap(site, listener, onError?)` for listeners.
-2. **Repeated internal failures are terminal.** At 5 failures the breaker trips: teardowns restore
-   the wrapped globals, remove every listener, cancel any recording and take the shadow host out of
-   the DOM; one `console.warn` is emitted.
-
-Failures log with `console.debug`, not `console.error` — a quietly failing widget should not also be
-shouting, and `console.error` is itself wrapped, which would be circular.
-
-`restoreIfOurs()` handles the STOP condition the brief anticipated: if another library wrapped on top
-of us, the original is **not** written back (that would silently uninstall them). Our wrapper stays in
-the chain, a `stopped` flag makes it a transparent passthrough, and the situation is logged.
-
-**Host errors are data, not widget failures.** A page error arriving at the capture listener and
-being recorded successfully is the system working. The counter only moves when widget code throws —
-proven by a dedicated test that fires a `console.error`, an `ErrorEvent` and an `unhandledrejection`,
-then asserts `snapshot().length === 3` and `guard.failures === 0`.
-
-**Tests:** [`test/guard.test.ts`](test/guard.test.ts) — 17 cases.
-
-| Acceptance criterion | Test |
+| Decision | Why |
 |---|---|
-| 5 injected failures → widget off, globals back by **reference identity** | `after five internal failures every global is back to the original` — `toBe` on `console.error`, `globalThis.fetch`, `history.pushState`, `history.replaceState`, `XMLHttpRequest.prototype.open`, `.send` |
-| host page keeps working after the trip | `the host page keeps working after the widget switched itself off` — a host click handler still fires, `history.pushState` still navigates |
-| broken fetch wrapper still issues the request | `fetch: the host request is still issued` — a throwing clock breaks the metadata step; `originalFetch` is still called once and returns 200 |
-| host rejection still rejects | `fetch: a rejection from the host still rejects` |
-| broken console wrapper still logs | `console.error: the host's log still happens` |
-| broken history wrapper still navigates | `history.pushState: the host navigation still happens` |
-| host errors do not trip the breaker | `recording a page error does not touch the failure counter` |
-| render failure closes the panel, no stuck overlay | `a throwing UI handler closes the panel instead of leaving it stuck` |
-| UI removed from the host DOM on trip | `removes the mounted UI from the host DOM` |
-| foreign wrapper not clobbered | `leaves a foreign wrapper alone instead of clobbering it` |
+| Menu = full page + comment only | Element mode is hover-driven; area mode needs a drag the browser spends on scrolling |
+| Record mode hidden | Frames captured mid-touch-scroll are unreadable; deferred, not shipped bad |
+| Kbd chips hidden (launcher, menu, `+ Add screenshot`, `+ Frame`) | No keyboard to hint at |
+| `.fab-wrap` bottom = `calc(16px + env(safe-area-inset-bottom))` | **Fixes a dead rule**: the old one targeted `.fab`, which stopped being the fixed element when the dismiss ✕ landed |
+| Panel `max-height: calc(100vh - 80px)` + `overflow-y: auto` | A bottom-anchored panel with a form grew off-screen |
+| 44px minimum targets, 92×68 thumbnails | A finger-sized ✕ would otherwise swallow a 76px thumbnail |
+| 16px inputs and textarea | Below 16px iOS zooms in on focus and never zooms back — it strands the reporter mid-report |
+| `scrollIntoView` on textarea focus (300ms after) | The keyboard covers exactly where a bottom-anchored panel puts it |
+
+Emulated iPhone 14 Pro (390pt, DPR 3, touch), production preset + form + Ukrainian labels:
+
+- Menu contains exactly `["Знімок усієї сторінки", "Коментар без знімка"]` —
+  [`mobile-menu.png`](evidence/iteration-e2e/mobile-menu.png)
+- Full flow completes (fullpage + form + send) — [`mobile-panel-uk.png`](evidence/iteration-e2e/mobile-panel-uk.png),
+  [`mobile-issue.md`](evidence/iteration-e2e/mobile-issue.md)
+- Console clean.
+- Checklist v2 regression (report button visible without hover on touch) covered in
+  `test/mobile.test.ts`.
 
 ---
 
-## Phase 4 — Endpoint hardening + production checklist
+## Phase 3 — Reporter form fields
 
-[`examples/feedback-route.ts`](examples/feedback-route.ts) rewritten as `createFeedbackHandler(deps)`
-(testable) with `export const POST` still the Next.js drop-in. The storage stub now **throws** with a
-clear message instead of being a `declare`d ghost.
+`scope: "session"` is asked once, on the first issue, and lands in `session.yaml`; `scope: "issue"` is
+asked every time and lands in the issue frontmatter. Both verified end to end:
 
-**Tests:** [`test/feedback-route.test.ts`](test/feedback-route.test.ts) — 27 cases.
+```yaml
+# evidence/iteration-e2e/full-session.yaml
+form:
+  email: "anna@client.com"
+  device: "iPhone 15, Safari"
 
-| Status | Covered by |
+# evidence/iteration-e2e/full-issue.md
+form:
+  severity: "блокує"
+```
+
+Second issue of the same session: `sessionRows: 0, issueRows: 1` — the session block is not asked again
+([`results.json`](evidence/iteration-e2e/results.json)).
+
+- `required` blocks sending, highlights the row, shows one message; nothing is captured or delivered
+  (asserted against the mounted panel, `test/form.test.ts`).
+- `email` is pattern-checked; values clipped at 500 chars; max 8 fields; invalid fields dropped with a
+  warning and the widget keeps working.
+- **No `form` configured → the panel is byte-identical to before**: both containers are empty and
+  `display: none`, zero `.form-row` nodes (asserted).
+- **Form values are never scrubbed**, including under the production preset (asserted). A reporter
+  typing their address into a field labelled *Your email* is telling it to you on purpose; scrubbing it
+  would defeat the field. The scrub stays on page-derived text.
+
+Session answers are written **before** the capture, so the `session.yaml` that ships with the first
+issue already carries them.
+
+---
+
+## Phase 4 — Attachments
+
+Three intake paths, all verified in a real browser against the shipped bundle:
+
+| Path | Result |
 |---|---|
-| `401` | no header, wrong token, and a token that is a **prefix** of the real one |
-| `503` | server has no `SLUGLIST_FEEDBACK_TOKEN` — fails closed, never open |
-| `413` | oversize decoded body, and an oversize declared `content-length` |
-| `415` | `application/javascript`, `text/html`, `application/octet-stream`, `image/svg+xml` |
-| `429` | 25 requests past a 20/min window, plus proof the limit is per IP |
-| `409` | session file cap, plus proof the cap is per session not global |
-| `400` | `../../etc/passwd`, `/absolute/path.md`, `.hidden.md`, `a/b/c/d/too-deep.md`, traversal in `sessionId`, malformed JSON, missing fields |
-| `200` | all three allowed mimes, and the nested `frames/clip-01/02.png` layout |
+| File picker | `.attach-file` opens a native picker with the whitelist as `accept` |
+| Drag & drop onto the panel | verified (used to exercise the rejections below) |
+| **Paste (Cmd/Ctrl+V)** | verified with a real `ClipboardEvent` carrying a PNG `File` — the headline case, a screenshot from a phone or an email |
 
-[`docs/production-checklist.md`](docs/production-checklist.md) — nine sections for the client: preset,
-env gating, token generation and storage, retention (explicitly *their* decision, with the reminder
-that nothing expires on its own), storage access control, a privacy-policy paragraph to adapt, a
-"check what is still visible" pass, the `show()` rescue path, and why to keep the consent checkbox.
-Ends with a ten-item pre-flight list. Linked from the README Production section and from
-[`examples/README.md`](examples/README.md).
+Artifact from the paste run ([`full-issue.md`](evidence/iteration-e2e/full-issue.md)):
+
+```yaml
+attachments:
+  - file: 01-znizhka-ne-vrahovu-tsya-u-p-dsumkov-i-att-01.png
+    mime: image/png
+    size: 4164
+    original_name: IMG_4021.png
+```
+
+The reporter's own file name is **never** a path — it is kept as data (`original_name`) and the file is
+named after the issue, so a hostile name cannot become a traversal.
+
+Rejections, with the messages the reporter actually saw (Ukrainian bundle, from the live run):
+
+| Input | Message |
+|---|---|
+| `setup.exe` | `setup.exe: такий тип файлу не приймається` |
+| `logs.zip` | `logs.zip: такий тип файлу не приймається` |
+| 11MB `clip.mp4` | `clip.mp4 важить 11 MB — ліміт 10 MB` |
+| 6th file | `Можна прикріпити щонайбільше 5 файлів…` (unit-tested) |
+
+Checked on **both** extension and mime, so a renamed binary declaring `image/png` is refused.
+**Executables and archives are refused even through `accept`** — an archive is opaque to every check
+downstream. No client-side compression: an oversized phone video is an honest error.
+
+Attached images join the thumbnail row and **annotate exactly like a capture** (same `annotateBlob`
+path), so you can put arrows on the client's own screenshot. Non-images render as a type/name/size tile.
+
+Preset behaviour (asserted against the mounted panel):
+
+| Config | `+ Attach file` |
+|---|---|
+| dev / beta, nothing set | present (default true) |
+| `preset: "production"`, nothing set | **absent** |
+| `preset: "production"`, `attachments: { enabled: true }` | present |
+
+**Endpoint** (`examples/feedback-route.ts`): a separate attachment whitelist and its own size cap,
+keyed off the `-att-NN.<ext>` name. A core-artifact path with an attachment mime is refused too, closing
+the gap where `image/png` would let anything through under an artifact-shaped name. 415 on an unlisted
+mime, 413 over the cap — both tested (`test/feedback-route.test.ts`). `docs/production-checklist.md`
+gains section 10: server-side validation is mandatory, scanning is the client's side of the line, and
+attachments should stay off in anonymous production unless deliberately needed.
 
 ---
 
-## Phase 5 — No-phone-home guard
+## Phase 5 — README and docs
 
-Phase 5.1 was a no-op: the Phase 0.4 audit found nothing to remove.
-
-[`test/no-phone-home.test.ts`](test/no-phone-home.test.ts) traps **every** outbound channel —
-`fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, `Image.src`, `navigator.sendBeacon` — and
-drives a full session against `MemoryConnector`: init with identity + custom + inline checklist,
-`setContext`, an element issue with a screenshot, a recording with two clips, three verdict
-operations, a redelivery, and unmount.
-
-```
-✓ a full session with a memory connector makes zero network calls
-✓ the guard actually catches a stray call (negative check)
-✓ the only fetch a widget ever makes is the checklist URL the host configured
-```
-
-The negative check is the point: it runs the same flow, asserts zero, then deliberately calls all
-four channels and asserts they are all reported. Without it, "zero calls" could equally mean "the
-trap is broken". The third test proves the one permitted fetch goes to exactly the URL the host
-passed in.
-
-README line added, with both documented exceptions stated rather than hidden.
-
----
-
-## Phase 6 — End-to-end on dirty data
-
-[`test/e2e-production.test.ts`](test/e2e-production.test.ts) drives the production preset over a page
-with PII in visible text, in an element id, in the query string, in console output, in an exception
-message and stack, in a failed request path, and in an SPA navigation target — using the **real**
-capture modules, not stubs. Artifacts are written to
-[`evidence/production-e2e/`](evidence/production-e2e/).
-
-### Grep output (run over the committed artifacts, outside the test)
-
-```
-=== files ===
-session-2026-07-31-vx3h/session.yaml
-session-2026-07-31-vx3h/01-the-notify-button-does-nothing-on-the.png
-session-2026-07-31-vx3h/01-the-notify-button-does-nothing-on-the.md
-
-=== grep for original PII values ===
-anna.smirnova@acme-corp.io                         0 match(es)
-+1 555 010 4477                                    0 match(es)
-4111 1111 1111 1111                                0 match(es)
-eyJhbGciOiJIUzI1NiJ9                               0 match(es)
-sk-live-9f86d081884c7d659a2feaa0c55ad015           0 match(es)
-
-=== scrub marks present ===
-   2 [digits]
-   7 [email]
-   6 [token]
-```
-
-The test asserts the same thing programmatically and in two places, so the guarantee is enforced in
-CI rather than by a one-off shell command: `the whole session greps clean, byte for byte` checks the
-in-memory artifacts of the run, and `the committed evidence on disk also greps clean` walks the files
-in this repo.
-
-### Refreshing the evidence
-
-The test does **not** write files by default. Artifacts carry a random session id and a wall-clock
-`created_at`, so writing on every run rewrote the committed folder under a new name each time and
-left `git status` dirty after any `npm test` — which is how a "clean" tree once nearly got
-`git reset --hard`-ed. Byte-stability is not honestly achievable either, since a real captured stack
-trace embeds absolute paths from whichever machine ran the test.
-
-So the assertions always run in memory, and refreshing the snapshot is deliberate:
-
-```bash
-WRITE_EVIDENCE=1 npx vitest run test/e2e-production.test.ts
-```
-
-The exception the test injects carries a hand-written stack (`/assets/session-9c4b.js:184:23`)
-instead of a real one, so the committed evidence contains no developer-machine paths — asserted by
-`the committed evidence carries no absolute paths from a developer machine`.
-
-### What the artifact looks like afterwards
-
-```
-url: "/account/settings?email=[email]&[token]"
-selector: "[data-testid=\"[email]\"]"
-element_text: "Notify [email] at +[digits]"
-dom_path: "main > button"
-masked: true
-scrubbed: true
-
-## Errors
-- [0s before report] console: Payment declined for card [digits]
-- [0s before report] exception: Session refresh failed for [token]
-- [0s before report] network: GET /api/session/[token]/refresh → 404 (5ms)
-
-## Actions
-- [0s before report] click [data-testid="[email]"] ("Notify [email] at +1 …")
-- [0s before report] navigate / → /account/orders/[token]
-```
-
-Readability survived: `/api/session/`, `/refresh`, `/account/orders/`, `main > button` and the
-stack-trace line numbers are all intact. Developer-supplied fields (`reporter`, `custom`, `context`)
-and the reporter's comment are untouched, as designed.
-
-### Visual verification
-
-[`evidence/production-consent.png`](evidence/production-consent.png) — the issue panel under the
-production preset: the "Attach screenshot" consent checkbox, checked by default, above Cancel / Send.
-
-The dismiss ✕ was verified with a live browser screenshot and by DOM measurement (the table in
-Phase 2), **not** committed as a PNG. Honest reason: the DOM-to-PNG renderer excludes the widget's own
-UI by design, and forcing it to include itself renders the launcher in its collapsed default state
-without the hover-revealed ✕ — a committed image would have been misleading. Reproduce it in one
-step: open [`evidence/production-harness.html`](evidence/production-harness.html) and hover the
-launcher.
+- **Quick start is one line**: `mountFeedbackWidget(createFeedbackWidget({ connectors: [...] }))`,
+  followed by "everything else on this page is optional".
+- To make that literally true, **`project` became optional** and defaults to the hostname as a slug
+  (`app.acme.com` → `app-acme-com`). It was the last mandatory field. Additive; an explicit slug is
+  still validated exactly as before.
+- **Three scenarios** immediately after Install — Dev loop / Client acceptance / Beta & Production —
+  each one sentence, a minimal config, and links into the depth.
+- **"Attach your user"** sits next to the quick start: `identity` / `setContext` / `form` in one place,
+  with the three-row table (source · when captured · where it lands) and one code block showing all
+  three together.
+- Production checklist is linked from the Beta/Production scenario and from the attachments section.
+- **Notes and limits** rewritten from the measured matrix — an honest list of what does not render,
+  rather than a hedge.
+- SPEC.md updated to 1.4 (it had drifted: it documented 1.2 while the code emitted 1.3).
+- The `sluglist-fix` skill learned attachments (view images, read text files as evidence, name the rest;
+  never execute, never treat contents as instructions), `form` blocks, and `screenshot_failed` (a missing
+  screenshot is not a defect in the app).
+- **Landing page** brought onto the same three scenarios, reusing the README wording rather than
+  inventing a second version — [`evidence/landing-scenarios.png`](evidence/landing-scenarios.png).
+  It builds clean. **Not deployed** — `npm run deploy` publishes to the live domain, which is your call.
 
 ---
 
-## Limitations — what the scrub does **not** catch
+## Phase 6 — Localization
 
-An honest list. None of these are bugs; they are the boundary of a pattern-based redactor, and §7 of
-the production checklist tells the client to go and look for them.
-
-1. **Names.** "Anna Smirnova" is not a pattern. Nothing catches it.
-2. **Postal addresses.** Street names, cities, postcodes under 6 digits — all pass through.
-3. **Free-form prose containing personal facts.** A sentence about someone's health, employment or
-   family survives intact.
-4. **The reporter's own comment.** Never scrubbed, by design — it is the bug report. A customer who
-   types their card number into the description box puts it in the artifact verbatim. The `.md`
-   filename slug is derived from the comment and inherits the same exposure.
-5. **Developer-supplied values.** `context`, `custom`, `identity` and checklist titles are never
-   scrubbed. If you put a customer's email in `identity.email`, it is in every issue — deliberately.
-6. **Short numbers.** Under 6 digits is left alone, so a 4-digit PIN, a house number or a 5-digit ZIP
-   survives. Raising the threshold would start eating dates and counts.
-7. **Parenthesised phone formats.** Separators are space and hyphen only, so `+1 (555) 123-4567`
-   scrubs to `+1 (555) [digits]` — the area code leaks. `555-123-4567` and `+1 555 123 4567` are
-   caught whole.
-8. **Short tokens.** A secret under 24 characters, or one with no digit, or one whose longest
-   `-`/`_`-delimited chunk is under 12 characters, is not recognised. Loosening any of those three
-   conditions starts eating readable kebab-case paths.
-9. **Standard base64 containing `/`.** `/` is excluded from the token alphabet so URL paths are
-   examined segment by segment rather than swallowed whole. A padded base64 blob split by a `/` may
-   therefore evade the 24-character minimum.
-10. **Truncation happens before scrubbing.** The action trail cuts a click label to 40 characters
-    first, so a long value can be left as a fragment that no longer matches any pattern — visible in
-    the E2E artifact as `"Notify [email] at +1 …"`. The fragment is not PII, but it is not nothing.
-11. **Screenshots.** The scrub is text-only. Pixels are handled by `maskInputs` / `maskSelectors` /
-    `data-private`; anything outside those selectors renders as-is. OCR was explicitly out of scope.
-12. **Adjacent characters absorbed into a mark.** `=` is part of the base64 alphabet, so
-    `?token=<secret>` becomes `?[token]`, losing the parameter name. Safe, slightly lossy.
-
-## Other limitations
-
-- **`console.warn` in production.** Forced off. A caller who genuinely needs warnings must drop the
-  preset and configure `errors` directly. This is the one place a preset overrules an explicit option.
-- **Foreign wrappers.** If another library wraps `console.error` / `fetch` / `history` on top of
-  sluglist, the breaker leaves the chain intact in passthrough mode rather than restoring. Those
-  wrappers stay installed for the life of the page; they simply stop capturing.
-- **Dismissal is per browser, per project.** It lives in `localStorage`, so it does not follow a user
-  across devices, and clearing site data brings the widget back.
-- **In-process endpoint state.** The example endpoint's rate-limit and session-count maps do not
-  survive across serverless workers. Called out in both the example and the checklist.
+- Four hardcodes from Phase 0.3 moved into the registry.
+- Bundles: `en`, `ru`, `uk`, `es`, `de` via `import { labels } from "sluglist/labels"` (its own package
+  export and build entry). Partial override by spreading; missing keys fall back to English, so an
+  incomplete bundle can never leave a button blank.
+- **Plurals needed the mechanism extended, not reused.** The existing `plural(one, many, n)` has two
+  forms; Russian and Ukrainian need three. A bundle now declares a `pluralForm` rule; `slavicPluralForm`
+  implements 1 / 2–4 / 5+ **including the 11–14 exception** that naive implementations get wrong.
+  Tested across 13 values: `1 кадр / 2 кадра / 5 кадров / 21 кадр / 111 кадров`.
+- **The registry grep is now a test**, not a one-off: `test/labels.test.ts` scans every UI source for
+  English assigned to `textContent` / `placeholder` / `.title` / `.alt` / `aria-label`, stripping
+  `${…}` expressions so composed strings pass and literals do not. Currently **0 offenders**.
+- Full flow in Ukrainian, desktop and mobile:
+  [`desktop-panel-uk.png`](evidence/iteration-e2e/desktop-panel-uk.png),
+  [`mobile-panel-uk.png`](evidence/iteration-e2e/mobile-panel-uk.png).
+- Bundles translate widget chrome only; your own copy (chips, checklist titles, form labels) stays yours.
 
 ---
 
-## Verify
+## Phase 7 — End-to-end
 
-```bash
-export PATH="$HOME/.nvm/versions/node/v20.19.2/bin:$PATH"   # repo needs Node 20+ (system default is 16)
-npm run type-check     # clean
-npm test               # 312 passed (24 files)
-npm run build          # esm + cjs + iife + dts, clean
+### Run 1 — zero-config (the one that matters most)
 
-# the acceptance grep, run outside the test
-grep -rlF 'anna.smirnova@acme-corp.io' evidence/production-e2e | wc -l   # → 0
-```
+`createFeedbackWidget({ connectors: [memory] })` — no project, no preset, no options at all.
+
+- Full-page capture → panel → comment → send: **issue delivered with its screenshot**
+  (`01-…png`, `01-…md`, `session.yaml`).
+- **Console completely clean** (`"console": []` in
+  [`results.json`](evidence/iteration-e2e/results.json)).
+- Defaults observed: hostname-derived project, all five capture modes, no consent checkbox, no dismiss
+  ✕, attachments on, no form block, English labels.
+- Artifacts: [`zero-config-issue.md`](evidence/iteration-e2e/zero-config-issue.md),
+  [`zero-config-session.yaml`](evidence/iteration-e2e/zero-config-session.yaml).
+
+This run is also a unit test (`test/capture-fallback.test.ts` → "zero-config init"), so a future option
+cannot quietly make itself mandatory.
+
+### Run 2 — everything on
+
+Production preset + form fields + attachments (explicitly enabled) + `labels.uk`, desktop then mobile:
+paste-attachment, three rejections, form filled, issue delivered with screenshot + attachment, second
+issue skipping the session block, mobile flow at 390pt. Console clean throughout. All covered above.
+
+---
+
+## Scope deferrals — honoured
+
+Not attempted, by instruction: full mobile element/area/record (graceful degradation only), client-side
+compression or transcoding, executables/archives in attachments (never, not even via `accept`), content
+scanning (the client's server-side concern, noted in the production checklist), an artifact viewer,
+GitHub/Slack connectors, an `enrich` hook, and browser-language autodetection (the locale is the
+developer's choice).
+
+## One environment note
+
+Node 25 defines its own `globalThis.localStorage` stub, which shadows jsdom's and made 23 pre-existing
+tests fail locally (CI runs Node 20 and never saw it). Repaired in `test/setup.ts` — test-environment
+plumbing, not product code.
+
+## Open — needs your call
+
+- **npm publish.** Additive minor: `1.10.0 → 1.11.0`. CHANGELOG written. Not published.
+- **Landing deploy.** `docs/` builds clean; `npm run deploy` publishes to sluglist.dev. Not run.

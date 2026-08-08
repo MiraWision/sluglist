@@ -1,4 +1,4 @@
-# sluglist artifact format — v1.2
+# sluglist artifact format — v1.4
 
 This is the on-disk contract sluglist produces for each feedback session. It is stable and safe to
 build parsers against: **within a major version the format only ever changes additively** (new optional
@@ -9,13 +9,21 @@ Source of truth: `src/artifacts.ts` (`buildSessionYaml`, `buildIssueMarkdown`, `
 
 ## Versioning
 
-- `session.yaml` starts with `format_version: "1.2"` (a quoted string, always the first line).
+- `session.yaml` starts with `format_version: "1.4"` (a quoted string, always the first line).
 - **Missing `format_version` ⇒ treat as `"1.0"`** (artifacts written before versioning was added).
 - **1.1** added the additive `checklist:` block (acceptance checklist verdicts) and the
   `checklist_item` issue field; everything from 1.0 is unchanged.
 - **1.2** added the additive `clips:` issue frontmatter (a per-clip breakdown of a recording) and the
   `<frames_dir>/<clip-id>/NN.png` frame layout it discriminates. Recordings written before 1.2 have no
   `clips:` and use the flat `<frames_dir>/NN.png` layout — both are readable (see the frames note below).
+- **1.3** added the additive `scrubbed` issue field (whether the text surfaces of the issue went through
+  the PII scrub). Emitted only when `privacy.scrubText` was set explicitly or by the production preset.
+- **1.4** added, all additive and all emitted only when the corresponding feature is used:
+  - `screenshot_failed` / `screenshot_error` (issue) — the render failed and the issue was delivered
+    without a picture. A reader should treat such an issue as a normal comment-only issue.
+  - `form` (session.yaml) — answers to `scope: "session"` reporter fields.
+  - `form` (issue) — answers to `scope: "issue"` reporter fields.
+  - `attachments` (issue) — files the reporter attached, stored next to the issue.
 - The number is `MAJOR.MINOR`:
   - **MINOR** bumps for additive changes (a new optional field/section). Parsers must ignore unknown
     fields and keep working.
@@ -33,6 +41,8 @@ Delivered per session, one folder:
   01-{slug}.md                     # one issue: YAML frontmatter + body
   01-{slug}.png                    # the issue screenshot (absent when none)
   01-{slug}-2.png                  # extra screenshots (2..n), only if multiple
+  01-{slug}-att-01.png             # reporter attachments (1.4), numbered per issue;
+                                   #   the extension is the attached file's own
   01-{slug}-frames/                # record mode only
     clip-01/                       # one folder per clip (a Record→Stop cycle)
       01.png  02.png  …            # per-clip, 1-based; 01.png = clip's start state
@@ -65,6 +75,7 @@ are zero-padded and monotonic within a session.
 | `color_scheme` | string | optional | 1.0 | `light` \| `dark`. |
 | `reduced_motion` | boolean | optional | 1.0 | |
 | `reporter` | map \| null | optional | 1.0 | Present only when `identity` configured (`null` if empty). Keys: `user_id`, `email`, `name`. |
+| `form` | map | optional | 1.4 | Answers to `scope: "session"` reporter fields, asked once on the first issue. Snake_case keys → string/number/boolean. Never scrubbed. |
 | `checklist` | map | optional | 1.1 | Present only when a checklist is configured. See below. |
 | `issues` | list | yes | 1.0 | `[]` when empty; otherwise a list of the entries below. |
 
@@ -137,6 +148,11 @@ YAML frontmatter between `---` fences, then the reporter's comment, then optiona
 | `screenshot` | string \| null | yes | 1.0 | |
 | `screenshots` | string[] | optional | 1.0 | Only when more than one PNG. |
 | `masked` | boolean | optional | 1.0 | Emitted only when privacy is configured. |
+| `scrubbed` | boolean | optional | 1.3 | Whether the text surfaces went through the PII scrub. |
+| `screenshot_failed` | boolean (`true`) | optional | 1.4 | Only on the failure path: a screenshot was attempted, the render failed, the issue was sent without it. `screenshot` is `null`. |
+| `screenshot_error` | string \| null | optional | 1.4 | Why it failed (renderer message, `timed out`, `blank image`). Scrubbed like any page-derived text. |
+| `form` | map | optional | 1.4 | Answers to `scope: "issue"` reporter fields. Never scrubbed — the reporter typed them deliberately. |
+| `attachments` | list | optional | 1.4 | Files the reporter attached. One entry per file: `{ file, mime, size, original_name }`. |
 | `errors_count` | number | optional | 1.0 | Present once error capture is engaged (0 when none). |
 | `actions_count` | number | optional | 1.0 | Present once the action trail is engaged. |
 | `recording` | boolean (`true`) | optional | 1.0 | Record mode only. |

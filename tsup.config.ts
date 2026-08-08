@@ -5,7 +5,7 @@ export default defineConfig([
   // html-to-image stays a lazily-imported chunk and jszip is only pulled in
   // by consumers that use DownloadConnector.
   {
-    entry: ["src/index.ts"],
+    entry: ["src/index.ts", "src/labels.ts"],
     format: ["esm", "cjs"],
     dts: true,
     sourcemap: true,

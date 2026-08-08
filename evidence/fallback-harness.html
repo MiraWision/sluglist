@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>sluglist — screenshot fallback harness</title>
+    <style>
+      body { font-family: -apple-system, system-ui, sans-serif; margin: 32px; color: #111; background: #fff; }
+      h1 { font-size: 20px; margin: 0 0 4px; }
+      p.sub { color: #6b7280; font-size: 13px; margin: 0 0 24px; }
+      table { border-collapse: collapse; font-size: 14px; }
+      th, td { border: 1px solid #e5e7eb; padding: 8px 12px; text-align: left; }
+      th { background: #f9fafb; font-weight: 600; }
+    </style>
+  </head>
+  <body>
+    <h1>Invoice #INV-2291</h1>
+    <p class="sub">
+      Fallback harness: an ordinary page. The screenshot render is broken from the
+      outside (canvas encode, canvas pixels, a callback that never fires) so the
+      shipped failure path runs for real.
+    </p>
+    <table>
+      <tr><th>Item</th><th>Qty</th><th>Total</th></tr>
+      <tr><td>Annual plan</td><td>1</td><td>€ 1 188.00</td></tr>
+      <tr><td>Extra seats</td><td>4</td><td>€ 240.00</td></tr>
+      <tr><td>VAT</td><td>—</td><td>€ 0.00</td></tr>
+    </table>
+
+    <script src="../dist/sluglist.global.js"></script>
+    <script>
+      const memory = new Sluglist.MemoryConnector();
+      const widget = Sluglist.createFeedbackWidget({
+        project: "acme",
+        connectors: [memory],
+      });
+      Sluglist.mountFeedbackWidget(widget);
+      window.__widget = widget;
+      // Flat accessor for the evidence script: every artifact of every session.
+      window.__memory = {
+        list: () =>
+          memory
+            .getSessionIds()
+            .flatMap((id) => memory.getFiles(id)),
+      };
+    </script>
+  </body>
+</html>

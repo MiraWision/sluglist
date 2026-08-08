@@ -88,20 +88,60 @@ const QUICK_START = `import {
   DownloadConnector,
 } from "sluglist";
 
-const widget = createFeedbackWidget({
-  project: "my-app",
-  connectors: [new DownloadConnector()],
-  enabled: import.meta.env.DEV,
-  shortcut: "Shift+F",
-});
+mountFeedbackWidget(
+  createFeedbackWidget({
+    connectors: [new DownloadConnector()],
+  })
+);`;
 
-mountFeedbackWidget(widget, {
-  categories: [
-    { key: "bug", label: "Bug" },
-    { key: "design", label: "Design" },
-  ],
-  onIssueCaptured: (r) => console.log("captured", r.issueId),
-});`;
+/** The three ways sluglist is actually used — same framing as the README. */
+const SCENARIOS: {
+  n: string;
+  title: string;
+  body: string;
+  code: string;
+  href: string;
+}[] = [
+  {
+    n: "1",
+    title: "Dev loop",
+    body: "Click feedback on your own app, have it land in a folder, let an agent fix it.",
+    code: `import { LocalConnector } from "sluglist";
+
+mountFeedbackWidget(
+  createFeedbackWidget({
+    connectors: [new LocalConnector()],
+  })
+);
+// then: npx sluglist dev`,
+    href: "#agents",
+  },
+  {
+    n: "2",
+    title: "Client acceptance",
+    body: "Staging plus a checklist of what shipped. The client walks it and flags problems; you get a coverage map.",
+    code: `createFeedbackWidget({
+  project: "acme",
+  connectors: [new HttpConnector(url, token)],
+  checklist: "/checklist.json",
+});`,
+    // The live checklist panel is in the demo section; there is no separate
+    // #checklist section on this page.
+    href: "#demo",
+  },
+  {
+    n: "3",
+    title: "Beta / Production",
+    body: "A \"Report a problem\" button for real users: PII masked and scrubbed, delivery through an endpoint you own.",
+    code: `createFeedbackWidget({
+  project: "acme",
+  preset: "production",
+  connectors: [new HttpConnector(url, token)],
+  identity: { userId: user.id, email: user.email },
+});`,
+    href: "#beta",
+  },
+];
 
 const CONNECTOR_CODE = `interface ArtifactFile {
   path: string;   // "01-broken-header.png"
@@ -489,8 +529,10 @@ export function App() {
           <CodeBlock code={QUICK_START} />
           <div className="space-y-4 text-[15px] text-[var(--color-ink-2)] leading-relaxed">
             <p>
-              Create a widget with one or more connectors, then mount it. That's
-              it — a floating button appears and people can start reporting.
+              One line of config: a connector, and nothing else. That is a
+              complete widget — launcher, capture modes, annotation, error and
+              action capture, the offline outbox, a project slug taken from your
+              hostname. <strong>Everything else is optional.</strong>
             </p>
             <p>
               Gate it behind an env flag so the code never initializes in
@@ -502,6 +544,45 @@ export function App() {
               bundle.
             </p>
           </div>
+        </div>
+      </Section>
+
+      {/* The three scenarios — the same framing as the README, so a reader who
+          arrives from either side sees one product, not two descriptions. */}
+      <Section
+        eyebrow="Scenarios"
+        id="scenarios"
+        title="Pick the one that matches you"
+      >
+        <div className="grid gap-5 md:grid-cols-3 [&>*]:min-w-0">
+          {/* The card is a div, not an anchor: CodeBlock contains a Copy
+              button, and an interactive control inside a link is both invalid
+              markup and a trap — copying would navigate away. The heading is
+              the link instead. */}
+          {SCENARIOS.map((s) => (
+            <div
+              className="flex flex-col gap-3 rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] p-5"
+              key={s.n}
+            >
+              <div className="flex items-baseline gap-2">
+                <span className="font-mono text-[13px] text-[var(--color-ink-2)]">
+                  {s.n}
+                </span>
+                <a
+                  className="font-semibold text-[15px] hover:underline"
+                  href={s.href}
+                >
+                  {s.title}
+                </a>
+              </div>
+              <p className="text-[14px] text-[var(--color-ink-2)] leading-relaxed">
+                {s.body}
+              </p>
+              <div className="mt-auto">
+                <CodeBlock code={s.code} />
+              </div>
+            </div>
+          ))}
         </div>
       </Section>
 

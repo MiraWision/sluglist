@@ -3,6 +3,7 @@ import type { ChecklistState } from "./checklist";
 import { type ErrorRecord, formatErrorAge } from "./errors";
 import type {
   ArtifactFile,
+  AttachmentMeta,
   CaptureMode,
   IssueIndexEntry,
   ReporterMeta,
@@ -56,8 +57,13 @@ function yamlBlock(
  *       the `<frames_dir>/<clip-id>/NN.png` frame layout it discriminates.
  * 1.3 — additive `scrubbed` issue frontmatter: whether the text surfaces of the
  *       issue were run through the PII scrub (`privacy.scrubText`).
+ * 1.4 — additive issue frontmatter: `screenshot_failed` / `screenshot_error`
+ *       (the render failed and the issue was sent without it), `form` (reporter
+ *       form fields, `scope: "issue"`) and `attachments` (files the reporter
+ *       attached), plus the additive `form` block in session.yaml
+ *       (`scope: "session"` answers).
  */
-export const FORMAT_VERSION = "1.3";
+export const FORMAT_VERSION = "1.4";
 
 /**
  * The `checklist:` block: definition identity + one entry per item with its
@@ -125,6 +131,11 @@ export function buildSessionYaml(state: SessionState): string {
   // (null when configured but empty). Sessions without it stay byte-identical.
   if (state.reporter !== undefined) {
     head += `\n${yamlBlock("reporter", state.reporter)}`;
+  }
+  // Additive (format 1.4): answers to `scope: "session"` form fields, asked once
+  // on the first issue. Absent unless such fields are configured and answered.
+  if (state.form !== undefined) {
+    head += `\n${yamlBlock("form", state.form)}`;
   }
   // Additive (format 1.1): acceptance checklist with per-item verdicts. Present
   // only when a checklist is configured; sessions without one stay byte-identical.
@@ -214,6 +225,24 @@ export interface IssueMarkdownInput {
   /** Whether masking was applied to the screenshot(s); emitted when defined. */
   masked?: boolean;
   /**
+   * A screenshot was attempted and the render failed; the issue was delivered
+   * without it. Emitted as `screenshot_failed` (format 1.4).
+   */
+  screenshotFailed?: boolean;
+  /** Renderer message for the failure above; emitted as `screenshot_error`. */
+  screenshotError?: string | null;
+  /**
+   * Reporter form answers with `scope: "issue"`; emitted as a `form:` block
+   * (format 1.4). Session-scoped answers live in session.yaml instead.
+   */
+  form?: Record<string, YamlScalar> | null;
+  /**
+   * Files the reporter attached to this issue, in order; emitted as an
+   * `attachments:` list (format 1.4). Each file sits next to the issue as
+   * `<id>-<slug>-att-NN.<ext>`.
+   */
+  attachments?: AttachmentMeta[];
+  /**
    * Whether the text surfaces of this issue were run through the PII scrub;
    * emitted only when `privacy.scrubText` was set explicitly (or by the
    * production preset), so artifacts written without it stay byte-identical.
@@ -280,6 +309,15 @@ export function buildIssueMarkdown(input: IssueMarkdownInput): string {
   if (input.masked !== undefined) {
     lines.push(yamlLine("masked", input.masked));
   }
+  // Additive (format 1.4): the screenshot render failed and the issue was sent
+  // without it. Only ever emitted on the failure path, so successful captures
+  // stay byte-identical.
+  if (input.screenshotFailed) {
+    lines.push(yamlLine("screenshot_failed", true));
+    if (input.screenshotError !== undefined) {
+      lines.push(yamlLine("screenshot_error", input.screenshotError));
+    }
+  }
   // Additive (format 1.3): emitted only when scrubText was set explicitly, so
   // dev and default-beta artifacts stay byte-identical.
   if (input.scrubbed !== undefined) {
@@ -327,6 +365,23 @@ export function buildIssueMarkdown(input: IssueMarkdownInput): string {
   // Additive: runtime host context (sluglist.setContext); block, null when empty.
   if (input.context !== undefined) {
     lines.push(yamlBlock("context", input.context));
+  }
+  // Additive (format 1.4): reporter-entered fields with `scope: "issue"`.
+  if (input.form !== undefined) {
+    lines.push(yamlBlock("form", input.form));
+  }
+  // Additive (format 1.4): files the reporter attached, one map per file.
+  if (input.attachments && input.attachments.length > 0) {
+    const attachments = yamlListOfMaps(
+      input.attachments.map((a) => [
+        ["file", a.file],
+        ["mime", a.mime],
+        ["size", a.size],
+        ["original_name", a.original_name],
+      ]),
+      "  "
+    );
+    lines.push(`attachments:\n${attachments}`);
   }
   const frontmatter = lines.join("\n");
 
@@ -387,4 +442,17 @@ export function issueMarkdownFile(
 
 export function screenshotFile(path: string, blob: Blob): ArtifactFile {
   return { path, blob, mime: "image/png" };
+}
+
+/**
+ * A file the reporter attached. Unlike the three mime types the core produces
+ * itself, the mime here comes from the picked file — already validated against
+ * the attachment whitelist before it reaches this point.
+ */
+export function attachmentFile(
+  path: string,
+  blob: Blob,
+  mime: string
+): ArtifactFile {
+  return { path, blob, mime };
 }

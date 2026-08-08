@@ -35,6 +35,12 @@ export interface ActionRecord {
    * suffix. Absent on frames from pre-clip artifacts (rendered as `— frame NN`).
    */
   clip?: number;
+  /**
+   * record mode: a frame was attempted for this action and the render failed,
+   * so the recording continued without it. Rendered as
+   * `— frame skipped (render failed)`.
+   */
+  frameFailed?: boolean;
 }
 
 export interface ActionCapture {
@@ -293,8 +299,9 @@ export function createActionCapture(
 
 /** Render an action record's text (after the "[age before report] " prefix). */
 export function renderAction(record: ActionRecord): string {
-  const frameSuffix =
-    record.frame !== undefined
+  const frameSuffix = record.frameFailed
+    ? " — frame skipped (render failed)"
+    : record.frame !== undefined
       ? record.clip !== undefined
         ? ` — clip ${record.clip}, frame ${String(record.frame).padStart(2, "0")}`
         : ` — frame ${String(record.frame).padStart(2, "0")}`

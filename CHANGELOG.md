@@ -1,5 +1,93 @@
 # Changelog
 
+## 1.11.0 — Capture resilience, mobile graceful mode, form fields, attachments, i18n
+
+Everything here is additive. The `FeedbackConnector` contract is unchanged, and a widget configured
+the way it was before this release behaves exactly as it did. Every new feature is optional: none of
+them adds a required parameter or a setup step.
+
+### `project` is now optional
+
+- `createFeedbackWidget({ connectors: [...] })` is a complete call. An omitted `project` defaults to
+  the page's hostname as a slug (`app.acme.com` → `app-acme-com`). An explicit slug is still
+  validated exactly as before. Naming it is still the better choice — it is what your artifacts sort
+  under.
+
+### A failed screenshot no longer costs the issue
+
+- Any render failure — a throw, a render slower than **8s** (was 60s), or a blank canvas — now
+  delivers the issue **comment-only** instead of silently dropping the screenshot. The reporter keeps
+  everything they typed and sees "Screenshot failed — sending without it".
+- Format **1.3 → 1.4** (additive): `screenshot_failed: true` and `screenshot_error: "<why>"` on such
+  issues. The message is scrubbed like any other page-derived text.
+- **Fixed: one cross-origin image without CORS headers used to fail every capture mode**, in every
+  engine. Measured across Chromium 151, Firefox 153 and WebKit 26.5. The unreadable image now renders
+  blank and the rest of the page still captures.
+- Record mode: a failed frame is skipped and the recording continues, with the gap marked in
+  `## Actions` as `— frame skipped (render failed)`.
+- New optional `capture: { timeoutMs, detectBlank }` for unusually heavy pages.
+- `backdrop-filter` is not rendered by any engine — now documented in Notes and limits rather than
+  discovered in production.
+
+### Mobile graceful mode
+
+- On a coarse pointer (detected from the pointer, never the user agent) the menu offers **full page**
+  and **comment only**. Element mode (hover) and area mode (a drag the browser spends on scrolling)
+  are hidden rather than offered and then failing. Record mode is hidden.
+- Panels are usable at 360–390px: capped height with internal scrolling, 44px targets, 16px inputs so
+  iOS does not zoom in and strand the reporter, and the textarea scrolls itself clear of the keyboard.
+- **Fixed:** the mobile launcher rule targeted `.fab`, which stopped being the fixed element when the
+  dismiss ✕ was added — the launcher never moved. It now also clears the home indicator
+  (`safe-area-inset-bottom`).
+- Shortcut hints are no longer shown on devices without a keyboard.
+
+### Reporter form fields (`form`)
+
+- Ask the reporter what only they can answer. `scope: "session"` is asked once, on the first issue,
+  and lands in `session.yaml`; `scope: "issue"` is asked every time and lands in the issue
+  frontmatter (both additive, format 1.4).
+- Types `text | email | select | checkbox`; `required` blocks sending with the row highlighted;
+  `email` is pattern-checked; values capped at 500 chars; at most 8 fields, with invalid ones dropped
+  with a warning rather than breaking the widget.
+- **Form values are never scrubbed**, including under the production preset — the reporter typed them
+  for you on purpose.
+- With no `form` configured the panel is unchanged.
+
+### Attachments
+
+- The reporter can attach their own files through a picker, drag & drop, or **paste** (Cmd/Ctrl+V) —
+  the last being the common case, since a client's evidence usually arrives in their clipboard.
+- Attached images join the thumbnail row and annotate like any capture; other types render as a
+  labelled tile.
+- Whitelist by default: images, video, pdf, txt/csv/json/md, xlsx/docx — checked on **both** the
+  extension and the mime. **Executables and archives are never accepted**, not even through `accept`.
+- Limits: 10MB per file, 5 files per issue, both configurable. Nothing is compressed client-side; an
+  oversized file is an honest error naming the actual limit.
+- Format 1.4 (additive): an `attachments:` list per issue; files land next to it as
+  `NN-slug-att-01.<ext>` with the reporter's own name kept as `original_name`, never as a path.
+- **Off by default under `preset: "production"`** — accepting uploads from anonymous users is a
+  decision, not a default. `examples/feedback-route.ts` gained a matching server-side whitelist and
+  size cap (415 / 413), and `docs/production-checklist.md` a section on what is your side of the line.
+
+### Localization
+
+- Ready-made bundles for `en`, `ru`, `uk`, `es`, `de`: `import { labels } from "sluglist/labels"`,
+  then `mountFeedbackWidget(widget, { strings: labels.uk })`. Partial overrides work by spreading;
+  anything omitted falls back to English.
+- Plurals now go through the bundle's own rule, so Russian and Ukrainian get all three forms
+  (`1 кадр / 2 кадра / 5 кадров`), including the 11–14 exception. `slavicPluralForm` is exported.
+- Four remaining hardcoded strings moved into the label registry; a test now enforces that there are
+  no others.
+
+### Docs
+
+- README opens with a one-line quick start and three scenarios (Dev loop / Client acceptance /
+  Beta & Production), with an "Attach your user" recipe putting `identity`, `setContext` and `form`
+  in one place. Notes and limits rewritten from the measured browser matrix.
+- SPEC.md updated to 1.4 (it had drifted at 1.2 while the code emitted 1.3).
+- The `sluglist-fix` skill reads attachments (images as screenshots, text files as evidence), `form`
+  answers, and understands `screenshot_failed`.
+
 ## 1.10.0 — Production preset, PII text scrub, dismiss, self-isolation
 
 Everything here is additive. The `FeedbackConnector` contract is unchanged and the `dev` preset

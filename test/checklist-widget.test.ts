@@ -80,7 +80,7 @@ describe("checklist verdicts (put-per-verdict)", () => {
 
     const sessionId = widget.getSession()?.session_id as string;
     const yaml = await sessionYaml(memory, sessionId);
-    expect(yaml.format_version).toBe("1.3");
+    expect(yaml.format_version).toBe("1.4");
     expect(yaml.checklist.id).toBe("export-release");
     const csv = yaml.checklist.items.find((i: { id: string }) => i.id === "csv-downloads");
     expect(csv.verdict).toBeNull();
@@ -166,7 +166,7 @@ describe("checklist verdicts (put-per-verdict)", () => {
     const sessionId = widget.getSession()?.session_id as string;
     const yaml = await sessionYaml(memory, sessionId);
     expect("checklist" in yaml).toBe(false);
-    expect(yaml.format_version).toBe("1.3");
+    expect(yaml.format_version).toBe("1.4");
   });
 });
 

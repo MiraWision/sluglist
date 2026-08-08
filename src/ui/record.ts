@@ -1,6 +1,6 @@
 import type { ActionCapture, ActionRecord } from "../actions";
 import { applyMask } from "../mask";
-import { captureFullPage } from "../screenshot";
+import { type CaptureOptions, captureFullPage } from "../screenshot";
 import type { FeedbackPrivacy } from "../types";
 
 /**
@@ -20,6 +20,8 @@ export interface RecorderOptions {
   maxFrames: number;
   frameMinInterval: number;
   privacy: FeedbackPrivacy;
+  /** Render limits (timeout, blank detection) shared with the other modes. */
+  captureOptions?: CaptureOptions;
   /** Called whenever recording/frame state changes (for the indicator). */
   onChange?: () => void;
   now?: () => number;
@@ -32,6 +34,8 @@ export interface Recorder {
   readonly atLimit: boolean;
   /** True if masking redacted anything on any captured frame. */
   readonly maskedAny: boolean;
+  /** Frames whose render failed and were skipped during this recording. */
+  readonly skippedFrames: number;
   /**
    * Begin recording and capture the initial frame. `clipIndex` (1-based) is
    * stamped onto each action-linked frame's `record.clip`, so the `## Actions`
@@ -56,6 +60,7 @@ export function createRecorder(options: RecorderOptions): Recorder {
   let lastFrameTs = 0;
   let capturing = false;
   let maskedAny = false;
+  let skipped = 0;
   let clipIndex = 1;
   let unsubscribe: (() => void) | null = null;
 
@@ -69,7 +74,7 @@ export function createRecorder(options: RecorderOptions): Recorder {
       const mask = applyMask(options.privacy);
       let blob: Blob;
       try {
-        blob = await captureFullPage();
+        blob = await captureFullPage(options.captureOptions);
       } finally {
         mask.restore();
       }
@@ -87,7 +92,14 @@ export function createRecorder(options: RecorderOptions): Recorder {
         record.clip = clipIndex;
       }
     } catch (error) {
-      console.error("[sluglist] frame capture failed:", error);
+      // A frame that fails to render is skipped, never fatal: a recording is
+      // worth more with a gap in it than not at all. The gap is recorded on the
+      // action so the trail says why a step has no picture.
+      skipped += 1;
+      if (record) {
+        record.frameFailed = true;
+      }
+      console.warn("[sluglist] frame skipped (render failed):", error);
     } finally {
       capturing = false;
       options.onChange?.();
@@ -110,11 +122,15 @@ export function createRecorder(options: RecorderOptions): Recorder {
     get maskedAny() {
       return maskedAny;
     },
+    get skippedFrames() {
+      return skipped;
+    },
     async start(clip = 1) {
       recording = true;
       frames = [];
       lastFrameTs = 0;
       maskedAny = false;
+      skipped = 0;
       clipIndex = clip;
       options.onChange?.();
       await captureFrame(null); // initial state → frame 01

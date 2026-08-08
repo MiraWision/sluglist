@@ -16,54 +16,131 @@ encapsulated in the connector you provide.
 npm install sluglist
 ```
 
-Or drop it into any page without a build step (deps inlined, exposed as `Sluglist`):
+## Quick start
+
+One line of config. A connector, and nothing else:
+
+```ts
+import { createFeedbackWidget, mountFeedbackWidget, DownloadConnector } from "sluglist";
+
+mountFeedbackWidget(createFeedbackWidget({ connectors: [new DownloadConnector()] }));
+```
+
+That is a complete, working widget: launcher, capture modes, annotation, error and action capture,
+the offline outbox, a project slug derived from your hostname. **Everything else on this page is
+optional** — presets, privacy, identity, form fields, attachments, checklists, localization. Add a
+piece when you need it; none of them is a setup step.
+
+Or without a build step at all (deps inlined, exposed as `Sluglist`):
 
 ```html
 <script src="https://unpkg.com/sluglist"></script>
 <script>
   const { createFeedbackWidget, mountFeedbackWidget, DownloadConnector } = Sluglist;
-  const widget = createFeedbackWidget({
-    project: "my-app",
-    connectors: [new DownloadConnector()],
-  });
-  mountFeedbackWidget(widget);
+  mountFeedbackWidget(createFeedbackWidget({ connectors: [new DownloadConnector()] }));
 </script>
 ```
 
-## Quick start
+Ships as ESM and CJS; `html-to-image` is loaded lazily on the first capture, so it is not part of your
+initial bundle. Undelivered issues are persisted to IndexedDB and retried on the next load, so a failed
+upload or a closed tab does not lose feedback.
+
+## Pick your scenario
+
+Three ways sluglist is actually used. Start from the one that matches you; each is a few lines, and the
+details are one click away.
+
+### 1 · Dev loop — you and an agent
+
+Click feedback on your own app, have it land in a folder, let Claude Code fix it.
 
 ```ts
-import {
-  createFeedbackWidget,
-  mountFeedbackWidget,
-  DownloadConnector,
-} from "sluglist";
+import { createFeedbackWidget, mountFeedbackWidget, LocalConnector } from "sluglist";
 
-const widget = createFeedbackWidget({
-  project: "my-app",              // slug written into session.yaml
-  connectors: [new DownloadConnector()],
-  enabled: process.env.NODE_ENV !== "production",
-  shortcut: "Shift+F",            // toggle key (default); false disables it
-});
-
-mountFeedbackWidget(widget, {
-  position: "bottom-right",
-  accentColor: "#18181b",
-  container: document.body,       // mount anywhere (e.g. an extension content root)
-  categories: [                   // triage chips; [] hides them
-    { key: "bug", label: "Bug" },
-    { key: "design", label: "Design" },
-  ],
-  onIssueCaptured: (result) => analytics.track("feedback", result.issueId),
-});
+mountFeedbackWidget(createFeedbackWidget({ connectors: [new LocalConnector()] }));
 ```
 
-Only load it on dev/staging. In a production build, guard the import so the widget code is never
-initialized. Ships as ESM and CJS; `html-to-image` is loaded lazily on the first capture, so it is
-not part of the initial bundle.
+```bash
+npx sluglist dev        # sidecar that writes to ./.sluglist
+```
 
-Undelivered issues are persisted to IndexedDB (an outbox) and retried on the next load, so a failed
-upload or a closed tab does not lose feedback. Disable with `offlineQueue: false` on the config.
+→ [Local feedback loop](#local-feedback-loop) · [the fix skill](#let-an-agent-fix-it-claude-code-skill) ·
+[capture modes](#capture-modes) · [record mode](#action-trail--record-mode) ·
+[artifact format](#artifact-format-contract)
+
+### 2 · Client acceptance — someone signs off a release
+
+Put the build on staging with a **checklist** of what shipped. The client walks it, checks items off and
+flags problems; you get a coverage map instead of a chat thread.
+
+```ts
+mountFeedbackWidget(
+  createFeedbackWidget({
+    project: "acme",
+    connectors: [new HttpConnector("/api/feedback", () => token)],
+    checklist: "/checklist.json",   // or an inline object
+  })
+);
+```
+
+→ [Checklist mode](#checklist-mode) · [generating one from a branch](#generate-a-checklist-from-a-branch) ·
+[connectors](#connectors) · [attachments](#attachments) · [localization](#localization)
+
+### 3 · Beta / Production — real users report problems
+
+A "Report a problem" button for people who are not your team: PII masked and scrubbed, a way to make the
+widget go away, and delivery through an endpoint you own.
+
+```ts
+mountFeedbackWidget(
+  createFeedbackWidget({
+    project: "acme",
+    preset: "production",
+    connectors: [new HttpConnector("/api/feedback", () => session.token)],
+    identity: { userId: user.id, email: user.email },
+  })
+);
+```
+
+→ [Production](#production) · [beta mode](#beta-feedback-mode) ·
+[**production checklist**](docs/production-checklist.md) · [the endpoint](examples/feedback-route.ts) ·
+[localization](#localization) · [mobile](#mobile-graceful-mode) · [attachments](#attachments)
+
+## Attach your user
+
+Three ways to know who reported something, and they are not interchangeable — the difference is *where
+the value comes from*.
+
+| | Source | When it is captured | Lands in |
+| --- | --- | --- | --- |
+| `identity` | your app already knows it | fixed at init | `reporter` in session.yaml + every issue |
+| `setContext` | live host state (tenant, flags, build) | at capture time | `context` per issue |
+| `form` | only the reporter can answer it | typed by them | `form` in session.yaml or per issue |
+
+```ts
+const widget = createFeedbackWidget({
+  project: "acme",
+  connectors: [/* … */],
+
+  // 1. What you know: static, set once.
+  identity: { userId: user.id, email: user.email, name: user.name },
+
+  // 3. What only they know: asked in the panel.
+  form: [
+    { id: "email", label: "Your email", type: "email", scope: "session" },
+    { id: "severity", label: "How bad is it?", type: "select",
+      options: ["blocking", "annoying", "cosmetic"], required: true, scope: "issue" },
+  ],
+});
+
+// 2. What changes while they use the app.
+widget.setContext({ tenantId: "acme", featureFlags: "new-nav", buildVersion: APP_VERSION });
+```
+
+Reach for `identity` when you have the user object, `setContext` when the answer depends on where they
+are in the app, and `form` when nobody but the person reporting can tell you (their email on an
+anonymous beta, which account, how badly it hurts). Details:
+[identity + custom](#beta-feedback-mode) · [setContext](#metadata-collected) · [form fields](#reporter-form-fields)
 
 ## Capture modes
 
@@ -78,6 +155,125 @@ following the position.
 Each screenshot can be annotated before sending (arrow, box, text; color; undo), with keyboard
 shortcuts (A / B / T, Ctrl/Cmd+Z, Esc, click backdrop to close), and an issue can carry multiple
 screenshots.
+
+**When a screenshot fails, the issue still goes.** A render can die on the browser's terms — a webfont
+that never resolves, a canvas the browser refuses to encode, a render that hangs. Any of those (plus a
+render that comes back blank, and anything slower than 8s) is caught: the reporter sees a quiet
+*"Screenshot failed — sending without it"*, keeps everything they typed, and the issue is delivered
+comment-only carrying `screenshot_failed: true` and `screenshot_error: "<why>"` in its frontmatter. In
+record mode a failed frame is skipped and the recording continues, with the gap marked in `## Actions`.
+Nothing about a report is ever lost to a picture that would not render.
+
+```ts
+createFeedbackWidget({
+  connectors: [/* … */],
+  capture: { timeoutMs: 8000, detectBlank: true },  // defaults; both optional
+});
+```
+
+Raise `timeoutMs` if you capture very long pages at high DPR.
+
+## Mobile graceful mode
+
+On a coarse pointer (detected from the pointer, not the user agent — a touch laptop keeps the full
+desktop UI) sluglist **subtracts** rather than reimplements:
+
+- The menu offers **full page** and **comment only**. Area mode needs a drag the browser spends on
+  scrolling, and element mode is built on hover; both are hidden rather than offered and then failing.
+- **Record mode is hidden.** Frames captured mid-scroll are unreadable; deferred rather than shipped bad.
+- Panels go full-width, controls reach 44px, the textarea scrolls itself clear of the keyboard, inputs
+  use 16px so iOS does not zoom in and strand the reporter, and the launcher clears the home indicator
+  (`safe-area-inset-bottom`).
+- Keyboard hints (the shortcut chips) are not shown to a device with no keyboard.
+
+The checklist panel is fully usable on a phone; the per-item report button is always visible there
+instead of hover-revealed.
+
+## Reporter form fields
+
+Ask the reporter what only they can tell you. Optional — with no `form` the panel is exactly what it was.
+
+```ts
+createFeedbackWidget({
+  connectors: [/* … */],
+  form: [
+    // Asked once, on the first issue of the session → session.yaml
+    { id: "email", label: "Your email", type: "email", scope: "session" },
+    { id: "environment", label: "Device / browser", type: "text", scope: "session" },
+    // Asked on every issue → that issue's frontmatter
+    { id: "severity", label: "How bad is it?", type: "select",
+      options: ["blocking", "annoying", "cosmetic"], required: true, scope: "issue" },
+  ],
+});
+```
+
+`type` is `text | email | select | checkbox`. `required` blocks sending and highlights the row; `email`
+is pattern-checked; values are capped at 500 characters; at most 8 fields (invalid ones are dropped with
+a warning, never breaking the widget).
+
+```yaml
+# session.yaml — the scope: "session" answers, asked once
+form:
+  email: "anna@client.com"
+  environment: "iPhone Safari"
+
+# NN-issue.md frontmatter — the scope: "issue" answers
+form:
+  severity: "blocking"
+```
+
+**Form values are never scrubbed**, even under the production preset. A reporter who types their address
+into a field labelled *Your email* is telling it to you on purpose; redacting it would make the field
+pointless. The scrub stays where it belongs — on text lifted off the page.
+
+## Attachments
+
+Let the reporter attach their own files: the screenshot they took on their phone, a console export, the
+spreadsheet that is wrong. Three ways in, all going to the same place:
+
+1. **+ Attach file** next to *+ Add screenshot*.
+2. **Drag & drop** onto the open panel.
+3. **Paste** (Cmd/Ctrl+V) — the one that matters most in practice, because a client's evidence usually
+   arrives in their clipboard from a phone or an email.
+
+Attached **images join the thumbnail row and annotate like any capture** — you can put arrows on their
+screenshot. Everything else becomes a tile with its type, name and size, removable with the ✕.
+
+```ts
+createFeedbackWidget({
+  connectors: [/* … */],
+  attachments: {
+    enabled: true,            // default true — but FALSE under preset: "production"
+    maxFileSize: 10 * 1024 * 1024,
+    maxFiles: 5,
+    accept: [".log", "image/*"],   // optional: replaces the built-in whitelist
+  },
+});
+```
+
+Accepted by default: images (png, jpeg, webp, gif, heic), video (mp4, webm, mov), pdf, text (txt, csv,
+json, md) and office (xlsx, docx). Checked on **both** the extension and the reported mime, so a renamed
+binary is refused. **Executables and archives are never accepted** — not even through `accept`: an
+archive is opaque to every check you and your storage run afterwards. Over the size or count limit, the
+reporter gets a message naming the file and the actual limit; nothing is compressed or transcoded on the
+client, so an oversized phone video is an honest error rather than a silent re-encode.
+
+Files land next to the issue and are listed in its frontmatter. The reporter's own file name is never
+used as a path — it is kept as data:
+
+```yaml
+attachments:
+  - file: 03-checkout-att-01.png
+    mime: image/png
+    size: 482112
+    original_name: "IMG_4021.png"
+```
+
+> **Attachments default to OFF under `preset: "production"`.** Accepting uploads from anonymous users is
+> a decision, not a default. Turn it on with `attachments: { enabled: true }` when you have decided your
+> endpoint can take it — and validate server-side regardless: see
+> [`examples/feedback-route.ts`](examples/feedback-route.ts) (415 on an unlisted mime, 413 over the cap)
+> and the [production checklist](docs/production-checklist.md).
 
 ## Connectors
 
@@ -299,6 +495,35 @@ Before pointing this at real users, work through
 **[docs/production-checklist.md](docs/production-checklist.md)** — env gating, token generation,
 retention, storage access, and a privacy-policy paragraph to adapt.
 
+## Localization
+
+Real users are the ones who need the widget in their own language, so this belongs with the beta and
+production setup. Bundles ship for **en** (default), **ru**, **uk**, **es** and **de** — one line:
+
+```ts
+import { labels } from "sluglist/labels";
+
+mountFeedbackWidget(widget, { strings: labels.uk });
+```
+
+Override a single string by spreading:
+
+```ts
+mountFeedbackWidget(widget, { strings: { ...labels.uk, send: "Полетіли" } });
+```
+
+Anything a bundle leaves out falls back to English, so an incomplete override can never leave a button
+blank. The locale is **chosen by you, not sniffed from the browser** — which language your testers read
+is a property of the engagement, not of their user agent.
+
+Bundles translate widget chrome only. Your own copy — category chips, checklist titles, form labels — is
+passed through config and stays yours to write.
+
+**Plurals** go through the bundle's own rule, so Slavic languages get all three forms
+(`1 кадр / 2 кадра / 5 кадров`, including the 11–14 exception) rather than a naive `n === 1` split. A
+bundle declares its rule with `pluralForm`; if you write your own bundle for a language with three
+forms, set `pluralForm: slavicPluralForm` (exported) and supply the `…Few` strings.
+
 ## Checklist mode
 
 Everything above fills a session **from the bottom** — the client freely creates issues. A **checklist**
@@ -466,7 +691,7 @@ per-issue metadata in frontmatter followed by the free-text comment. The structu
 are a stable contract intended as input for downstream parsers; **it only changes additively**.
 
 The full field dictionary, section rules and versioning policy live in **[SPEC.md](SPEC.md)** — safe
-to build parsers against. `session.yaml` starts with `format_version: "1.1"`; a missing version means
+to build parsers against. `session.yaml` starts with `format_version: "1.4"`; a missing version means
 `"1.0"`. Within a major version, new fields are only ever added, never removed or repurposed.
 
 ## Metadata collected
@@ -577,12 +802,27 @@ network capture. The output is artifacts for an agent to read, not a replay a hu
 
 ## Notes and limits
 
-- Desktop-first. Area selection and annotation use pointer events and work on touch; element mode
-  relies on hover and is desktop-oriented.
-- Screenshots use `html-to-image` (DOM to canvas). WebGL/canvas content and some cross-origin
-  images may not render; elements parked by scroll-reveal animations are temporarily revealed
-  during capture.
-- Style isolation via shadow DOM; nothing leaks in or out of the host page.
+Measured in Chromium 151, Firefox 153 and WebKit 26.5 (the Safari engine) against a page built out of
+known DOM-to-canvas failure modes. The full matrix is in [RUN_EVIDENCE.md](RUN_EVIDENCE.md).
+
+**Renders correctly in all three engines:** webfonts, emoji, CSS `filter`, gradients, `position: fixed`,
+long full-page captures, cross-origin images served with CORS headers, and the annotation round-trip.
+
+**Known limits — not fixable from here:**
+
+- **`backdrop-filter` is not rendered** in any engine. The blur is dropped and the element paints as if
+  it had none. Nothing in the DOM-to-canvas approach can reproduce it, since it depends on what is
+  painted *behind* the element.
+- **Cross-origin images served without `access-control-allow-origin` come out blank.** The renderer has
+  to re-fetch them to inline them, and the browser will not hand over pixels it cannot read. The rest of
+  the page still captures — before this iteration one such image failed the entire screenshot.
+- **WebGL, `<canvas>` and video content** do not render.
+- Elements parked by scroll-reveal animations are temporarily revealed during capture and restored.
+
+**Mobile** is [graceful degradation, not a mobile UI](#mobile-graceful-mode): full page and comment-only,
+no element/area/record on touch.
+
+Style isolation via shadow DOM; nothing leaks in or out of the host page.
 
 ## License
 

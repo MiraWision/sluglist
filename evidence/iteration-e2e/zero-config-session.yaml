@@ -1,0 +1,23 @@
+format_version: "1.4"
+project: acme
+session_id: session-2026-08-08-4xb5
+created_at: 2026-08-08T21:58:29Z
+base_url: http://localhost:5175
+browser: Chrome 151
+os: macOS
+viewport: 1280x900
+device_pixel_ratio: 1
+screen: 1280x900
+language: en-US
+languages:
+  - en-US
+timezone: Europe/Warsaw
+color_scheme: light
+reduced_motion: false
+issues:
+  - id: "01"
+    file: 01-the-total-does-not-include-the-discount.md
+    screenshot: 01-the-total-does-not-include-the-discount.png
+    url: "/evidence/iteration-e2e-harness.html?mode=zero"
+    selector: null
+    created_at: 2026-08-08T21:58:29Z

@@ -74,6 +74,26 @@ export interface FeedbackRecordingConfig {
   frameMinInterval?: number;
 }
 
+/**
+ * Screenshot-capture controls. Entirely optional: with no `capture` block the
+ * widget uses the 8s timeout and the blank-render heuristic, and any failure
+ * falls back to sending the issue without a screenshot.
+ */
+export interface FeedbackCaptureConfig {
+  /**
+   * Milliseconds a single screenshot render may take before it is treated as
+   * failed. Default 8000. Raise it for very long pages at high DPR; the cost of
+   * raising it is only that a genuinely hung render is noticed later.
+   */
+  timeoutMs?: number;
+  /**
+   * Treat an (almost) single-colour full-page render as a failed capture.
+   * Default true. Set false if your app legitimately renders flat full-page
+   * colour and you would rather ship that screenshot.
+   */
+  detectBlank?: boolean;
+}
+
 /** Page-error capture controls. */
 export interface FeedbackErrorConfig {
   /** Capture console.error / uncaught errors / rejections. Default true. */
@@ -119,6 +139,75 @@ export interface FeedbackPrivacy {
 }
 
 /**
+ * One field the reporter fills in themselves. Entirely optional: with no `form`
+ * configured the issue panel is exactly what it has always been.
+ *
+ * The three ways to attach information about the person reporting are
+ * deliberately separate: `identity` is what your app already knows (static, set
+ * at init), `setContext` is runtime host state, and `form` is what only the
+ * reporter can tell you.
+ */
+export interface FormField {
+  /** Stable key; normalized to snake_case in artifacts. */
+  id: string;
+  /** Visible label. Localize it yourself — it is your copy, not widget chrome. */
+  label: string;
+  type: "text" | "email" | "select" | "checkbox";
+  /** Blocks sending while empty (checkbox: must be checked). */
+  required?: boolean;
+  /** Options for `type: "select"`. Ignored for other types. */
+  options?: string[];
+  /**
+   * "session" — asked once, on the first issue of the session, and written to
+   * session.yaml. "issue" — asked on every issue, written to that issue's
+   * frontmatter.
+   */
+  scope: "session" | "issue";
+}
+
+/**
+ * Reporter attachments (their own screenshots, logs, exports). Optional; the
+ * defaults are usable as-is, and the whole feature is off under the
+ * "production" preset unless you turn it on deliberately.
+ */
+export interface FeedbackAttachmentsConfig {
+  /**
+   * Show the "+ Attach file" control and accept drops / pastes. Default true,
+   * except under the "production" preset where it defaults to FALSE — accepting
+   * uploads from anonymous real users is a decision, not a default.
+   */
+  enabled?: boolean;
+  /** Per-file size cap in bytes. Default 10MB. Nothing is compressed client-side. */
+  maxFileSize?: number;
+  /** Max files per issue. Default 5. */
+  maxFiles?: number;
+  /**
+   * Replaces the built-in whitelist. Entries are extensions (".log") or mime
+   * types ("text/plain", "image/*"). Executables and archives are refused even
+   * if listed.
+   */
+  accept?: string[];
+}
+
+/** One file on its way into an issue, as the UI hands it to the core. */
+export interface AttachmentInput {
+  blob: Blob;
+  /** The name on the reporter's machine, e.g. "IMG_4021.png". */
+  name: string;
+  mime: string;
+}
+
+/** One attached file as it appears in issue frontmatter. */
+export interface AttachmentMeta {
+  /** File name next to the issue, e.g. "03-checkout-att-01.png". */
+  file: string;
+  mime: string;
+  size: number;
+  /** The name the file had on the reporter's machine. */
+  original_name: string;
+}
+
+/**
  * Serialized reporter block as it appears in artifacts (snake_case keys).
  * Only provided sub-fields are present; a configured-but-empty identity is null.
  */
@@ -131,6 +220,22 @@ export interface ReporterMeta {
 export interface FeedbackWidgetConfig {
   /** Background action trail (clicks/navigations/submits/typing). Default on. */
   actions?: FeedbackActionsConfig;
+  /**
+   * Screenshot render limits (timeout, blank detection). Optional — the
+   * defaults are the supported configuration; this is an escape hatch for
+   * unusually heavy pages.
+   */
+  capture?: FeedbackCaptureConfig;
+  /**
+   * Let the reporter attach their own files to an issue (picker, drag & drop,
+   * paste). Optional; see {@link FeedbackAttachmentsConfig} for the defaults.
+   */
+  attachments?: FeedbackAttachmentsConfig;
+  /**
+   * Fields the reporter fills in. Max 8; invalid entries are dropped with a
+   * warning. Omit it and the issue panel is unchanged.
+   */
+  form?: FormField[];
   /**
    * Optional acceptance checklist. Pass an inline {@link Checklist} object, or a
    * URL string fetched (GET → JSON of the same shape) at init. Renders a second
@@ -172,8 +277,13 @@ export interface FeedbackWidgetConfig {
   preset?: FeedbackWidgetPreset;
   /** Screenshot privacy: PII masking and screenshot consent. */
   privacy?: FeedbackPrivacy;
-  /** Project slug, written into session.yaml. */
-  project: string;
+  /**
+   * Project slug, written into session.yaml and used as the storage prefix.
+   * Optional: defaults to the page's hostname as a slug (`app.acme.com` →
+   * `app-acme-com`), so a widget can be created with nothing but a connector.
+   * Naming it explicitly is still better — it is what your artifacts sort under.
+   */
+  project?: string;
   /** Record mode (frames captured per action). Default enabled. */
   recording?: FeedbackRecordingConfig;
   /**
@@ -227,6 +337,26 @@ export interface CaptureIssueInput {
   screenshot?: Blob | null;
   /** Additional PNG screenshots for the same issue (additive to `screenshot`). */
   screenshots?: Blob[];
+  /**
+   * A screenshot was attempted for this issue and the render failed, so the
+   * issue is being sent without it. Emitted as `screenshot_failed: true`.
+   */
+  screenshotFailed?: boolean;
+  /**
+   * Why the render failed (renderer message / "timed out" / "blank"). Emitted
+   * as `screenshot_error`; scrubbed like every other page-derived text surface.
+   */
+  screenshotError?: string | null;
+  /**
+   * Files the reporter attached, in order. Each is written next to the issue as
+   * `<id>-<slug>-att-NN.<ext>` and listed in the `attachments` frontmatter.
+   */
+  attachments?: AttachmentInput[];
+  /**
+   * Answers to `scope: "issue"` form fields. Written to frontmatter verbatim —
+   * never scrubbed, because the reporter typed them for you on purpose.
+   */
+  form?: Record<string, string | number | boolean>;
   /** CSS selector for element mode; null for fullpage / area. */
   selector?: string | null;
   /** How the selector was derived: "testid" | "id" | "aria" | "path". */
@@ -279,6 +409,12 @@ export interface SessionMeta {
    * (null when configured but empty); omitted entirely otherwise (back-compat).
    */
   reporter?: ReporterMeta | null;
+  /**
+   * Answers to `scope: "session"` form fields, collected on the first issue of
+   * the session. Present only when such fields are configured and answered
+   * (format 1.4); sessions without a form stay byte-identical.
+   */
+  form?: Record<string, string | number | boolean>;
   /** Physical screen resolution, e.g. "2560x1440". */
   screen?: string;
   session_id: string;

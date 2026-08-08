@@ -6,6 +6,22 @@ export interface FeedbackWidgetStrings {
   annotateDone: string;
   annotateText: string;
   annotateUndo: string;
+  /** Hint shown while dragging out an area. */
+  areaHint: string;
+  /** "+ Attach file" — opens the file picker. */
+  attachFile: string;
+  /** Overlay shown while a file is dragged over the panel. */
+  attachDrop: string;
+  /** Rejected: type not on the whitelist. `{name}` */
+  attachRejectedType: string;
+  /** Rejected: over the size cap. `{name}` `{size}` `{limit}` */
+  attachRejectedSize: string;
+  /** Rejected: over the per-issue file count. `{n}` */
+  attachRejectedCount: string;
+  /** Rejected: zero-length file. `{name}` */
+  attachRejectedEmpty: string;
+  /** aria-label / tooltip for the per-attachment remove (×) button. */
+  attachRemove: string;
   attachScreenshot: string;
   buttonLabel: string;
   cancel: string;
@@ -26,6 +42,8 @@ export interface FeedbackWidgetStrings {
   checklistSkip: string;
   /** Per-item "flag a problem" (slug) button — aria-label + tooltip. */
   checklistItemIssue: string;
+  /** Link chip on an item that has a reported issue: "issue {id}". */
+  checklistItemIssueLink: string;
   /** Shown on items whose `url_match` matches the current path. */
   checklistHere: string;
   /** Footer line in the completed state. */
@@ -36,6 +54,8 @@ export interface FeedbackWidgetStrings {
   checklistSummaryDone: string;
   /** Summary: "{n} issue" (one). */
   checklistSummaryIssueOne: string;
+  /** Summary: "{n} issues", 2–4 in Slavic locales. Falls back to …Many. */
+  checklistSummaryIssueFew?: string;
   /** Summary: "{n} issues" (many). */
   checklistSummaryIssueMany: string;
   /** Summary: "{n} left" (unchecked remaining). */
@@ -54,6 +74,18 @@ export interface FeedbackWidgetStrings {
   /** Dismiss ✕ on the launcher — aria-label + tooltip. */
   dismiss: string;
   elementHint: string;
+  /** Empty option of a non-required select. */
+  formChoose: string;
+  /** Validation: a required field was left empty. */
+  formRequired: string;
+  /** Validation: `type: "email"` did not look like an address. */
+  formInvalidEmail: string;
+  /** Heading above the once-per-session block of fields. */
+  formSessionTitle: string;
+  /** alt text of a captured screenshot thumbnail: "Screenshot {n}". */
+  imageAlt: string;
+  /** alt text of a recording frame thumbnail: "Frame {n}". */
+  frameAlt: string;
   menuArea: string;
   menuElement: string;
   menuFullpage: string;
@@ -67,6 +99,8 @@ export interface FeedbackWidgetStrings {
   recordingClip: string;
   /** Frame count, singular: "{n} frame". */
   recordingFrameOne: string;
+  /** Frame count, 2–4 in Slavic locales. Falls back to …Many when absent. */
+  recordingFrameFew?: string;
   /** Frame count, plural: "{n} frames". */
   recordingFrameMany: string;
   recordingHint: string;
@@ -79,8 +113,16 @@ export interface FeedbackWidgetStrings {
   reportProblem: string;
   retry: string;
   saved: string;
+  /** Toast after a failed render: the issue still goes, without the picture. */
+  screenshotFailed: string;
   send: string;
   sending: string;
+  /**
+   * Which plural form a count takes. Absent = the English/Germanic rule
+   * (1 → one, everything else → many). Slavic bundles supply a three-form rule;
+   * see {@link slavicPluralForm}.
+   */
+  pluralForm?: PluralForm;
 }
 
 export const DEFAULT_STRINGS: FeedbackWidgetStrings = {
@@ -90,6 +132,14 @@ export const DEFAULT_STRINGS: FeedbackWidgetStrings = {
   annotateDone: "Done",
   annotateText: "Text",
   annotateUndo: "Undo",
+  areaHint: "Drag to select an area. Esc to cancel.",
+  attachFile: "+ Attach file",
+  attachDrop: "Drop files to attach",
+  attachRejectedType: "{name}: this file type is not accepted",
+  attachRejectedSize: "{name} is {size} — the limit is {limit}",
+  attachRejectedCount: "You can attach up to {n} files per issue",
+  attachRejectedEmpty: "{name} is empty",
+  attachRemove: "Remove file",
   attachScreenshot: "Attach screenshot",
   buttonLabel: "Feedback",
   cancel: "Cancel",
@@ -105,6 +155,7 @@ export const DEFAULT_STRINGS: FeedbackWidgetStrings = {
   checklistPass: "Pass",
   checklistSkip: "Skip",
   checklistItemIssue: "Report an issue",
+  checklistItemIssueLink: "issue {id}",
   checklistHere: "You're here",
   checklistAutosaved: "Everything is saved automatically",
   checklistSummaryChecked: "{done} of {total} checked",
@@ -122,6 +173,12 @@ export const DEFAULT_STRINGS: FeedbackWidgetStrings = {
   dialogTitle: "New issue",
   dismiss: "Hide feedback button",
   elementHint: "Click an element to report it. Esc to cancel.",
+  formChoose: "Choose…",
+  formRequired: "This field is required",
+  formInvalidEmail: "Enter a valid email address",
+  formSessionTitle: "A few details",
+  imageAlt: "Screenshot {n}",
+  frameAlt: "Frame {n}",
   menuArea: "Select area",
   menuElement: "Select element",
   menuFullpage: "Full page screenshot",
@@ -143,6 +200,7 @@ export const DEFAULT_STRINGS: FeedbackWidgetStrings = {
   reportProblem: "Report a problem",
   retry: "Retry",
   saved: "Issue {id} saved",
+  screenshotFailed: "Screenshot failed — sending without it",
   sending: "Sending issue {id}...",
   send: "Send",
 };
@@ -164,11 +222,48 @@ export function interpolate(
   );
 }
 
-/** Pick the singular or plural template by count, then interpolate `{n}`. */
+/** Which of the three plural slots a count uses. */
+export type PluralCategory = "one" | "few" | "many";
+export type PluralForm = (n: number) => PluralCategory;
+
+/** English / Germanic / Romance: 1 is singular, everything else is not. */
+export const defaultPluralForm: PluralForm = (n) => (n === 1 ? "one" : "many");
+
+/**
+ * Russian / Ukrainian: 1, 21, 31 … take the singular; 2–4, 22–24 … take the
+ * "few" form; everything else (0, 5–20, 25–30 …) takes the genitive plural.
+ * 11–14 are the exception that catches naive implementations.
+ */
+export const slavicPluralForm: PluralForm = (n) => {
+  const abs = Math.abs(Math.trunc(n));
+  const mod10 = abs % 10;
+  const mod100 = abs % 100;
+  if (mod10 === 1 && mod100 !== 11) {
+    return "one";
+  }
+  if (mod10 >= 2 && mod10 <= 4 && !(mod100 >= 12 && mod100 <= 14)) {
+    return "few";
+  }
+  return "many";
+};
+
+/**
+ * Pick the singular or plural template by count, then interpolate `{n}`.
+ *
+ * Two-form call site kept for compatibility. Pass `few` and a `form` rule for
+ * languages that need three (`plural(one, many, n, few, slavicPluralForm)`); a
+ * bundle that omits `few` falls back to `many`, so an incomplete translation
+ * degrades to a wrong ending rather than a missing string.
+ */
 export function plural(
   one: string,
   many: string,
-  n: number
+  n: number,
+  few?: string,
+  form: PluralForm = defaultPluralForm
 ): string {
-  return interpolate(n === 1 ? one : many, { n });
+  const category = form(n);
+  const template =
+    category === "one" ? one : category === "few" ? (few ?? many) : many;
+  return interpolate(template, { n });
 }

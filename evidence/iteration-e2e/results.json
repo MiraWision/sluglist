@@ -1,0 +1,41 @@
+{
+  "zeroConfig": {
+    "files": [
+      "01-the-total-does-not-include-the-discount.png",
+      "01-the-total-does-not-include-the-discount.md",
+      "session.yaml"
+    ],
+    "console": []
+  },
+  "full": {
+    "files": [
+      "session.yaml",
+      "01-znizhka-ne-vrahovu-tsya-u-p-dsumkov-i.png",
+      "01-znizhka-ne-vrahovu-tsya-u-p-dsumkov-i-att-01.png",
+      "01-znizhka-ne-vrahovu-tsya-u-p-dsumkov-i.md"
+    ],
+    "rejections": [
+      "setup.exe: такий тип файлу не приймається",
+      "logs.zip: такий тип файлу не приймається",
+      "clip.mp4 важить 11 MB — ліміт 10 MB"
+    ],
+    "secondIssueForm": {
+      "sessionRows": 0,
+      "issueRows": 1
+    },
+    "console": []
+  },
+  "mobile": {
+    "menu": [
+      "Знімок усієї сторінки",
+      "Коментар без знімка"
+    ],
+    "mobileIssue": true,
+    "files": [
+      "session.yaml",
+      "01-knopka-oplati-ne-vm-scha-tsya.png",
+      "01-knopka-oplati-ne-vm-scha-tsya.md"
+    ],
+    "console": []
+  }
+}
