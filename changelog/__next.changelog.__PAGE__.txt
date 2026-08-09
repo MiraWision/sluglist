@@ -1,5 +1,43 @@
 1:"$Sreact.fragment"
-2:T7487,<h1>Changelog</h1>
+2:T80a5,<h1>Changelog</h1>
+<h2>1.12.0 — Agent-to-agent loop: headless writer, QA skill, fixes.yaml, re-test</h2>
+<p>Everything here is additive. The <code>FeedbackConnector</code> contract is unchanged, and the widget — its UI
+and its artifacts — is untouched (byte-for-byte, minus the format-version line). sluglist becomes a
+protocol between agents: dev agent → checklist → QA agent → issues → fix agent → fixes.yaml →
+re-test checklist → QA again.</p>
+<h3><code>sluglist/node</code> — the headless writer</h3>
+<ul>
+<li>New subpath export for Node ≥ 18 (no DOM, no browser code; the bundle&#39;s only imports are
+<code>node:fs/promises</code> and <code>node:path</code>): <code>createSession</code> → <code>reportIssue</code> (PNG buffers, attachments,
+form, category, checklist links) / <code>setVerdict</code> (put-per-verdict) / <code>reportFix</code>. Same builders,
+same delivery retries, same format as the widget. Zero-config: one connector is a working session.</li>
+<li>Node-side <code>LocalConnector({ dir })</code> writes artifacts straight to disk (no sidecar needed in a Node
+process), with the sidecar&#39;s traversal defenses.</li>
+<li><code>createSession({ sessionId })</code> adopts an existing session folder for fix passes (fix-only by
+design: connectors are put-only).</li>
+<li>Documented simplification: no offline outbox in Node — the delivery report is returned instead.</li>
+</ul>
+<h3>Format 1.5 (additive)</h3>
+<ul>
+<li><code>reporter.kind</code>: <code>&quot;human&quot; | &quot;agent&quot;</code> in <code>reporter</code>/<code>fixed_by</code> blocks; absent ⇒ human.</li>
+<li><code>fixes.yaml</code>: per-session machine-readable resolution records
+(<code>fixed | wontfix | needs_info</code>, commit, note, checklist_item, ts), upserted by issue id. Absence
+is valid — the session just has not been through a fix pass.</li>
+<li><code>retest_of</code> on the checklist input: provenance of a re-test checklist (<code>&lt;orig&gt;-retest-N</code>).</li>
+</ul>
+<h3>Skills</h3>
+<ul>
+<li><strong>New <code>sluglist-qa</code></strong>: a browser-driving QA agent walks the checklist through the writer. Protocol
+rule: no <code>fail</code> without a screenshot-backed issue, no <code>pass</code> without performing the check, unclear
+item ⇒ not-tested with a reason — never a guess. QA never writes to the repo.</li>
+<li><strong><code>sluglist-fix</code></strong>: now records every resolution in <code>fixes.yaml</code> (writer API or direct file);
+<code>needs_info</code> over guessed fixes; <code>.done</code> stays for humans, fixes.yaml is the status truth.</li>
+<li><strong><code>sluglist-checklist</code></strong>: new re-test mode — a checklist from a fixed session&#39;s <code>fixes.yaml</code>
+(<code>status: fixed</code> only, &quot;Previously: … Verify: …&quot; phrasing, url/hint inherited, wontfix/needs_info
+surfaced separately).</li>
+</ul>
+<p>The full evidence for the end-to-end cycle (two planted bugs → fail with screenshots → real fix
+commits → green re-test) is in <code>RUN_EVIDENCE.md</code> and <code>evidence/agent-loop/</code>.</p>
 <h2>1.11.0 — Capture resilience, mobile graceful mode, form fields, attachments, i18n</h2>
 <p>Everything here is additive. The <code>FeedbackConnector</code> contract is unchanged, and a widget configured
 the way it was before this release behaves exactly as it did. Every new feature is optional: none of
@@ -404,7 +442,7 @@ extension content script).</li>
 5:X
 a:X
 a:C
-0:{"buildId":"AP5gZXRNzVD2Yhe9A8NPM","data":[{"rsc":["$","$1","c",{"children":[["$","div",null,{"className":"mx-auto max-w-3xl px-6 py-16 md:py-20","children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"WebPage\",\"name\":\"sluglist changelog\",\"url\":\"https://sluglist.dev/changelog/\",\"isPartOf\":{\"@id\":\"https://sluglist.dev/#website\"},\"about\":{\"@id\":\"https://sluglist.dev/#software\"}}"}}],["$","article",null,{"className":"prose prose-site max-w-none","dangerouslySetInnerHTML":{"__html":"$2"}}]]}],null,"$L3"]}],"isPartial":"$@4","staleTime":"$5","varyParams":null},{"rsc":"$L6","isPartial":"$@7","staleTime":"$5","varyParams":null},{"rsc":"$L8","isPartial":"$@9","staleTime":"$5","varyParams":"$a"}],"isUpgradeableISRFallback":false,"a":"$@b","rootVaryParams":null,"needsRuntimeRequest":"$@c"}
+0:{"buildId":"eXW98bsQ8wrtVrefahAHG","data":[{"rsc":["$","$1","c",{"children":[["$","div",null,{"className":"mx-auto max-w-3xl px-6 py-16 md:py-20","children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"WebPage\",\"name\":\"sluglist changelog\",\"url\":\"https://sluglist.dev/changelog/\",\"isPartOf\":{\"@id\":\"https://sluglist.dev/#website\"},\"about\":{\"@id\":\"https://sluglist.dev/#software\"}}"}}],["$","article",null,{"className":"prose prose-site max-w-none","dangerouslySetInnerHTML":{"__html":"$2"}}]]}],null,"$L3"]}],"isPartial":"$@4","staleTime":"$5","varyParams":null},{"rsc":"$L6","isPartial":"$@7","staleTime":"$5","varyParams":null},{"rsc":"$L8","isPartial":"$@9","staleTime":"$5","varyParams":"$a"}],"isUpgradeableISRFallback":false,"a":"$@b","rootVaryParams":null,"needsRuntimeRequest":"$@c"}
 d:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"OutletBoundary"]
 e:"$Sreact.suspense"
 10:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"ViewportBoundary"]
