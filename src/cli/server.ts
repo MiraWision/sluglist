@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { createServer, type Server } from "node:http";
 import { dirname, join, resolve, sep } from "node:path";
+import { ATTACHMENT_MIME_TYPES } from "../attachments";
 
 /**
  * The `sluglist dev` HTTP sidecar. Browser JS can't write to disk, so the
@@ -18,11 +19,22 @@ export interface DevServerOptions {
 }
 
 const SESSION_ID = /^session-[a-z0-9-]{1,64}$/i;
-// A filename, optionally inside a single subfolder (for record-mode frames,
-// e.g. "01-slug-frames/02.png"). No "..", no absolute, no deep nesting.
+// A filename, optionally nested: record-mode frames live two levels deep
+// ("01-slug-frames/clip-01/01.png", format 1.2); pre-clip artifacts one
+// ("01-slug-frames/02.png"). No "..", no absolute, nothing deeper than two.
 const SEGMENT = "[A-Za-z0-9][A-Za-z0-9._-]{0,120}";
-const FILE_PATH = new RegExp(`^${SEGMENT}(?:/${SEGMENT})?$`);
-const ALLOWED_MIME = new Set(["text/yaml", "text/markdown", "image/png"]);
+const FILE_PATH = new RegExp(`^${SEGMENT}(?:/${SEGMENT}){0,2}$`);
+// The three mimes the core writes itself, plus everything the attachment
+// whitelist can produce (format 1.4 reporter attachments arrive through the
+// same /put path). Sourced from the whitelist so the lists cannot drift; a
+// custom `accept` config wider than the built-in whitelist is not honored
+// here — the sidecar is a security boundary, not a mirror of widget config.
+const ALLOWED_MIME = new Set([
+  "text/yaml",
+  "text/markdown",
+  "image/png",
+  ...ATTACHMENT_MIME_TYPES,
+]);
 const MAX_BASE64 = 25 * 1024 * 1024;
 
 /** Origins we reflect for CORS: any localhost / 127.0.0.1 / [::1] port. */

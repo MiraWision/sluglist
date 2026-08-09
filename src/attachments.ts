@@ -50,6 +50,15 @@ const WHITELIST: Record<string, string[]> = {
 };
 
 /**
+ * Every mime the built-in whitelist may produce, flattened. The `sluglist dev`
+ * sidecar accepts exactly these for attachment files (plus the three artifact
+ * mimes the core writes itself) — kept here so the two lists cannot drift.
+ */
+export const ATTACHMENT_MIME_TYPES: ReadonlySet<string> = new Set(
+  Object.values(WHITELIST).flat()
+);
+
+/**
  * Never accepted, whatever `accept` says. Archives (their contents are opaque
  * to every check downstream) and anything executable or script-like.
  */

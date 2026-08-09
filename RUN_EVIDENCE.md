@@ -34,9 +34,10 @@ External artifacts:
 | Skills | generator + fix existed; QA **MISSING** (added); fixes.yaml **MISSING** (added) | |
 | SPEC | Was at **1.4**, not 1.1 as the task brief assumed — the additive bump is therefore **1.4 → 1.5** (same plan, different number). | |
 
-Found in passing, deliberately not touched (out of scope, flagged as follow-ups): the `sluglist dev`
-sidecar's path filter rejects two-level clip frame paths, and its mime whitelist rejects attachment
-uploads.
+Found in passing and **fixed on this branch** (follow-up commit): the `sluglist dev` sidecar's path
+filter rejected two-level clip frame paths (format 1.2 recordings), and its mime whitelist rejected
+attachment uploads (format 1.4). Both now accepted — the mime list is sourced from the attachment
+whitelist itself so the two cannot drift; unknown mimes and >2-level paths still refused.
 
 ## Phase 1 — Headless writer `sluglist/node`
 
