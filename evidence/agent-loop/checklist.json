@@ -1,0 +1,53 @@
+{
+  "id": "reports-settings-2026-08",
+  "title": "Reports & settings release",
+  "description": "Walk each item and check it off. Flag anything that looks wrong.",
+  "sections": [
+    {
+      "title": "Dashboard",
+      "items": [
+        {
+          "id": "dashboard-greeting",
+          "title": "The dashboard greets you by name",
+          "url": "/"
+        }
+      ]
+    },
+    {
+      "title": "Reports",
+      "items": [
+        {
+          "id": "reports-table",
+          "title": "The Reports page lists three reports with row counts",
+          "url": "/reports"
+        },
+        {
+          "id": "export-button-visible",
+          "title": "On Reports, the Export CSV button is visible next to Print",
+          "url": "/reports"
+        },
+        {
+          "id": "export-downloads-csv",
+          "title": "Clicking Export CSV downloads a CSV file",
+          "url": "/reports",
+          "hint": "Click Export CSV — a file should download"
+        }
+      ]
+    },
+    {
+      "title": "Settings",
+      "items": [
+        {
+          "id": "settings-save-confirms",
+          "title": "Saving settings shows a Settings saved confirmation",
+          "url": "/settings",
+          "hint": "Click Save"
+        },
+        {
+          "id": "ledger-reconciles",
+          "title": "The quarterly sync reconciles with the upstream ledger"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "sessionId": "session-2026-08-09-8o01",
+  "pass": [
+    "export-button-visible",
+    "settings-save-confirms"
+  ],
+  "fail": [],
+  "notTested": []
+}

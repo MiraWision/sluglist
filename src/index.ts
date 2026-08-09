@@ -1,8 +1,10 @@
 export {
   attachmentFile,
+  buildFixesYaml,
   buildIssueMarkdown,
   buildSessionYaml,
   FORMAT_VERSION,
+  fixesYamlFile,
 } from "./artifacts";
 export { DownloadConnector } from "./connectors/download";
 export { LocalConnector } from "./connectors/local";
@@ -148,6 +150,9 @@ export type {
   FeedbackRecordingConfig,
   FeedbackWidgetConfig,
   FeedbackWidgetPreset,
+  FixesState,
+  FixRecord,
+  FixStatus,
   FormField,
   IssueIndexEntry,
   ReporterMeta,

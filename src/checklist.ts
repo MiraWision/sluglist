@@ -43,6 +43,13 @@ export interface Checklist {
   title: string;
   /** Optional 1–2 sentence instruction shown in the panel header. */
   description?: string;
+  /**
+   * Provenance (additive): the id of the checklist this one re-tests. Set by
+   * the generator's re-test mode (the derived id is `<orig>-retest-N`); absent
+   * on a first-pass checklist. Carried through validation for readers; the
+   * widget itself ignores it.
+   */
+  retest_of?: string;
   sections: ChecklistSection[];
 }
 
@@ -69,6 +76,8 @@ export interface ChecklistDef {
   title: string;
   /** Optional 1–2 sentence instruction shown in the panel header. */
   description?: string;
+  /** Provenance: id of the checklist this one re-tests (see {@link Checklist}). */
+  retest_of?: string;
   sections: ChecklistDefSection[];
 }
 
@@ -262,7 +271,22 @@ export function normalizeChecklist(raw: unknown): ChecklistDef | null {
     warn("no valid items — checklist ignored");
     return null;
   }
-  return { id, title, ...(description ? { description } : {}), sections };
+  // Additive provenance: preserved when it is a valid id, so re-test readers
+  // can trace the chain; the widget itself never acts on it.
+  const retestOf =
+    typeof raw.retest_of === "string" &&
+    raw.retest_of.trim() &&
+    ID_PATTERN.test(raw.retest_of.trim()) &&
+    raw.retest_of.trim().length <= MAX_ID
+      ? raw.retest_of.trim()
+      : undefined;
+  return {
+    id,
+    title,
+    ...(description ? { description } : {}),
+    ...(retestOf ? { retest_of: retestOf } : {}),
+    sections,
+  };
 }
 
 /** Flatten a definition's items in order. */

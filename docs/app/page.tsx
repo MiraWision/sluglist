@@ -86,6 +86,19 @@ const AGENT_STEPS: { n: string; title: string; body: React.ReactNode }[] = [
       </>
     ),
   },
+  {
+    n: "⟳",
+    title: "Or close the loop agent-to-agent",
+    body: (
+      <>
+        The tester can be an agent too: a QA agent with a browser walks the
+        checklist through the headless writer (<Mono>sluglist/node</Mono>) — no
+        fail without a screenshot — a fix agent answers with{" "}
+        <Mono>fixes.yaml</Mono>, and a re-test checklist closes the loop. See
+        the README&rsquo;s <em>For agents</em> section.
+      </>
+    ),
+  },
 ];
 
 const QUICK_START = `import {

@@ -161,6 +161,23 @@ describe("normalizeChecklist", () => {
     expect(blank?.description).toBeUndefined();
   });
 
+  it("preserves retest_of provenance and drops an invalid one", () => {
+    const def = normalizeChecklist({
+      id: "release-1-retest-1",
+      title: "Re-test",
+      retest_of: "release-1",
+      sections: [{ title: "S", items: [{ id: "i", title: "T" }] }],
+    });
+    expect(def?.retest_of).toBe("release-1");
+    const bad = normalizeChecklist({
+      id: "c",
+      title: "C",
+      retest_of: "not a valid id!",
+      sections: [{ title: "S", items: [{ id: "i", title: "T" }] }],
+    });
+    expect(bad?.retest_of).toBeUndefined();
+  });
+
   it("keeps a wildcard url_match and drops a non-wildcard one with a warning", () => {
     const warn = vi.spyOn(console, "warn");
     const def = normalizeChecklist({

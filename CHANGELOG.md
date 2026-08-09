@@ -1,5 +1,46 @@
 # Changelog
 
+## 1.12.0 — Agent-to-agent loop: headless writer, QA skill, fixes.yaml, re-test
+
+Everything here is additive. The `FeedbackConnector` contract is unchanged, and the widget — its UI
+and its artifacts — is untouched (byte-for-byte, minus the format-version line). sluglist becomes a
+protocol between agents: dev agent → checklist → QA agent → issues → fix agent → fixes.yaml →
+re-test checklist → QA again.
+
+### `sluglist/node` — the headless writer
+
+- New subpath export for Node ≥ 18 (no DOM, no browser code; the bundle's only imports are
+  `node:fs/promises` and `node:path`): `createSession` → `reportIssue` (PNG buffers, attachments,
+  form, category, checklist links) / `setVerdict` (put-per-verdict) / `reportFix`. Same builders,
+  same delivery retries, same format as the widget. Zero-config: one connector is a working session.
+- Node-side `LocalConnector({ dir })` writes artifacts straight to disk (no sidecar needed in a Node
+  process), with the sidecar's traversal defenses.
+- `createSession({ sessionId })` adopts an existing session folder for fix passes (fix-only by
+  design: connectors are put-only).
+- Documented simplification: no offline outbox in Node — the delivery report is returned instead.
+
+### Format 1.5 (additive)
+
+- `reporter.kind`: `"human" | "agent"` in `reporter`/`fixed_by` blocks; absent ⇒ human.
+- `fixes.yaml`: per-session machine-readable resolution records
+  (`fixed | wontfix | needs_info`, commit, note, checklist_item, ts), upserted by issue id. Absence
+  is valid — the session just has not been through a fix pass.
+- `retest_of` on the checklist input: provenance of a re-test checklist (`<orig>-retest-N`).
+
+### Skills
+
+- **New `sluglist-qa`**: a browser-driving QA agent walks the checklist through the writer. Protocol
+  rule: no `fail` without a screenshot-backed issue, no `pass` without performing the check, unclear
+  item ⇒ not-tested with a reason — never a guess. QA never writes to the repo.
+- **`sluglist-fix`**: now records every resolution in `fixes.yaml` (writer API or direct file);
+  `needs_info` over guessed fixes; `.done` stays for humans, fixes.yaml is the status truth.
+- **`sluglist-checklist`**: new re-test mode — a checklist from a fixed session's `fixes.yaml`
+  (`status: fixed` only, "Previously: … Verify: …" phrasing, url/hint inherited, wontfix/needs_info
+  surfaced separately).
+
+The full evidence for the end-to-end cycle (two planted bugs → fail with screenshots → real fix
+commits → green re-test) is in `RUN_EVIDENCE.md` and `evidence/agent-loop/`.
+
 ## 1.11.0 — Capture resilience, mobile graceful mode, form fields, attachments, i18n
 
 Everything here is additive. The `FeedbackConnector` contract is unchanged, and a widget configured

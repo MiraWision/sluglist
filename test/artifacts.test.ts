@@ -46,7 +46,7 @@ describe("buildSessionYaml", () => {
   it("produces valid YAML that round-trips to the same data", () => {
     const parsed = parse(buildSessionYaml(state));
     expect(parsed).toEqual({
-      format_version: "1.4",
+      format_version: "1.5",
       project: "trugenix",
       session_id: "session-2026-07-20-a1b2",
       created_at: "2026-07-20T14:03:22Z",
@@ -515,8 +515,8 @@ describe("buildIssueMarkdown", () => {
 describe("format version + agent-context fields", () => {
   it("writes format_version as the first line of session.yaml", () => {
     const yaml = buildSessionYaml(state);
-    expect(yaml.startsWith('format_version: "1.4"\n')).toBe(true);
-    expect(parse(yaml).format_version).toBe("1.4");
+    expect(yaml.startsWith('format_version: "1.5"\n')).toBe(true);
+    expect(parse(yaml).format_version).toBe("1.5");
   });
 
   it("emits component (element mode) and a context block additively", () => {
@@ -604,7 +604,7 @@ describe("format version + agent-context fields", () => {
       },
     });
     const parsed = parse(yaml);
-    expect(parsed.format_version).toBe("1.4");
+    expect(parsed.format_version).toBe("1.5");
     expect(parsed.checklist.id).toBe("feature-export-2026-07");
     expect(parsed.checklist.title).toBe("Export + notifications release");
     expect(parsed.checklist.items).toEqual([

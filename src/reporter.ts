@@ -36,6 +36,11 @@ export function normalizeIdentity(
   if (typeof identity.name === "string" && identity.name.trim()) {
     reporter.name = clip(identity.name.trim());
   }
+  // Additive (format 1.5): only the two known values pass; anything else is
+  // dropped so artifacts never carry an invented kind.
+  if (identity.kind === "human" || identity.kind === "agent") {
+    reporter.kind = identity.kind;
+  }
   return Object.keys(reporter).length > 0 ? reporter : null;
 }
 

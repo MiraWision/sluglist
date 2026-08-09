@@ -673,6 +673,82 @@ await widget.captureIssue({
 });
 ```
 
+Outside the browser, the same artifact semantics are available headlessly — see
+[For agents](#for-agents) below.
+
+## For agents
+
+sluglist is also a protocol **between agents**: a dev agent generates the checklist, a QA agent with a
+controlled browser walks it, a fix agent resolves what failed, and a re-test checklist closes the loop
+— every hand-off is a sluglist artifact, so each role has evidence rather than another agent's word.
+
+```
+dev agent ──sluglist-checklist──▶ checklist.json
+                                       │
+QA agent (browser) ──sluglist-qa──▶ session/: session.yaml (verdicts) + NN-issue.md + NN-issue.png
+                                       │
+fix agent ──sluglist-fix──▶ code commits + fixes.yaml (fixed | wontfix | needs_info)
+                                       │
+generator re-test mode ──▶ checklist.retest.json (only the fixed items, retest_of provenance)
+                                       │
+QA agent again ──▶ green session (or honest fails — also a valid outcome)
+```
+
+The three skills ship in the package: [`skills/sluglist-checklist`](skills/sluglist-checklist/SKILL.md)
+(generate + re-test mode), [`skills/sluglist-qa`](skills/sluglist-qa/SKILL.md) (browser QA; no fail
+without a screenshot, no pass without performing the check), and
+[`skills/sluglist-fix`](skills/sluglist-fix/SKILL.md) (fix + `fixes.yaml`).
+
+### Headless writer — `sluglist/node`
+
+A Node-only subpath (no DOM, no browser code) with the widget's exact artifact semantics:
+put-per-issue, put-per-verdict, the same `format_version`. Zero-config — one connector is a working
+session:
+
+```ts
+import { createSession, LocalConnector } from "sluglist/node";
+
+const session = await createSession({
+  connectors: [new LocalConnector({ dir: ".sluglist" })], // writes straight to disk
+  project: "my-app",
+  baseUrl: "http://localhost:5173",
+  checklist: "public/checklist.json",       // inline object, file path, or URL
+  reporter: { name: "qa-agent", kind: "agent" },
+});
+```
+
+File an issue with the agent's own browser screenshot:
+
+```ts
+const issue = await session.reportIssue({
+  comment: "Expected: Export button on Reports. Observed: toolbar has only Print.",
+  screenshot: pngBuffer,                    // Buffer | Uint8Array | Blob
+  category: "bug",
+  checklistItem: "export-button-visible",
+  meta: { url: "/reports", viewport: "1280x800" },
+});
+```
+
+Record verdicts, and (as the fix agent) resolution records:
+
+```ts
+await session.setVerdict("export-button-visible", "fail", { issue: issue.id });
+await session.setVerdict("export-downloads-xlsx", "pass");
+
+// fix agent, attached to the existing QA session folder:
+const fixer = await createSession({
+  connectors: [new LocalConnector({ dir: ".sluglist" })],
+  sessionId: issue.sessionId,
+  reporter: { name: "fix-agent", kind: "agent" },
+});
+await fixer.reportFix({ issue: issue.id, status: "fixed", commit: "a1b2c3d", note: "Null check added" });
+```
+
+Notes: `reporter.kind` is the only artifact difference from widget output (SPEC 1.5, additive).
+Delivery uses the same per-connector retry rules; the one deliberate simplification vs the browser is
+**no offline outbox** — a Node process inspects the returned report and retries itself. Every browser
+connector that only uses `fetch` (e.g. an HTTP endpoint connector) works in Node 18+ unchanged.
+
 ## Artifact format (contract)
 
 Delivered per session under `{project}/session-{YYYY-MM-DD}-{shortid}/`:
@@ -691,7 +767,7 @@ per-issue metadata in frontmatter followed by the free-text comment. The structu
 are a stable contract intended as input for downstream parsers; **it only changes additively**.
 
 The full field dictionary, section rules and versioning policy live in **[SPEC.md](SPEC.md)** — safe
-to build parsers against. `session.yaml` starts with `format_version: "1.4"`; a missing version means
+to build parsers against. `session.yaml` starts with `format_version: "1.5"`; a missing version means
 `"1.0"`. Within a major version, new fields are only ever added, never removed or repurposed.
 
 ## Metadata collected

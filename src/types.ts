@@ -27,6 +27,12 @@ export interface FeedbackConnector {
 /** Who is reporting. Optional; fixed at init, recorded once per session. */
 export interface FeedbackIdentity {
   email?: string;
+  /**
+   * Whether the reporter is a person or an automated agent (format 1.5,
+   * additive). Written as `reporter.kind`; omitted when not stated, which
+   * readers treat as "human" (every pre-1.5 artifact was human-reported).
+   */
+  kind?: "human" | "agent";
   name?: string;
   userId?: string;
 }
@@ -213,8 +219,35 @@ export interface AttachmentMeta {
  */
 export interface ReporterMeta {
   email?: string;
+  /** "human" | "agent" (format 1.5, additive). Absent ⇒ human. */
+  kind?: string;
   name?: string;
   user_id?: string;
+}
+
+/** Resolution of one reported issue, as recorded in `fixes.yaml` (format 1.5). */
+export type FixStatus = "fixed" | "wontfix" | "needs_info";
+
+/** One `items[]` entry of `fixes.yaml`. Upserted by issue id. */
+export interface FixRecord {
+  /** Issue id the record resolves, e.g. "01". */
+  issue: string;
+  status: FixStatus;
+  /** Commit hash of the fix, when one exists. */
+  commit?: string;
+  /** One-line human note ("Null check added in ExportButton"). */
+  note?: string;
+  /** Checklist item the fixed issue was evidence for, when it was linked. */
+  checklist_item?: string;
+  /** ISO timestamp the record was written. */
+  ts: string;
+}
+
+/** The `fixes.yaml` document: who fixed, plus one record per handled issue. */
+export interface FixesState {
+  /** Identity of the fixer; same shape and rules as `reporter`. */
+  fixed_by?: ReporterMeta | null;
+  items: FixRecord[];
 }
 
 export interface FeedbackWidgetConfig {

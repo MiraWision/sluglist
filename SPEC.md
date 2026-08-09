@@ -1,4 +1,4 @@
-# sluglist artifact format — v1.4
+# sluglist artifact format — v1.5
 
 This is the on-disk contract sluglist produces for each feedback session. It is stable and safe to
 build parsers against: **within a major version the format only ever changes additively** (new optional
@@ -9,7 +9,7 @@ Source of truth: `src/artifacts.ts` (`buildSessionYaml`, `buildIssueMarkdown`, `
 
 ## Versioning
 
-- `session.yaml` starts with `format_version: "1.4"` (a quoted string, always the first line).
+- `session.yaml` starts with `format_version: "1.5"` (a quoted string, always the first line).
 - **Missing `format_version` ⇒ treat as `"1.0"`** (artifacts written before versioning was added).
 - **1.1** added the additive `checklist:` block (acceptance checklist verdicts) and the
   `checklist_item` issue field; everything from 1.0 is unchanged.
@@ -24,6 +24,13 @@ Source of truth: `src/artifacts.ts` (`buildSessionYaml`, `buildIssueMarkdown`, `
   - `form` (session.yaml) — answers to `scope: "session"` reporter fields.
   - `form` (issue) — answers to `scope: "issue"` reporter fields.
   - `attachments` (issue) — files the reporter attached, stored next to the issue.
+- **1.5** added, all additive:
+  - `reporter.kind` (`"human"` | `"agent"`) in the session/issue `reporter` block and the `fixed_by`
+    block below. **Absent ⇒ human** (every pre-1.5 artifact was human-reported).
+  - the optional per-session **`fixes.yaml`** file — a fix agent's machine-readable resolution
+    records (full dictionary below). **A session without `fixes.yaml` is valid**: it has simply not
+    been through a fix pass.
+  - `retest_of` in the checklist *config* (input contract, below) — provenance of a re-test checklist.
 - The number is `MAJOR.MINOR`:
   - **MINOR** bumps for additive changes (a new optional field/section). Parsers must ignore unknown
     fields and keep working.
@@ -38,6 +45,7 @@ Delivered per session, one folder:
 ```
 {project}/session-{YYYY-MM-DD}-{shortid}/
   session.yaml                     # index, upserted on every issue
+  fixes.yaml                       # 1.5, optional: fix-agent resolution records (upserted per fix)
   01-{slug}.md                     # one issue: YAML frontmatter + body
   01-{slug}.png                    # the issue screenshot (absent when none)
   01-{slug}-2.png                  # extra screenshots (2..n), only if multiple
@@ -74,7 +82,7 @@ are zero-padded and monotonic within a session.
 | `timezone` | string | optional | 1.0 | IANA tz. |
 | `color_scheme` | string | optional | 1.0 | `light` \| `dark`. |
 | `reduced_motion` | boolean | optional | 1.0 | |
-| `reporter` | map \| null | optional | 1.0 | Present only when `identity` configured (`null` if empty). Keys: `user_id`, `email`, `name`. |
+| `reporter` | map \| null | optional | 1.0 | Present only when `identity` configured (`null` if empty). Keys: `user_id`, `email`, `name`, `kind` (1.5: `human` \| `agent`; absent ⇒ human). |
 | `form` | map | optional | 1.4 | Answers to `scope: "session"` reporter fields, asked once on the first issue. Snake_case keys → string/number/boolean. Never scrubbed. |
 | `checklist` | map | optional | 1.1 | Present only when a checklist is configured. See below. |
 | `issues` | list | yes | 1.0 | `[]` when empty; otherwise a list of the entries below. |
@@ -160,7 +168,7 @@ YAML frontmatter between `---` fences, then the reporter's comment, then optiona
 | `frames_dir` | string | optional | 1.0 | Record mode only. Parent dir; frames live under `<frames_dir>/<clip-id>/NN.png`. |
 | `clips` | list | optional | 1.2 | Record mode only. One entry per clip: `{ id, frames }`. See below. |
 | `created_at` | string (ISO 8601) | yes | 1.0 | |
-| `reporter` | map \| null | optional | 1.0 | Mirrors the session reporter; present only when `identity` configured. |
+| `reporter` | map \| null | optional | 1.0 | Mirrors the session reporter; present only when `identity` configured. `kind` key since 1.5. |
 | `custom` | map \| null | optional | 1.0 | Static project fields (`config.custom`). Present only when configured. |
 | `context` | map \| null | optional | 1.0 | Runtime host state (`setContext`). Present only once `setContext` has been called. |
 
@@ -218,6 +226,47 @@ timeline; frame numbering restarts at `01` per clip. A recording always has at l
 recording is one clip). An artifact with `recording: true`, `frames_count`/`frames_dir`, and **no** `clips`
 is a pre-1.2 recording with the flat `<frames_dir>/NN.png` layout.
 
+## `fixes.yaml` — fix-agent resolution records (1.5)
+
+Written into the session folder by a fix pass (the `sluglist-fix` skill via the `sluglist/node`
+writer, or any tool producing the same shape). **Optional**: a session without it is valid and simply
+has not been fixed yet. Upserted **by `issue` id** as fixing progresses — re-fixing an issue replaces
+its record; the file never accumulates duplicates.
+
+```yaml
+format_version: "1.5"
+fixed_by:
+  name: fix-agent
+  kind: agent
+items:
+  - issue: "01"
+    status: fixed
+    commit: a1b2c3d
+    note: Null check added in ExportButton
+    checklist_item: export-button-visible
+    ts: 2026-08-09T18:40:00Z
+```
+
+| Field | Type | Required | Since | Notes |
+|---|---|---|---|---|
+| `format_version` | string | yes | 1.5 | First line, same versioning as session.yaml. |
+| `fixed_by` | map \| null | optional | 1.5 | Fixer identity; same keys/rules as `reporter` (incl. `kind`). |
+| `items` | list | yes | 1.5 | `[]` when empty; one entry per handled issue. |
+
+Each `items[]` entry:
+
+| Field | Type | Required | Since | Notes |
+|---|---|---|---|---|
+| `issue` | string | yes | 1.5 | Issue id the record resolves, e.g. `"01"`. Unique within the file (upsert key). |
+| `status` | string | yes | 1.5 | `fixed` \| `wontfix` \| `needs_info`. |
+| `commit` | string | optional | 1.5 | Commit hash of the fix (expected for `fixed`). |
+| `note` | string | optional | 1.5 | One-line note: what was done / why not / what is missing. |
+| `checklist_item` | string | optional | 1.5 | The checklist item the issue was evidence for, when linked. |
+| `ts` | string (ISO 8601) | yes | 1.5 | When the record was written. |
+
+Reader rules: only `status: fixed` items enter a re-test checklist; `wontfix` and `needs_info` are
+surfaced to the owner instead. Unknown fields are ignored (additive growth, as everywhere).
+
 ## Checklist config (input — the shape the generator emits)
 
 Not an on-disk artifact, but the contract between the `sluglist-checklist` generator skill and the widget:
@@ -226,9 +275,11 @@ the generator and the reader agree on one source of truth.
 
 ```ts
 interface Checklist {
-  id: string;                    // kebab-case slug
+  id: string;                    // kebab-case slug; a re-test checklist uses "<orig>-retest-N"
   title: string;                 // document-style heading
   description?: string;          // 1–2 sentence instruction shown in the panel header (≤ 280 chars)
+  retest_of?: string;            // 1.5, additive: id of the checklist this one re-tests (provenance;
+                                 //   set by the generator's re-test mode, ignored by the widget)
   sections: { title: string; items: ChecklistItem[] }[];
 }
 interface ChecklistItem {

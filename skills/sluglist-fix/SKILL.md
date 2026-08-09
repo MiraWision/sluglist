@@ -26,8 +26,13 @@ locally, `sluglist dev` wrote it into `.sluglist/`, and now you read those issue
     01-<slug>-att-01.png  # files the REPORTER attached (any allowed type), if any
     02-<slug>.md
     ...
+    fixes.yaml            # YOU write this (format 1.5): machine-readable resolution per issue
     .done                 # YOU create this when the session is handled (its presence = handled)
 ```
+
+A session without `fixes.yaml` is valid — it simply has not been through a fix pass yet (every
+pre-1.5 session looks like that). If one already exists, read it first: issues already `fixed` or
+`wontfix` are handled; upsert into it rather than starting over.
 
 Issue frontmatter fields you rely on: `url` (route/page), `selector` + `selector_strategy`,
 `element_text` (the visible text of the clicked element), `component` (nearest named React component,
@@ -159,10 +164,38 @@ the gaps.
       pointer when present), `selector` (map to the markup), `element_text` (grep for the visible
       string), and `url` (map to the route/page/file). The `screen` field narrows the area.
    d. **Fix** the smallest change that resolves the report.
-4. **Report.** After handling a session, write `.sluglist/{session}/.done` — a short markdown report:
+4. **Record each resolution in `fixes.yaml`** (format 1.5) — the machine-readable status that the
+   re-test generator and other agents read. Write it as you finish each issue, not in one batch at the
+   end. Two equivalent ways:
+   - **Writer API** (preferred — same upsert semantics everywhere):
+     ```ts
+     import { createSession, LocalConnector } from "sluglist/node";
+     const session = await createSession({
+       connectors: [new LocalConnector({ dir: ".sluglist" })],
+       sessionId: "<the session folder you are fixing>",   // adopt, don't create
+       reporter: { name: "fix-agent", kind: "agent" },
+     });
+     await session.reportFix({
+       issue: "01",
+       status: "fixed",                  // fixed | wontfix | needs_info
+       commit: "<real commit hash>",     // after you commit the fix
+       note: "Null check added in ExportButton",
+       checklistItem: "export-button-visible",  // when the issue carried checklist_item
+     });
+     ```
+   - **Direct file write** (fine with a LocalConnector layout): upsert
+     `.sluglist/{session}/fixes.yaml` yourself in the same shape (see SPEC.md § fixes.yaml). Upsert
+     by `issue` id — re-fixing an issue replaces its record, never duplicates it.
+
+   Status meanings: `fixed` — the change is made and committed (`commit` should be the real hash);
+   `wontfix` — deliberate decision not to change, `note` says why; `needs_info` — the issue cannot be
+   reproduced or is missing what you need, `note` says exactly what is missing. **Never guess a fix to
+   avoid `needs_info`** — a wrong "fixed" poisons the re-test cycle.
+5. **Report.** After handling a session, write `.sluglist/{session}/.done` — a short markdown report:
    per issue, `issue → file(s) touched → what you did` (or `needs clarification → why`). If the session
    had a `checklist:` block, add which checklist item each fix closed, and a **"Not verified by client"**
-   list of the `verdict: null` items (a signal to the owner, not work you did).
+   list of the `verdict: null` items (a signal to the owner, not work you did). The free-text report
+   stays for humans, but **`fixes.yaml` is the status truth** — the two must agree.
 
 ## Rules
 

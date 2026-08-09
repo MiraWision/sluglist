@@ -5,6 +5,7 @@ import type {
   ArtifactFile,
   AttachmentMeta,
   CaptureMode,
+  FixesState,
   IssueIndexEntry,
   ReporterMeta,
   SessionState,
@@ -62,8 +63,11 @@ function yamlBlock(
  *       form fields, `scope: "issue"`) and `attachments` (files the reporter
  *       attached), plus the additive `form` block in session.yaml
  *       (`scope: "session"` answers).
+ * 1.5 — additive `reporter.kind` ("human" | "agent"; absent ⇒ human) and the
+ *       optional per-session `fixes.yaml` file (fix-agent resolution records;
+ *       absent for every session that predates it or was never fixed).
  */
-export const FORMAT_VERSION = "1.4";
+export const FORMAT_VERSION = "1.5";
 
 /**
  * The `checklist:` block: definition identity + one entry per item with its
@@ -419,6 +423,50 @@ export function buildIssueMarkdown(input: IssueMarkdownInput): string {
   }
 
   return `---\n${frontmatter}\n---\n\n${body}\n`;
+}
+
+/**
+ * Build `fixes.yaml` (format 1.5): the machine-readable resolution record a
+ * fix agent writes next to session.yaml. One entry per handled issue, upserted
+ * by issue id as fixing progresses. A session without the file is valid — it
+ * just has not been through a fix pass.
+ */
+export function buildFixesYaml(state: FixesState): string {
+  let head = yamlLine("format_version", FORMAT_VERSION);
+  if (state.fixed_by !== undefined) {
+    head += `\n${yamlBlock("fixed_by", state.fixed_by)}`;
+  }
+  if (state.items.length === 0) {
+    return `${head}\nitems: []\n`;
+  }
+  const items = yamlListOfMaps(
+    state.items.map((item) => {
+      const entries: [string, YamlValue][] = [
+        ["issue", item.issue],
+        ["status", item.status],
+      ];
+      if (item.commit !== undefined) {
+        entries.push(["commit", item.commit]);
+      }
+      if (item.note !== undefined) {
+        entries.push(["note", item.note]);
+      }
+      if (item.checklist_item !== undefined) {
+        entries.push(["checklist_item", item.checklist_item]);
+      }
+      entries.push(["ts", item.ts]);
+      return entries;
+    })
+  );
+  return `${head}\nitems:\n${items}\n`;
+}
+
+export function fixesYamlFile(state: FixesState): ArtifactFile {
+  return {
+    path: "fixes.yaml",
+    blob: new Blob([buildFixesYaml(state)], { type: "text/yaml" }),
+    mime: "text/yaml",
+  };
 }
 
 export function sessionYamlFile(state: SessionState): ArtifactFile {

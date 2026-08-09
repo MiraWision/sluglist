@@ -1,6 +1,6 @@
 ---
 name: sluglist-checklist
-description: Generate a client-facing acceptance checklist from the current branch's diff, for the sluglist widget's checklist mode. Use when the user says "generate a checklist", "make an acceptance checklist", "checklist from this branch", or "sluglist checklist".
+description: Generate a client-facing acceptance checklist from the current branch's diff (for the sluglist widget or a QA agent), or a re-test checklist from a fixed session's fixes.yaml. Use when the user says "generate a checklist", "make an acceptance checklist", "checklist from this branch", "re-test checklist", or "sluglist checklist".
 ---
 
 # sluglist-checklist
@@ -135,6 +135,43 @@ Non-wildcard `url_match` values (a plain static path) are dropped by the widget 
 - **Group by feature, keep it short.** Prefer a few meaningful items over one-per-file exhaustiveness.
 - **Additive only.** You produce the checklist JSON; you don't touch the widget config or app code
   unless the user asks you to wire `checklist: "/checklist.json"` into their `createFeedbackWidget`.
+
+## Re-test mode — a checklist from a fixed session
+
+When the user says "re-test checklist" / "generate the re-test" (or points you at a session folder
+after a fix pass), you are not reading a diff — you are reading a **session folder** that has been
+through the QA → fix cycle:
+
+- `session.yaml` — the original checklist block with verdicts and issue links;
+- `NN-*.md` — the filed issues;
+- `fixes.yaml` — the fix agent's resolution records (`fixed` | `wontfix` | `needs_info` per issue).
+
+**Input**: the session folder path. If it has no `fixes.yaml`, stop and say so — there is nothing to
+re-test until a fix pass has run.
+
+**Algorithm**:
+
+1. Read `fixes.yaml`. Take only records with `status: fixed`.
+2. For each fixed record, find its checklist item: the record's `checklist_item`, or the
+   `checklist.items[]` entry whose `issue` matches. A fixed issue with no checklist link still gets a
+   re-test item — derive it from the issue file's comment (what was reported is what to re-check).
+3. Emit a new checklist containing **only** those items, with provenance:
+   - checklist `id`: `<original-id>-retest-1` (bump the suffix if that id was already used);
+   - checklist `retest_of`: the original checklist id;
+   - item `id`: keep the original item id (verdicts must map back);
+   - item `title`: a *verification of the fix*, structured as "Previously: <what was broken>.
+     Verify: <what must now be true>" — e.g. "Previously: Export button missing on Reports.
+     Verify: the button is visible and downloads a file". Client voice still applies.
+   - `url` / `url_match` / `hint`: inherited from the original item (or derived from the issue's
+     `url` when the item was unlinked).
+4. `wontfix` and `needs_info` records are **excluded** from the re-test checklist. List them in your
+   summary under two separate headings — "Won't fix (by decision)" and "Needs info (blocked)" — so the
+   owner sees exactly what dropped out of the loop and why.
+5. Write the file (default `checklist.retest.json` next to the original, or a path the user names) and
+   summarize: N items to re-test, the two excluded lists, the file path.
+
+The re-test checklist is a perfectly normal `Checklist` — the widget and the `sluglist-qa` skill
+consume it without any special handling; `retest_of` is provenance for readers, nothing more.
 
 ## After generation
 
