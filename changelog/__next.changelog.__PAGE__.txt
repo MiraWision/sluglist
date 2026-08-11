@@ -1,5 +1,36 @@
 1:"$Sreact.fragment"
-2:T9491,<h1>Changelog</h1>
+2:T9ea3,<h1>Changelog</h1>
+<h2>1.14.0 — <code>sluglist init-skills</code>, per-page social metadata</h2>
+<p>A polish release: one new CLI command and a set of site/docs consistency fixes. No library code and
+no artifact-format change — the widget, the writer and the format are untouched.</p>
+<h3><code>sluglist init-skills</code></h3>
+<ul>
+<li>New command replacing the documented
+<code>mkdir -p .claude/skills &amp;&amp; cp -r node_modules/sluglist/skills/… .claude/skills/</code> line: it copies
+every bundled skill into <code>.claude/skills/</code>, creating the folder if needed.</li>
+<li>Zero-config; <code>--dir &lt;path&gt;</code> retargets and <code>--force</code> overrides.</li>
+<li><strong>A skill you have edited is never overwritten.</strong> Skills are prompts and editing them to fit a
+project is expected, so a file identical to the bundled copy is refreshed silently, and anything
+that differs is reported and kept. A partially-edited skill is left entirely alone rather than
+half-updated. Note that a package upgrade produces the same &quot;differs&quot; state, so the message names
+both causes and <code>--force</code> is how you take new versions after upgrading.</li>
+<li>Docs now show the command, with the manual <code>cp</code> kept as a collapsed fallback for unusual layouts.</li>
+</ul>
+<h3>Site and docs</h3>
+<ul>
+<li><strong>Per-page social metadata.</strong> Internal pages set <code>title</code> and <code>description</code> but inherited the home
+page&#39;s <code>og:title</code>/<code>og:url</code>, so sharing a doc in Slack or X showed the home page&#39;s headline. Every
+page (docs, <code>/for/*</code>, <code>/compare/*</code>, docs index, changelog) now emits its own <code>og:title</code>,
+<code>og:url</code>, <code>og:description</code> and <code>twitter:*</code>, matching its canonical URL and its <code>&lt;title&gt;</code>. The
+shared <code>og:image</code> is unchanged.</li>
+<li><strong>One canonical dev-loop snippet.</strong> Quick-start showed <code>LocalConnector</code> bare while the agents page
+showed it behind <code>enabled: process.env.NODE_ENV !== &quot;production&quot;</code>. All five places (README ×2,
+quick start, agents, <code>/for/claude-code/</code>) now show the clean one-liner followed by the same
+reminder to gate it behind an env flag.</li>
+<li><strong>Privacy footnote</strong> under the artifact example on the landing page: <code>reporter</code> comes from the
+<code>identity</code> you configure, so it is not a scrubbing miss — scrubbing applies to text the widget
+captures, not to fields you set on purpose.</li>
+</ul>
 <h2>1.13.0 — Verdict evidence, checklist intents, <code>sluglist report</code></h2>
 <p>Everything here is additive. The <code>FeedbackConnector</code> contract is unchanged and the widget — its UI
 and its artifacts — is untouched. A session that records no evidence and no intent is byte-identical
@@ -506,7 +537,7 @@ extension content script).</li>
 5:X
 a:X
 a:C
-0:{"buildId":"eGwNAnv7UIhuiUGdGbLF7","data":[{"rsc":["$","$1","c",{"children":[["$","div",null,{"className":"mx-auto max-w-3xl px-6 py-16 md:py-20","children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"WebPage\",\"name\":\"sluglist changelog\",\"url\":\"https://sluglist.dev/changelog/\",\"isPartOf\":{\"@id\":\"https://sluglist.dev/#website\"},\"about\":{\"@id\":\"https://sluglist.dev/#software\"}}"}}],["$","article",null,{"className":"prose prose-site max-w-none","dangerouslySetInnerHTML":{"__html":"$2"}}]]}],null,"$L3"]}],"isPartial":"$@4","staleTime":"$5","varyParams":null},{"rsc":"$L6","isPartial":"$@7","staleTime":"$5","varyParams":null},{"rsc":"$L8","isPartial":"$@9","staleTime":"$5","varyParams":"$a"}],"isUpgradeableISRFallback":false,"a":"$@b","rootVaryParams":null,"needsRuntimeRequest":"$@c"}
+0:{"buildId":"PpNDhC5Jsm0vG7tMzIkBE","data":[{"rsc":["$","$1","c",{"children":[["$","div",null,{"className":"mx-auto max-w-3xl px-6 py-16 md:py-20","children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"WebPage\",\"name\":\"sluglist changelog\",\"url\":\"https://sluglist.dev/changelog/\",\"isPartOf\":{\"@id\":\"https://sluglist.dev/#website\"},\"about\":{\"@id\":\"https://sluglist.dev/#software\"}}"}}],["$","article",null,{"className":"prose prose-site max-w-none","dangerouslySetInnerHTML":{"__html":"$2"}}]]}],null,"$L3"]}],"isPartial":"$@4","staleTime":"$5","varyParams":null},{"rsc":"$L6","isPartial":"$@7","staleTime":"$5","varyParams":null},{"rsc":"$L8","isPartial":"$@9","staleTime":"$5","varyParams":"$a"}],"isUpgradeableISRFallback":false,"a":"$@b","rootVaryParams":null,"needsRuntimeRequest":"$@c"}
 d:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"OutletBoundary"]
 e:"$Sreact.suspense"
 10:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"ViewportBoundary"]
@@ -515,7 +546,7 @@ e:"$Sreact.suspense"
 13:I[29713,["/_next/static/chunks/1b58asu43-lub.js"],"default"]
 14:I[59292,["/_next/static/chunks/1b58asu43-lub.js"],"default"]
 3:["$","$Ld",null,{"children":["$","$e",null,{"name":"Next.MetadataOutlet","children":"$@f"}]}]
-6:["$","$1","h",{"children":[null,["$","$L10",null,{"children":[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]}],["$","div",null,{"hidden":true,"children":["$","$L11",null,{"children":["$","$e",null,{"name":"Next.Metadata","children":[["$","title","0",{"children":"Changelog — sluglist"}],["$","meta","1",{"name":"description","content":"Release notes for the sluglist feedback widget: every version, every feature, and the additive artifact-format history."}],["$","meta","2",{"name":"robots","content":"index, follow, max-image-preview:large"}],["$","meta","3",{"name":"theme-color","content":"#18181b"}],["$","link","4",{"rel":"canonical","href":"https://sluglist.dev/changelog/"}],["$","meta","5",{"property":"og:title","content":"sluglist — visual feedback that your agent fixes"}],["$","meta","6",{"property":"og:description","content":"Drop-in visual feedback widget for dev and staging sites: pick an element, screenshot, annotate, and deliver clean artifacts. Feedback lands in a local folder that Claude Code reads and fixes."}],["$","meta","7",{"property":"og:url","content":"https://sluglist.dev/"}],["$","meta","8",{"property":"og:site_name","content":"sluglist"}],["$","meta","9",{"property":"og:image","content":"https://sluglist.dev/og-image.png"}],["$","meta","10",{"property":"og:image:width","content":"1200"}],["$","meta","11",{"property":"og:image:height","content":"630"}],["$","meta","12",{"property":"og:image:alt","content":"sluglist — a drop-in visual feedback widget whose artifacts a coding agent reads and fixes"}],["$","meta","13",{"property":"og:type","content":"website"}],["$","meta","14",{"name":"twitter:card","content":"summary_large_image"}],["$","meta","15",{"name":"twitter:title","content":"sluglist — visual feedback that your agent fixes"}],["$","meta","16",{"name":"twitter:description","content":"Drop-in visual feedback widget for dev and staging sites: pick an element, screenshot, annotate, and deliver clean artifacts. Feedback lands in a local folder that Claude Code reads and fixes."}],["$","meta","17",{"name":"twitter:image","content":"https://sluglist.dev/og-image.png"}],["$","meta","18",{"name":"twitter:image:alt","content":"sluglist — a drop-in visual feedback widget whose artifacts a coding agent reads and fixes"}],["$","link","19",{"rel":"icon","href":"/favicon.ico","sizes":"32x32"}],["$","link","20",{"rel":"icon","href":"/icon.svg","type":"image/svg+xml"}],["$","link","21",{"rel":"apple-touch-icon","href":"/apple-touch-icon.png"}],["$","$L12","22",{}]]}]}]}],null]}]
+6:["$","$1","h",{"children":[null,["$","$L10",null,{"children":[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]}],["$","div",null,{"hidden":true,"children":["$","$L11",null,{"children":["$","$e",null,{"name":"Next.Metadata","children":[["$","title","0",{"children":"Changelog — sluglist"}],["$","meta","1",{"name":"description","content":"Release notes for the sluglist feedback widget: every version, every feature, and the additive artifact-format history."}],["$","meta","2",{"name":"robots","content":"index, follow, max-image-preview:large"}],["$","meta","3",{"name":"theme-color","content":"#18181b"}],["$","link","4",{"rel":"canonical","href":"https://sluglist.dev/changelog/"}],["$","meta","5",{"property":"og:title","content":"Changelog — sluglist"}],["$","meta","6",{"property":"og:description","content":"Release notes for the sluglist feedback widget: every version, every feature, and the additive artifact-format history."}],["$","meta","7",{"property":"og:url","content":"https://sluglist.dev/changelog/"}],["$","meta","8",{"property":"og:site_name","content":"sluglist"}],["$","meta","9",{"property":"og:image","content":"https://sluglist.dev/og-image.png"}],["$","meta","10",{"property":"og:image:width","content":"1200"}],["$","meta","11",{"property":"og:image:height","content":"630"}],["$","meta","12",{"property":"og:image:alt","content":"sluglist — a drop-in visual feedback widget whose artifacts a coding agent reads and fixes"}],["$","meta","13",{"property":"og:type","content":"article"}],["$","meta","14",{"name":"twitter:card","content":"summary_large_image"}],["$","meta","15",{"name":"twitter:title","content":"Changelog — sluglist"}],["$","meta","16",{"name":"twitter:description","content":"Release notes for the sluglist feedback widget: every version, every feature, and the additive artifact-format history."}],["$","meta","17",{"name":"twitter:image","content":"https://sluglist.dev/og-image.png"}],["$","meta","18",{"name":"twitter:image:alt","content":"sluglist — a drop-in visual feedback widget whose artifacts a coding agent reads and fixes"}],["$","link","19",{"rel":"icon","href":"/favicon.ico","sizes":"32x32"}],["$","link","20",{"rel":"icon","href":"/icon.svg","type":"image/svg+xml"}],["$","link","21",{"rel":"apple-touch-icon","href":"/apple-touch-icon.png"}],["$","$L12","22",{}]]}]}]}],null]}]
 8:["$","$1","c",{"children":[null,["$","$L13",null,{"parallelRouterKey":"children","template":["$","$L14",null,{}]}]]}]
 c:true
 f:null
