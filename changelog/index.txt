@@ -3,10 +3,10 @@
 3:I[29713,["/_next/static/chunks/1b58asu43-lub.js"],"default"]
 4:I[59292,["/_next/static/chunks/1b58asu43-lub.js"],"default"]
 10:I[35452,["/_next/static/chunks/1b58asu43-lub.js"],"default",1]
-:HL["/_next/static/chunks/39hf8kc_4a6bc.css","style"]
+:HL["/_next/static/chunks/1z3eoi_9w1pd8.css","style"]
 :HL["/icon.svg","image"]
 e:X
-0:{"P":null,"c":["","changelog",""],"q":"","i":false,"f":[[["",{"children":["changelog",{"children":["__PAGE__",{},"$undefined","$undefined",4608]},"$undefined","$undefined",4608]},"$undefined","$undefined",4624],[["$","$1","c",{"children":[[["$","link","0",{"rel":"stylesheet","href":"/_next/static/chunks/39hf8kc_4a6bc.css","precedence":"next","crossOrigin":"$undefined","nonce":"$undefined"}],["$","script","script-0",{"src":"/_next/static/chunks/1b58asu43-lub.js","async":true,"nonce":"$undefined"}]],["$","html",null,{"lang":"en","children":["$","body",null,{"children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"Organization\",\"@id\":\"https://sluglist.dev/#org\",\"name\":\"MiraWision\",\"url\":\"https://github.com/MiraWision\"}"}}],["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"WebSite\",\"@id\":\"https://sluglist.dev/#website\",\"name\":\"sluglist\",\"url\":\"https://sluglist.dev/\",\"description\":\"Drop-in visual feedback widget for dev and staging sites: pick an element, screenshot, annotate, and deliver clean artifacts. Feedback lands in a local folder that Claude Code reads and fixes.\",\"publisher\":{\"@id\":\"https://sluglist.dev/#org\"},\"sameAs\":[\"https://github.com/MiraWision/sluglist\",\"https://www.npmjs.com/package/sluglist\"]}"}}],["$","header",null,{"className":"sticky top-0 z-40 border-[var(--color-line)] border-b bg-[color-mix(in_oklab,var(--color-canvas)_85%,transparent)] backdrop-blur","children":["$","div",null,{"className":"mx-auto flex max-w-5xl items-center justify-between px-6 py-3","children":[["$","$L2",null,{"className":"hover:opacity-80","href":"/","children":["$","span",null,{"className":"inline-flex items-center gap-2 font-semibold tracking-tight","children":[["$","img",null,{"alt":"","className":"h-7 w-7","height":28,"src":"/icon.svg","width":28}],"sluglist"]}]}],["$","nav",null,{"className":"flex items-center gap-5 text-[14px] text-[var(--color-muted)]","children":[["$","$L2",null,{"className":"hover:text-[var(--color-ink)]","href":"/docs/","children":"Docs"}],["$","$L2",null,{"className":"hidden hover:text-[var(--color-ink)] sm:inline","href":"/#demo","children":"Demo"}],["$","$L2",null,{"className":"hidden hover:text-[var(--color-ink)] sm:inline","href":"/changelog/","children":"Changelog"}],["$","a",null,{"className":"hover:text-[var(--color-ink)]","href":"https://www.npmjs.com/package/sluglist","children":"npm"}],["$","a",null,{"className":"rounded-lg border border-[var(--color-line)] px-3 py-1.5 text-[var(--color-ink)] transition hover:bg-[var(--color-surface)]","href":"https://github.com/MiraWision/sluglist","children":"GitHub"}]]}]]}]}],["$","main",null,{"className":"min-h-dvh","children":["$","$L3",null,{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L4",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":[["$","div",null,{"className":"mx-auto flex max-w-5xl flex-col items-center px-6 py-32 text-center","children":[["$","p",null,{"className":"mb-2 font-mono text-[12px] text-[var(--color-muted)] uppercase tracking-widest","children":"404"}],["$","h1",null,{"className":"mb-4 font-bold text-3xl tracking-tight md:text-4xl","children":"Page not found"}],["$","p",null,{"className":"mb-8 max-w-md text-[15px] text-[var(--color-ink-2)] leading-relaxed","children":"The page you’re looking for doesn’t exist. The docs index or the homepage is probably where you want to go."}],["$","div",null,{"className":"flex gap-3","children":[["$","$L2",null,{"className":"rounded-xl bg-[var(--color-accent)] px-5 py-2.5 font-medium text-[14px] text-[var(--color-canvas)] transition hover:opacity-90","href":"/","children":"Homepage"}],["$","$L2",null,{"className":"rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] px-5 py-2.5 font-medium text-[14px] transition hover:bg-[var(--color-canvas)]","href":"/docs/","children":"Docs"}]]}]]}],[]],"forbidden":"$undefined","unauthorized":"$undefined"}]}],["$","footer",null,{"className":"border-[var(--color-line)] border-t","children":[["$","div",null,{"className":"mx-auto grid max-w-5xl grid-cols-2 gap-8 px-6 pt-10 text-[14px] sm:grid-cols-4","children":["$L5","$L6","$L7","$L8"]}],"$L9","$La"]}],"$Lb"]}]}]]}],{"children":["$Lc",{"children":["$Ld",{},null,false,null]},null,false,"$e"]},null,false,null],"$Lf",false]],"m":"$undefined","G":["$10",["$L11"]],"S":true,"h":null,"r":"$undefined","s":"$undefined","a":"$undefined","l":"$undefined","p":"$undefined","d":"$undefined","b":"i8K4U5wRQXJEdJTXzjLsJ"}
+0:{"P":null,"c":["","changelog",""],"q":"","i":false,"f":[[["",{"children":["changelog",{"children":["__PAGE__",{},"$undefined","$undefined",4608]},"$undefined","$undefined",4608]},"$undefined","$undefined",4624],[["$","$1","c",{"children":[[["$","link","0",{"rel":"stylesheet","href":"/_next/static/chunks/1z3eoi_9w1pd8.css","precedence":"next","crossOrigin":"$undefined","nonce":"$undefined"}],["$","script","script-0",{"src":"/_next/static/chunks/1b58asu43-lub.js","async":true,"nonce":"$undefined"}]],["$","html",null,{"lang":"en","children":["$","body",null,{"children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"Organization\",\"@id\":\"https://sluglist.dev/#org\",\"name\":\"MiraWision\",\"url\":\"https://github.com/MiraWision\"}"}}],["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"WebSite\",\"@id\":\"https://sluglist.dev/#website\",\"name\":\"sluglist\",\"url\":\"https://sluglist.dev/\",\"description\":\"Drop-in visual feedback widget for dev and staging sites: pick an element, screenshot, annotate, and deliver clean artifacts. Feedback lands in a local folder that Claude Code reads and fixes.\",\"publisher\":{\"@id\":\"https://sluglist.dev/#org\"},\"sameAs\":[\"https://github.com/MiraWision/sluglist\",\"https://www.npmjs.com/package/sluglist\"]}"}}],["$","header",null,{"className":"sticky top-0 z-40 border-[var(--color-line)] border-b bg-[color-mix(in_oklab,var(--color-canvas)_85%,transparent)] backdrop-blur","children":["$","div",null,{"className":"mx-auto flex max-w-5xl items-center justify-between px-6 py-3","children":[["$","$L2",null,{"className":"hover:opacity-80","href":"/","children":["$","span",null,{"className":"inline-flex items-center gap-2 font-semibold tracking-tight","children":[["$","img",null,{"alt":"","className":"h-7 w-7","height":28,"src":"/icon.svg","width":28}],"sluglist"]}]}],["$","nav",null,{"className":"flex items-center gap-5 text-[14px] text-[var(--color-muted)]","children":[["$","$L2",null,{"className":"hover:text-[var(--color-ink)]","href":"/docs/","children":"Docs"}],["$","$L2",null,{"className":"hidden hover:text-[var(--color-ink)] sm:inline","href":"/#demo","children":"Demo"}],["$","$L2",null,{"className":"hidden hover:text-[var(--color-ink)] sm:inline","href":"/changelog/","children":"Changelog"}],["$","a",null,{"className":"hover:text-[var(--color-ink)]","href":"https://www.npmjs.com/package/sluglist","children":"npm"}],["$","a",null,{"className":"rounded-lg border border-[var(--color-line)] px-3 py-1.5 text-[var(--color-ink)] transition hover:bg-[var(--color-surface)]","href":"https://github.com/MiraWision/sluglist","children":"GitHub"}]]}]]}]}],["$","main",null,{"className":"min-h-dvh","children":["$","$L3",null,{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L4",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":[["$","div",null,{"className":"mx-auto flex max-w-5xl flex-col items-center px-6 py-32 text-center","children":[["$","p",null,{"className":"mb-2 font-mono text-[12px] text-[var(--color-muted)] uppercase tracking-widest","children":"404"}],["$","h1",null,{"className":"mb-4 font-bold text-3xl tracking-tight md:text-4xl","children":"Page not found"}],["$","p",null,{"className":"mb-8 max-w-md text-[15px] text-[var(--color-ink-2)] leading-relaxed","children":"The page you’re looking for doesn’t exist. The docs index or the homepage is probably where you want to go."}],["$","div",null,{"className":"flex gap-3","children":[["$","$L2",null,{"className":"rounded-xl bg-[var(--color-accent)] px-5 py-2.5 font-medium text-[14px] text-[var(--color-canvas)] transition hover:opacity-90","href":"/","children":"Homepage"}],["$","$L2",null,{"className":"rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] px-5 py-2.5 font-medium text-[14px] transition hover:bg-[var(--color-canvas)]","href":"/docs/","children":"Docs"}]]}]]}],[]],"forbidden":"$undefined","unauthorized":"$undefined"}]}],["$","footer",null,{"className":"border-[var(--color-line)] border-t","children":[["$","div",null,{"className":"mx-auto grid max-w-5xl grid-cols-2 gap-8 px-6 pt-10 text-[14px] sm:grid-cols-4","children":["$L5","$L6","$L7","$L8"]}],"$L9","$La"]}],"$Lb"]}]}]]}],{"children":["$Lc",{"children":["$Ld",{},null,false,null]},null,false,"$e"]},null,false,null],"$Lf",false]],"m":"$undefined","G":["$10",["$L11"]],"S":true,"h":null,"r":"$undefined","s":"$undefined","a":"$undefined","l":"$undefined","p":"$undefined","d":"$undefined","b":"eGwNAnv7UIhuiUGdGbLF7"}
 12:I[25386,["/_next/static/chunks/1b58asu43-lub.js"],""]
 15:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"ViewportBoundary"]
 17:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"MetadataBoundary"]
@@ -19,7 +19,71 @@ e:X
 a:["$","div",null,{"className":"mx-auto max-w-5xl px-6 pt-6 pr-20 pb-10 text-[13px] text-[var(--color-muted)] lg:pr-6","children":["Analytics:"," ",["$","code",null,{"className":"rounded bg-[var(--color-canvas)] px-1.5 py-0.5 font-mono text-[0.9em]","children":"Umami"}],", EU data region — cookieless, no personal data, no cross-site tracking. No consent banner needed, so there isn’t one."]}]
 b:["$","$L12",null,{"data-domains":"sluglist.dev","data-website-id":"79f9a945-777b-407d-9886-4b1f332e9002","src":"https://cloud.umami.is/script.js","strategy":"afterInteractive"}]
 c:["$","$1","c",{"children":[null,["$","$L3",null,{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L4",null,{}],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":"$undefined","forbidden":"$undefined","unauthorized":"$undefined"}]]}]
-13:T80a5,<h1>Changelog</h1>
+13:T9491,<h1>Changelog</h1>
+<h2>1.13.0 — Verdict evidence, checklist intents, <code>sluglist report</code></h2>
+<p>Everything here is additive. The <code>FeedbackConnector</code> contract is unchanged and the widget — its UI
+and its artifacts — is untouched. A session that records no evidence and no intent is byte-identical
+to a 1.12 one apart from the format-version line. <strong>No new dependencies</strong>: <code>npm install sluglist</code>
+resolves to exactly the same tree as before, with no native binaries.</p>
+<h3>Evidence for a verdict (format 1.6)</h3>
+<ul>
+<li><code>checklist.items[].evidence</code> in <code>session.yaml</code>: <code>screenshots</code> (files stored next to the session as
+<code>ev-&lt;item-id&gt;-NN.png</code>) plus a one-line <code>note</code> (≤ 500 chars, scrubbed with the session&#39;s other
+page-derived text). Absent unless recorded, so a bare verdict stays exactly as it was.</li>
+<li>Writer API: <code>setVerdict(id, verdict, { evidence: { screenshots, note } })</code>. Screenshots may be
+buffers or file paths. Valid on any verdict — on <code>pass</code> it is the point (a verifiable sign-off
+rather than a self-report); on <code>fail</code> it supplements the linked issue.</li>
+<li>The reason it exists: a <code>fail</code> has always been evidenced by its issue, while a <code>pass</code> was a bare
+tick. Now both can be checked.</li>
+</ul>
+<h3>The anti-theatre rule (<code>sluglist-qa</code>)</h3>
+<ul>
+<li>New run parameter <code>evidence: &quot;fails&quot; | &quot;all&quot;</code> — <code>fails</code> is the previous behaviour and stays the
+default; <code>all</code> requires a screenshot and a note for every pass.</li>
+<li>The skill now states, and enforces by example, that <strong>a screenshot proves &quot;the screen looked like
+this&quot;, not &quot;the action worked&quot;</strong>. For a check with no visible result (a download, a submission, a
+background job) the note must carry the observed fact — the downloaded file&#39;s name and size, the
+toast&#39;s text, the counter that changed — and a pass with nothing observable behind it must be
+recorded as <em>not tested</em>.</li>
+</ul>
+<h3>Checklist intents (format 1.6)</h3>
+<ul>
+<li>Additive <code>intent</code> on the checklist config, carried into <code>session.yaml</code> as <code>checklist.intent</code>:
+<code>branch</code> | <code>re-test</code> | <code>smoke</code> | <code>scenario</code> (open vocabulary — readers tolerate unknown values).</li>
+<li><code>sluglist-checklist</code> gains two generator modes: <strong>smoke</strong> (a broad pass built from the app&#39;s routes
+and docs, critical paths first, capped at 30 items) and <strong>scenario</strong> (a focused list decomposed
+from a written brief, with anything outside the brief surfaced as a suggestion, never a silent
+item).</li>
+<li>Convention: checklists live in <code>.sluglist/checklists/&lt;name&gt;.json</code>. <code>sluglist dev</code> serves that
+folder read-only at <code>GET /checklists/&lt;name&gt;.json</code> so the widget can load one without a copy into
+<code>public/</code>.</li>
+</ul>
+<h3><code>sluglist report</code></h3>
+<ul>
+<li>New command: <code>npx sluglist report [session-dir] [-o out.html]</code>. Zero-config — with no arguments it
+reports the newest session in <code>.sluglist/</code> and writes <code>report.html</code> beside it.</li>
+<li>Output is <strong>one self-contained HTML file</strong>: inlined CSS/JS, system fonts, <code>data:</code> URI images, no
+external request of any kind. It opens from <code>file://</code> offline and forwards as a single attachment.</li>
+<li>Contents: header (title, date, application, reporter, intent), summary tiles, the checklist as an
+article with verdict badges / notes / evidence thumbnails, every issue in full with its fix status
+from <code>fixes.yaml</code>, and a footer naming the format version. A session with no checklist renders as a
+plain issue list.</li>
+<li>Click a thumbnail for a full-size <code>&lt;dialog&gt;</code> lightbox (the full image <em>is</em> the thumbnail, scaled by
+CSS — each image is stored once). A print stylesheet drops the lightbox, grids the thumbnails and
+forces a light theme, so Print → Save as PDF gives a clean document.</li>
+<li>Images are downscaled to 1200px and re-encoded before inlining; a typical session (5 items, 6
+screenshots) lands around 150 KB. Over 25 MB the report is rebuilt once at 800px / q50 with a
+warning.</li>
+<li>The PNG decoder and baseline JPEG encoder are <strong>part of the CLI, written against <code>node:zlib</code>
+alone</strong>. This was deliberate: <code>sharp</code> is a native binary and <code>optionalDependencies</code> install by
+default, so it would land in every browser project; <code>jimp</code> is pure JS but a large tree for a
+package whose whole runtime is two lazily-imported deps.</li>
+</ul>
+<h3>Internal</h3>
+<ul>
+<li>New dependency-free reader (<code>parseYaml</code>, <code>readSession</code>) for the subset the serializer emits, tested
+differentially against a reference YAML implementation on every artifact in the repository.</li>
+</ul>
 <h2>1.12.0 — Agent-to-agent loop: headless writer, QA skill, fixes.yaml, re-test</h2>
 <p>Everything here is additive. The <code>FeedbackConnector</code> contract is unchanged, and the widget — its UI
 and its artifacts — is untouched (byte-for-byte, minus the format-version line). sluglist becomes a
@@ -461,7 +525,7 @@ extension content script).</li>
 </ul>
 d:["$","$1","c",{"children":[["$","div",null,{"className":"mx-auto max-w-3xl px-6 py-16 md:py-20","children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"WebPage\",\"name\":\"sluglist changelog\",\"url\":\"https://sluglist.dev/changelog/\",\"isPartOf\":{\"@id\":\"https://sluglist.dev/#website\"},\"about\":{\"@id\":\"https://sluglist.dev/#software\"}}"}}],["$","article",null,{"className":"prose prose-site max-w-none","dangerouslySetInnerHTML":{"__html":"$13"}}]]}],null,"$L14"]}]
 f:["$","$1","h",{"children":[null,["$","$L15",null,{"children":"$L16"}],["$","div",null,{"hidden":true,"children":["$","$L17",null,{"children":["$","$18",null,{"name":"Next.Metadata","children":"$L19"}]}]}],null]}]
-11:["$","link","0",{"rel":"stylesheet","href":"/_next/static/chunks/39hf8kc_4a6bc.css","precedence":"next","crossOrigin":"$undefined","nonce":"$undefined"}]
+11:["$","link","0",{"rel":"stylesheet","href":"/_next/static/chunks/1z3eoi_9w1pd8.css","precedence":"next","crossOrigin":"$undefined","nonce":"$undefined"}]
 1a:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"OutletBoundary"]
 e:C
 14:["$","$L1a",null,{"children":["$","$18",null,{"name":"Next.MetadataOutlet","children":"$@1b"}]}]
