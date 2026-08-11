@@ -1,5 +1,71 @@
 # Changelog
 
+## 1.13.0 — Verdict evidence, checklist intents, `sluglist report`
+
+Everything here is additive. The `FeedbackConnector` contract is unchanged and the widget — its UI
+and its artifacts — is untouched. A session that records no evidence and no intent is byte-identical
+to a 1.12 one apart from the format-version line. **No new dependencies**: `npm install sluglist`
+resolves to exactly the same tree as before, with no native binaries.
+
+### Evidence for a verdict (format 1.6)
+
+- `checklist.items[].evidence` in `session.yaml`: `screenshots` (files stored next to the session as
+  `ev-<item-id>-NN.png`) plus a one-line `note` (≤ 500 chars, scrubbed with the session's other
+  page-derived text). Absent unless recorded, so a bare verdict stays exactly as it was.
+- Writer API: `setVerdict(id, verdict, { evidence: { screenshots, note } })`. Screenshots may be
+  buffers or file paths. Valid on any verdict — on `pass` it is the point (a verifiable sign-off
+  rather than a self-report); on `fail` it supplements the linked issue.
+- The reason it exists: a `fail` has always been evidenced by its issue, while a `pass` was a bare
+  tick. Now both can be checked.
+
+### The anti-theatre rule (`sluglist-qa`)
+
+- New run parameter `evidence: "fails" | "all"` — `fails` is the previous behaviour and stays the
+  default; `all` requires a screenshot and a note for every pass.
+- The skill now states, and enforces by example, that **a screenshot proves "the screen looked like
+  this", not "the action worked"**. For a check with no visible result (a download, a submission, a
+  background job) the note must carry the observed fact — the downloaded file's name and size, the
+  toast's text, the counter that changed — and a pass with nothing observable behind it must be
+  recorded as *not tested*.
+
+### Checklist intents (format 1.6)
+
+- Additive `intent` on the checklist config, carried into `session.yaml` as `checklist.intent`:
+  `branch` | `re-test` | `smoke` | `scenario` (open vocabulary — readers tolerate unknown values).
+- `sluglist-checklist` gains two generator modes: **smoke** (a broad pass built from the app's routes
+  and docs, critical paths first, capped at 30 items) and **scenario** (a focused list decomposed
+  from a written brief, with anything outside the brief surfaced as a suggestion, never a silent
+  item).
+- Convention: checklists live in `.sluglist/checklists/<name>.json`. `sluglist dev` serves that
+  folder read-only at `GET /checklists/<name>.json` so the widget can load one without a copy into
+  `public/`.
+
+### `sluglist report`
+
+- New command: `npx sluglist report [session-dir] [-o out.html]`. Zero-config — with no arguments it
+  reports the newest session in `.sluglist/` and writes `report.html` beside it.
+- Output is **one self-contained HTML file**: inlined CSS/JS, system fonts, `data:` URI images, no
+  external request of any kind. It opens from `file://` offline and forwards as a single attachment.
+- Contents: header (title, date, application, reporter, intent), summary tiles, the checklist as an
+  article with verdict badges / notes / evidence thumbnails, every issue in full with its fix status
+  from `fixes.yaml`, and a footer naming the format version. A session with no checklist renders as a
+  plain issue list.
+- Click a thumbnail for a full-size `<dialog>` lightbox (the full image *is* the thumbnail, scaled by
+  CSS — each image is stored once). A print stylesheet drops the lightbox, grids the thumbnails and
+  forces a light theme, so Print → Save as PDF gives a clean document.
+- Images are downscaled to 1200px and re-encoded before inlining; a typical session (5 items, 6
+  screenshots) lands around 150 KB. Over 25 MB the report is rebuilt once at 800px / q50 with a
+  warning.
+- The PNG decoder and baseline JPEG encoder are **part of the CLI, written against `node:zlib`
+  alone**. This was deliberate: `sharp` is a native binary and `optionalDependencies` install by
+  default, so it would land in every browser project; `jimp` is pure JS but a large tree for a
+  package whose whole runtime is two lazily-imported deps.
+
+### Internal
+
+- New dependency-free reader (`parseYaml`, `readSession`) for the subset the serializer emits, tested
+  differentially against a reference YAML implementation on every artifact in the repository.
+
 ## 1.12.0 — Agent-to-agent loop: headless writer, QA skill, fixes.yaml, re-test
 
 Everything here is additive. The `FeedbackConnector` contract is unchanged, and the widget — its UI

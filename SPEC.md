@@ -1,4 +1,4 @@
-# sluglist artifact format — v1.5
+# sluglist artifact format — v1.6
 
 This is the on-disk contract sluglist produces for each feedback session. It is stable and safe to
 build parsers against: **within a major version the format only ever changes additively** (new optional
@@ -9,7 +9,7 @@ Source of truth: `src/artifacts.ts` (`buildSessionYaml`, `buildIssueMarkdown`, `
 
 ## Versioning
 
-- `session.yaml` starts with `format_version: "1.5"` (a quoted string, always the first line).
+- `session.yaml` starts with `format_version: "1.6"` (a quoted string, always the first line).
 - **Missing `format_version` ⇒ treat as `"1.0"`** (artifacts written before versioning was added).
 - **1.1** added the additive `checklist:` block (acceptance checklist verdicts) and the
   `checklist_item` issue field; everything from 1.0 is unchanged.
@@ -31,6 +31,13 @@ Source of truth: `src/artifacts.ts` (`buildSessionYaml`, `buildIssueMarkdown`, `
     records (full dictionary below). **A session without `fixes.yaml` is valid**: it has simply not
     been through a fix pass.
   - `retest_of` in the checklist *config* (input contract, below) — provenance of a re-test checklist.
+- **1.6** added, all additive:
+  - `checklist.items[].evidence` — optional proof attached to a verdict (`screenshots` + `note`).
+    Its purpose is symmetry: a `fail` has always been evidenced by its linked issue, so a `pass` may
+    now be evidenced too, and a reader can verify a verdict rather than trust it. **Absent ⇒ the
+    reporter recorded a bare verdict**, which stays valid and is still the default.
+  - `checklist.intent` (session.yaml) and `intent` in the checklist *config* — why the checklist
+    exists (`branch` | `re-test` | `smoke` | `scenario`, open-ended). Absent when undeclared.
 - The number is `MAJOR.MINOR`:
   - **MINOR** bumps for additive changes (a new optional field/section). Parsers must ignore unknown
     fields and keep working.
@@ -46,6 +53,9 @@ Delivered per session, one folder:
 {project}/session-{YYYY-MM-DD}-{shortid}/
   session.yaml                     # index, upserted on every issue
   fixes.yaml                       # 1.5, optional: fix-agent resolution records (upserted per fix)
+  report.html                      # 1.6, optional: `sluglist report` output — a self-contained
+                                   #   rendering of this folder, not an input to any reader
+  ev-{item-id}-01.png              # 1.6, optional: verdict evidence, numbered per checklist item
   01-{slug}.md                     # one issue: YAML frontmatter + body
   01-{slug}.png                    # the issue screenshot (absent when none)
   01-{slug}-2.png                  # extra screenshots (2..n), only if multiple
@@ -96,6 +106,7 @@ map — a coverage snapshot of *this* run, not a durable status.
 |---|---|---|---|---|
 | `id` | string | yes | 1.1 | Checklist id. |
 | `title` | string | yes | 1.1 | Human title. |
+| `intent` | string | optional | 1.6 | Why this checklist exists: `branch` \| `re-test` \| `smoke` \| `scenario`. Open vocabulary — readers must tolerate an unknown value. Absent when the config declared none. |
 | `items` | list | yes | 1.1 | One entry per checklist item (below). |
 
 Each `items[]` entry:
@@ -108,6 +119,30 @@ Each `items[]` entry:
 | `verdict` | string \| null | yes | 1.1 | `pass` \| `fail` \| `skip`, or `null` when not yet checked. See note on `skip`. |
 | `issue` | string \| null | yes | 1.1 | The id of the issue that documents a flag; else `null`. See note. |
 | `ts` | string \| null | yes | 1.1 | ISO time the verdict was set; `null` when unset. |
+| `evidence` | map | optional | 1.6 | Proof for this verdict (below). Absent for a bare verdict. |
+
+#### `evidence` (verdict proof, 1.6)
+
+| Field | Type | Required | Since | Notes |
+|---|---|---|---|---|
+| `screenshots` | list of string | yes | 1.6 | Evidence file names, in order; each sits next to `session.yaml` as `ev-<item-id>-NN.png`. `[]` is valid (a note-only observation). |
+| `note` | string | optional | 1.6 | One line stating the **observed fact**; ≤ 500 chars. Scrubbed with the session's other page-derived text when `scrubText` is on. |
+
+The block is valid on **any** verdict:
+
+- on `pass` it is the point of the feature — the screenshot and note that let a reader verify the
+  sign-off instead of trusting the reporter;
+- on `fail` it is supplementary: the linked `issue` remains the primary evidence;
+- an item with **no verdict** (`null`) carries no evidence — there is nothing to show.
+
+`evidence` has **no `ts` of its own**: it is captured at the moment the verdict is recorded, which the
+item's own `ts` already states.
+
+**Semantics a reader should know** (enforced by the `sluglist-qa` skill, not by the format): a
+screenshot proves *the screen looked like this*, never *the action worked*. For checks whose result is
+invisible on screen — a download, a submission, a background job — the `note` is expected to carry the
+observable fact (downloaded file name and size, toast text, a changed counter) rather than a
+restatement of the item's title.
 
 Verdicts are written **put-per-verdict**: every action upserts `session.yaml` (same idempotent path as
 per-issue writes). In the widget the client either **checks a row off** (`verdict: pass`) or **flags a
@@ -280,6 +315,9 @@ interface Checklist {
   description?: string;          // 1–2 sentence instruction shown in the panel header (≤ 280 chars)
   retest_of?: string;            // 1.5, additive: id of the checklist this one re-tests (provenance;
                                  //   set by the generator's re-test mode, ignored by the widget)
+  intent?: string;               // 1.6, additive: why this checklist exists — "branch" | "re-test" |
+                                 //   "smoke" | "scenario". Open vocabulary; carried into session.yaml
+                                 //   as `checklist.intent`. Ignored by the widget.
   sections: { title: string; items: ChecklistItem[] }[];
 }
 interface ChecklistItem {
@@ -294,7 +332,7 @@ interface ChecklistItem {
 
 Rules the widget enforces (invalid input is dropped with a `console.warn`, never thrown — a bad checklist
 must not block plain capture): ≤ 20 sections, ≤ 50 items total, titles clipped to 120 chars, description to
-280, unique item ids. **`url` is for static routes only**; a dynamic route (an id/uuid segment) uses `hint`
+280, `intent` to 40 and matching the id pattern, unique item ids. **`url` is for static routes only**; a dynamic route (an id/uuid segment) uses `hint`
 + a **wildcard** `url_match` and never a guessed `url`. A `url_match` without a `*` is not a pattern (it is a
 static path) and is dropped with a warning. `url` and `url_match` may coexist (a list `url` + a detail
 `url_match`). The widget maps a check to `verdict: pass`, a flag to `verdict: fail` + an issue; it never

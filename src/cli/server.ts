@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createServer, type Server } from "node:http";
 import { dirname, join, resolve, sep } from "node:path";
 import { ATTACHMENT_MIME_TYPES } from "../attachments";
@@ -36,6 +36,14 @@ const ALLOWED_MIME = new Set([
   ...ATTACHMENT_MIME_TYPES,
 ]);
 const MAX_BASE64 = 25 * 1024 * 1024;
+
+/**
+ * Checklist files the sidecar will serve read-only from `<dir>/checklists/`.
+ * Deliberately narrow: a bare `name.json` with no separators, so the pattern
+ * itself makes traversal unrepresentable rather than relying on a later check.
+ */
+const CHECKLIST_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,120}\.json$/;
+const MAX_CHECKLIST_BYTES = 1024 * 1024;
 
 /** Origins we reflect for CORS: any localhost / 127.0.0.1 / [::1] port. */
 function isLocalOrigin(origin: string | undefined): boolean {
@@ -111,6 +119,34 @@ export function createDevServer(options: DevServerOptions = {}): Server {
     const url = req.url ?? "/";
     if (req.method === "GET" && url === "/health") {
       send(200, { ok: true, dir: absDir });
+      return;
+    }
+
+    // Read-only checklist serving: the widget runs in a browser and cannot read
+    // a local file, so the sidecar hands it the conventional
+    // `.sluglist/checklists/<name>.json` — no copy into `public/` needed.
+    // Scoped to that one folder, that one extension, GET only.
+    if (req.method === "GET" && url.startsWith("/checklists/")) {
+      const name = url.slice("/checklists/".length).split("?")[0];
+      if (!CHECKLIST_NAME.test(name)) {
+        send(400, { error: "Invalid checklist name" });
+        return;
+      }
+      const target = join(absDir, "checklists", name);
+      readFile(target)
+        .then((bytes) => {
+          if (bytes.length > MAX_CHECKLIST_BYTES) {
+            send(413, { error: "Checklist too large" });
+            return;
+          }
+          res.writeHead(200, {
+            "content-type": "application/json",
+            "cache-control": "no-store",
+            ...cors,
+          });
+          res.end(bytes);
+        })
+        .catch(() => send(404, { error: "Checklist not found" }));
       return;
     }
 

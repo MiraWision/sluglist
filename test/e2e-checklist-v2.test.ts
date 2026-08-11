@@ -144,7 +144,7 @@ describe("Phase 7 — checklist v2 end-to-end", () => {
     const session = parse(
       await (memory.getFile(sessionId, "session.yaml") as ArtifactFile).blob.text()
     );
-    expect(session.format_version).toBe("1.5");
+    expect(session.format_version).toBe("1.6");
     const items: Array<{ id: string; verdict: string | null; issue: string | null }> =
       session.checklist.items;
     const byId = Object.fromEntries(items.map((i) => [i.id, i]));

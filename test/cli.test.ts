@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import type { Server } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -52,6 +52,53 @@ describe("sluglist dev server", () => {
   afterAll(async () => {
     await new Promise<void>((res) => server.close(() => res()));
     await rm(dir, { recursive: true, force: true });
+  });
+
+  describe("GET /checklists/<name>.json", () => {
+    it("serves a checklist from the conventional folder", async () => {
+      await mkdir(join(dir, "checklists"), { recursive: true });
+      const checklist = {
+        id: "smoke",
+        title: "Smoke",
+        intent: "smoke",
+        sections: [{ title: "Home", items: [{ id: "loads", title: "Home loads" }] }],
+      };
+      await writeFile(
+        join(dir, "checklists", "smoke.json"),
+        JSON.stringify(checklist)
+      );
+
+      const res = await fetch(`${base}/checklists/smoke.json`);
+      expect(res.status).toBe(200);
+      expect(res.headers.get("content-type")).toContain("application/json");
+      expect(await res.json()).toEqual(checklist);
+    });
+
+    it("404s for a checklist that does not exist", async () => {
+      const res = await fetch(`${base}/checklists/nope.json`);
+      expect(res.status).toBe(404);
+    });
+
+    it("refuses traversal and non-json names", async () => {
+      for (const name of [
+        "..%2F..%2Fsession.yaml",
+        "../../etc/passwd",
+        "sub/dir.json",
+        "smoke.yaml",
+        "smoke.json.exe",
+        ".env",
+      ]) {
+        const res = await fetch(`${base}/checklists/${name}`);
+        expect(res.status).not.toBe(200);
+      }
+    });
+
+    it("does not expose session artifacts through the checklist route", async () => {
+      await writeFile(join(dir, "secret.json"), '{"a":1}');
+      const res = await fetch(`${base}/checklists/secret.json`);
+      // The file exists, but not under checklists/ — it must not be served.
+      expect(res.status).toBe(404);
+    });
   });
 
   it("GET /health reports ok + absolute dir", async () => {

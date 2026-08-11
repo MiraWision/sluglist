@@ -1,0 +1,50 @@
+{
+  "id": "reportly-smoke",
+  "title": "Reportly smoke pass",
+  "description": "A broad pass over the app's main pages. Check each item and flag anything that looks wrong.",
+  "intent": "smoke",
+  "sections": [
+    {
+      "title": "Dashboard",
+      "items": [
+        {
+          "id": "dashboard-greeting",
+          "title": "The dashboard greets you by name and shows the open report count",
+          "url": "/dashboard"
+        }
+      ]
+    },
+    {
+      "title": "Reports",
+      "items": [
+        {
+          "id": "reports-table",
+          "title": "The Reports page lists the reports with their row counts",
+          "url": "/reports"
+        },
+        {
+          "id": "reports-export-csv",
+          "title": "On Reports, Export CSV downloads a CSV file of the table",
+          "url": "/reports",
+          "hint": "Click Export CSV — a file should download"
+        }
+      ]
+    },
+    {
+      "title": "Settings",
+      "items": [
+        {
+          "id": "settings-save-confirms",
+          "title": "Saving settings shows a confirmation message",
+          "url": "/settings",
+          "hint": "Change the display name and click Save"
+        },
+        {
+          "id": "settings-digest-persists",
+          "title": "The weekly digest preference survives the quarterly reconciliation",
+          "url": "/settings"
+        }
+      ]
+    }
+  ]
+}

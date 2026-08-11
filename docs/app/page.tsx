@@ -29,6 +29,12 @@ const AGENT_TERMINAL = `$ claude
 ● Fixed src/api/animals.ts + AnimalForm.tsx
 ● Wrote …/session-2026-07-23-a1b2/.done`;
 
+// Real output — `sluglist report` with no arguments takes the newest session.
+const REPORT_TERMINAL = `$ npx sluglist report
+
+session-2026-08-11-2elz
+  → …/session-2026-08-11-2elz/report.html  (146.0 KB)`;
+
 const DONE_REPORT = `# session-2026-07-23-a1b2 — done
 
 ## 01 — Save button does nothing
@@ -96,6 +102,18 @@ const AGENT_STEPS: { n: string; title: string; body: React.ReactNode }[] = [
         fail without a screenshot — a fix agent answers with{" "}
         <Mono>fixes.yaml</Mono>, and a re-test checklist closes the loop. See
         the README&rsquo;s <em>For agents</em> section.
+      </>
+    ),
+  },
+  {
+    n: "✓",
+    title: "Then send the proof",
+    body: (
+      <>
+        <Mono>npx sluglist report</Mono> turns the session into one
+        self-contained HTML file — verdicts, the observed facts behind them, and
+        every screenshot inlined. It opens offline and forwards as a single
+        attachment.
       </>
     ),
   },
@@ -280,7 +298,7 @@ const FEATURES = [
   },
   {
     title: "Checklist mode",
-    body: "Pre-seed an acceptance checklist; the client clicks each row to check it off, or flags a problem to open the normal issue flow, linked. Smart links point them at the right page. Get a coverage map in session.yaml — and generate the checklist from a branch diff.",
+    body: "Pre-seed an acceptance checklist; the client clicks each row to check it off, or flags a problem to open the normal issue flow, linked. Smart links point them at the right page. Get a coverage map in session.yaml — and generate the checklist from a branch diff, a smoke pass over your routes, or a scenario you describe in words.",
   },
   {
     title: "Pluggable connectors",
@@ -435,6 +453,50 @@ export default function HomePage() {
               …/.done — the agent&rsquo;s report
             </p>
             <CodeBlock code={DONE_REPORT} lang="markdown" />
+          </div>
+
+          {/* The report — the artifact a client actually receives. */}
+          <div className="mt-12 grid gap-8 md:grid-cols-[1fr_1.1fr] md:items-center [&>*]:min-w-0">
+            <div>
+              <p className="mb-2 font-mono text-[12px] text-[var(--color-muted)] uppercase tracking-widest">
+                Single-file HTML proof
+              </p>
+              <h3 className="font-semibold text-xl tracking-tight md:text-2xl">
+                One command, one file you can send
+              </h3>
+              <p className="mt-3 text-[15px] text-[var(--color-ink-2)] leading-relaxed">
+                A session folder is the machine-readable truth — but it is not
+                something you email a client.{" "}
+                <Mono>npx sluglist report</Mono> renders it as an article:
+                what passed, what failed, and the fact observed behind each
+                verdict, with every screenshot inlined.
+              </p>
+              <p className="mt-3 text-[15px] text-[var(--color-ink-2)] leading-relaxed">
+                Nothing is fetched when it opens — no stylesheet, script, font
+                or image. It works from <Mono>file://</Mono> with the network
+                off, and Print → Save as PDF gives a clean document.
+              </p>
+              <div className="mt-5">
+                <Terminal code={REPORT_TERMINAL} title="your project" />
+              </div>
+            </div>
+
+            <figure className="min-w-0">
+              <img
+                alt="A sluglist report: a pass/fail/not-tested summary, then each checklist item with its verdict badge, the observed fact recorded for it, and its evidence screenshot — all inlined in one HTML file"
+                className="w-full rounded-xl border border-[var(--color-line)]"
+                height={1180}
+                loading="lazy"
+                src="/report-example.jpg"
+                width={900}
+              />
+              <figcaption className="mt-2 text-[12px] text-[var(--color-muted)] leading-relaxed">
+                A real report from the QA agent&rsquo;s own run — a screenshot
+                proves the screen looked right, so the note carries what was
+                actually observed (the downloaded file&rsquo;s name and size,
+                the row counts).
+              </figcaption>
+            </figure>
           </div>
 
           <p className="mt-6 text-[13px] text-[var(--color-muted)] leading-relaxed">

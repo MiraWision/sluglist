@@ -83,8 +83,12 @@ mountFeedbackWidget(
 );
 ```
 
-→ [Checklist mode](#checklist-mode) · [generating one from a branch](#generate-a-checklist-from-a-branch) ·
-[connectors](#connectors) · [attachments](#attachments) · [localization](#localization)
+When it's signed off, `npx sluglist report` turns the session into one self-contained HTML file you
+can send back as proof — verdicts, notes and screenshots in a single attachment that opens offline.
+
+→ [Checklist mode](#checklist-mode) · [generating one](#generate-a-checklist--four-intents) ·
+[reports](#reports) · [connectors](#connectors) · [attachments](#attachments) ·
+[localization](#localization)
 
 ### 3 · Beta / Production — real users report problems
 
@@ -599,12 +603,30 @@ checklist:
       ts: null
 ```
 
-### Generate a checklist from a branch
+### Generate a checklist — four intents
 
-The package ships a `sluglist-checklist` skill: point Claude Code at a branch and it builds a
-client-facing checklist from the diff (user-visible pages/components/text only — refactors, tests and
-config are excluded), grouped by feature and phrased for a non-developer, written to
-`public/checklist.json`. Ask it to "generate a checklist from this branch". See
+The package ships a `sluglist-checklist` skill. Point Claude Code at a source and it writes a
+client-facing checklist (user-visible pages/components/text only — refactors, tests and config are
+excluded), grouped by feature and phrased for a non-developer:
+
+| Intent | Built from | Ask for it with |
+|---|---|---|
+| `branch` | the branch diff vs its base | "generate a checklist from this branch" |
+| `re-test` | a fixed session's `fixes.yaml` | "generate the re-test checklist" |
+| `smoke` | the app's routes + docs | "generate a smoke checklist" |
+| `scenario` | a written brief you give it | "checklist for the whole card-payment flow, including error cases" |
+
+By convention checklists live in **`.sluglist/checklists/<name>.json`** (`smoke.json`,
+`regression.json`, `feature-export.json`…), and the intent is recorded in the checklist's `intent`
+field so it travels into `session.yaml` and the report. Both consumers take a path:
+
+```ts
+createSession({ checklist: ".sluglist/checklists/smoke.json" });   // QA agent — local path
+createFeedbackWidget({ checklist: "/checklists/smoke.json" });     // widget — fetched over HTTP
+```
+
+`sluglist dev` serves that folder read-only at `GET /checklists/<name>.json`, so the widget can load
+one without copying it into your app's `public/`. See
 [`skills/sluglist-checklist/SKILL.md`](skills/sluglist-checklist/SKILL.md).
 
 ### Scope — the checklist is a session input, verdicts are its output
@@ -613,6 +635,43 @@ The checklist enters a session and the verdicts leave with it. There is **no lif
 session**: items are never reopened, verdicts never sync between sessions, nothing is stored as a
 "done on the server", and issues are never blocked on completing the checklist. Every session runs the
 checklist from scratch. (This is deliberate — it keeps sluglist a capture tool, not a workflow tracker.)
+
+## Reports
+
+A session folder is the machine-readable truth, but it is not something you send a client. One
+command turns it into a **single self-contained HTML file** — the proof artifact:
+
+```bash
+npx sluglist report
+```
+
+Zero config: with no arguments it takes the newest session in `.sluglist/` and writes `report.html`
+next to it. Point it somewhere else when you need to:
+
+```bash
+npx sluglist report .sluglist/session-2026-08-11-2elz -o acceptance.html
+```
+
+<img src="evidence/report/shot-desktop.png" alt="A sluglist report: pass/fail/not-tested summary, checklist items with observed-fact notes and evidence thumbnails, then the filed issues with their fix status — single-file HTML proof" width="640">
+
+What is in it, in order: the checklist title, date, application URL, reporter and intent; a summary
+(N pass / N fail / N not tested, issues filed, how many are resolved); the checklist as an article,
+each item with its verdict badge, its observed-fact note and its evidence thumbnails; then every
+issue in full, with metadata, screenshots and its fix status from `fixes.yaml`; a footer naming the
+artifact format version.
+
+- **Offline and self-contained.** No stylesheet, script, font or image is fetched — CSS and JS are
+  inlined, images are `data:` URIs. It opens from `file://` with the network off, and it survives
+  being forwarded as one attachment.
+- **Click a thumbnail** to open it full-size (a native `<dialog>`; the full image *is* the thumbnail,
+  scaled by CSS, so nothing is stored twice).
+- **Print → Save as PDF** gives a clean document — the print stylesheet drops the lightbox, lays the
+  thumbnails out as a grid and forces a light theme.
+- **Universal.** A session with no checklist renders as a plain list of issues.
+- Screenshots are downscaled to 1200px and re-encoded before inlining, so a typical session
+  (5 items, 6 screenshots) lands around 150 KB. This uses no image dependency at all — the PNG
+  decoder and JPEG encoder are part of the CLI, so `npm install sluglist` still pulls **no native
+  binaries** into your browser project.
 
 ## Local feedback loop
 
@@ -692,12 +751,35 @@ fix agent ──sluglist-fix──▶ code commits + fixes.yaml (fixed | wontfix
 generator re-test mode ──▶ checklist.retest.json (only the fixed items, retest_of provenance)
                                        │
 QA agent again ──▶ green session (or honest fails — also a valid outcome)
+                                       │
+`npx sluglist report` ──▶ report.html — one offline file for the human who paid for the work
 ```
 
 The three skills ship in the package: [`skills/sluglist-checklist`](skills/sluglist-checklist/SKILL.md)
-(generate + re-test mode), [`skills/sluglist-qa`](skills/sluglist-qa/SKILL.md) (browser QA; no fail
-without a screenshot, no pass without performing the check), and
+(generate: branch / re-test / smoke / scenario), [`skills/sluglist-qa`](skills/sluglist-qa/SKILL.md)
+(browser QA; no fail without a screenshot, no pass without performing the check), and
 [`skills/sluglist-fix`](skills/sluglist-fix/SKILL.md) (fix + `fixes.yaml`).
+
+### Evidence-backed passes
+
+By default only a `fail` carries evidence — its screenshot lives in the linked issue. Run the QA
+skill in **evidence mode `all`** and every `pass` carries proof too: the screenshot taken at the
+moment of the check, plus a note stating what was actually observed.
+
+```ts
+await session.setVerdict("reports-export-csv", "pass", {
+  evidence: {
+    screenshots: [pngBuffer],   // or a file path; several are allowed
+    note: "Clicked Export CSV on /reports — reports-2026-08.csv downloaded, 57 bytes, 3 data rows",
+  },
+});
+```
+
+That note is the point. A screenshot proves *the screen looked like this*; it cannot prove *the
+action worked*. For a download, a submission or a background job the skill requires the note to
+carry the observable fact — the file's name and size, the toast's text, the counter that changed —
+and treats a pass with nothing observable behind it as **not tested**. The result is a session, and
+a [report](#reports), you can actually check rather than take on trust.
 
 ### Headless writer — `sluglist/node`
 
@@ -767,7 +849,7 @@ per-issue metadata in frontmatter followed by the free-text comment. The structu
 are a stable contract intended as input for downstream parsers; **it only changes additively**.
 
 The full field dictionary, section rules and versioning policy live in **[SPEC.md](SPEC.md)** — safe
-to build parsers against. `session.yaml` starts with `format_version: "1.5"`; a missing version means
+to build parsers against. `session.yaml` starts with `format_version: "1.6"`; a missing version means
 `"1.0"`. Within a major version, new fields are only ever added, never removed or repurposed.
 
 ## Metadata collected

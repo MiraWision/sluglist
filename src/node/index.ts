@@ -20,9 +20,11 @@ export {
 export type {
   Checklist,
   ChecklistDef,
+  ChecklistEvidence,
   ChecklistItem,
   ChecklistSection,
   ChecklistState,
+  ChecklistVerdictItem,
   Verdict,
 } from "../checklist";
 export { MemoryConnector } from "../connectors/memory";
@@ -37,6 +39,7 @@ export type {
   ReportFixInput,
   ReportIssueInput,
   ReportIssueMeta,
+  VerdictEvidenceInput,
   WriterSession,
 } from "./writer";
 export type {

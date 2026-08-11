@@ -66,8 +66,12 @@ function yamlBlock(
  * 1.5 — additive `reporter.kind` ("human" | "agent"; absent ⇒ human) and the
  *       optional per-session `fixes.yaml` file (fix-agent resolution records;
  *       absent for every session that predates it or was never fixed).
+ * 1.6 — additive `checklist.items[].evidence` (`screenshots` + `note`: proof
+ *       attached to a verdict, so a `pass` can be verified and not merely
+ *       trusted) and additive `checklist.intent` (why the checklist exists:
+ *       branch / re-test / smoke / scenario). Both absent unless recorded.
  */
-export const FORMAT_VERSION = "1.5";
+export const FORMAT_VERSION = "1.6";
 
 /**
  * The `checklist:` block: definition identity + one entry per item with its
@@ -75,25 +79,51 @@ export const FORMAT_VERSION = "1.5";
  * additive top-level key.
  */
 function yamlChecklist(checklist: ChecklistState): string {
-  const head = `checklist:\n${yamlLine("id", checklist.id, "  ")}\n${yamlLine(
+  let head = `checklist:\n${yamlLine("id", checklist.id, "  ")}\n${yamlLine(
     "title",
     checklist.title,
     "  "
   )}`;
+  // Additive (format 1.6): why this checklist exists. Emitted only when the
+  // definition declared it, so sessions without it stay byte-identical.
+  if (checklist.intent !== undefined) {
+    head += `\n${yamlLine("intent", checklist.intent, "  ")}`;
+  }
   if (checklist.items.length === 0) {
     return `${head}\n  items: []`;
   }
-  const items = yamlListOfMaps(
-    checklist.items.map((item) => [
-      ["id", item.id],
-      ["section", item.section],
-      ["title", item.title],
-      ["verdict", item.verdict],
-      ["issue", item.issue],
-      ["ts", item.ts],
-    ]),
-    "    "
-  );
+  // Rendered item-by-item rather than through `yamlListOfMaps` because the
+  // additive `evidence` block is nested — the flat helper cannot express it.
+  const items = checklist.items
+    .map((item) => {
+      let block = yamlListOfMaps(
+        [
+          [
+            ["id", item.id],
+            ["section", item.section],
+            ["title", item.title],
+            ["verdict", item.verdict],
+            ["issue", item.issue],
+            ["ts", item.ts],
+          ],
+        ],
+        "    "
+      );
+      // Additive (format 1.6): proof for this verdict. Absent for a bare
+      // verdict, so pre-1.6 sessions stay byte-identical.
+      if (item.evidence) {
+        block += "\n      evidence:";
+        block +=
+          item.evidence.screenshots.length > 0
+            ? `\n${yamlLine("screenshots", item.evidence.screenshots, "        ")}`
+            : "\n        screenshots: []";
+        if (item.evidence.note !== undefined) {
+          block += `\n${yamlLine("note", item.evidence.note, "        ")}`;
+        }
+      }
+      return block;
+    })
+    .join("\n");
   return `${head}\n  items:\n${items}`;
 }
 

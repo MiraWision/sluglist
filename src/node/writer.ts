@@ -11,6 +11,7 @@ import {
   type Checklist,
   type ChecklistDef,
   type ChecklistState,
+  MAX_EVIDENCE_NOTE,
   normalizeChecklist,
   seedChecklistState,
   type Verdict,
@@ -100,6 +101,22 @@ export interface ReportedIssue {
   report: DeliveryReport;
 }
 
+/**
+ * Proof attached to a verdict (format 1.6). Valid for any verdict: on `pass` it
+ * is the whole point (a verifiable pass rather than a self-report); on `fail`
+ * it is supplementary to the linked issue, which remains the primary evidence.
+ *
+ * A screenshot proves "the screen looked like this", not "the action worked" —
+ * for a check whose result is invisible on screen, `note` must carry the
+ * observed fact (downloaded file name and size, toast text, changed counter).
+ */
+export interface VerdictEvidenceInput {
+  /** PNG bytes, or a path to an image file to read and attach. */
+  screenshots?: (BinaryInput | string)[];
+  /** One line of observed fact; clipped to 500 chars. */
+  note?: string;
+}
+
 export interface ReportFixInput {
   /** Issue id being resolved, e.g. "01". */
   issue: string;
@@ -158,7 +175,7 @@ export interface WriterSession {
   setVerdict(
     itemId: string,
     verdict: Verdict,
-    opts?: { issue?: string | null }
+    opts?: { issue?: string | null; evidence?: VerdictEvidenceInput }
   ): Promise<DeliveryReport>;
   /** Upsert one resolution record into fixes.yaml (put-per-fix). */
   reportFix(input: ReportFixInput): Promise<DeliveryReport>;
@@ -170,7 +187,7 @@ export interface WriterSession {
   getFixes(): FixRecord[];
 }
 
-function toBlob(data: BinaryInput, type: string): Blob {
+function toBlob(data: BinaryInput | Uint8Array, type: string): Blob {
   if (data instanceof Blob) {
     return data;
   }
@@ -422,8 +439,41 @@ export async function createSession(
       // same rule as the widget.
       item.issue = verdict === "fail" ? (opts.issue ?? item.issue) : null;
       item.ts = isoTimestamp(new Date());
+
+      // Additive (format 1.6): optional proof for this verdict. Files land
+      // next to session.yaml as `ev-<itemId>-NN.png`, following the same
+      // numbering discipline as issue screenshots.
+      const files: ArtifactFile[] = [];
+      const evidence = opts.evidence;
+      if (evidence && (evidence.screenshots?.length || evidence.note)) {
+        const shots: Blob[] = [];
+        for (const shot of evidence.screenshots ?? []) {
+          shots.push(
+            typeof shot === "string"
+              ? toBlob(await readFile(shot), "image/png")
+              : toBlob(shot, "image/png")
+          );
+        }
+        const paths = shots.map(
+          (_, i) => `ev-${itemId}-${String(i + 1).padStart(2, "0")}.png`
+        );
+        for (const [i, shot] of shots.entries()) {
+          files.push(screenshotFile(paths[i], shot));
+        }
+        const note = evidence.note?.trim();
+        item.evidence = {
+          screenshots: paths,
+          // The note is page-derived text, so it follows the session's scrub
+          // setting like every other observed string.
+          ...(note
+            ? { note: text(note).slice(0, MAX_EVIDENCE_NOTE) }
+            : {}),
+        };
+      }
       sessions.write(state);
-      return enqueue(state.session_id, [sessionYamlFile(state)]);
+      // session.yaml last, so the index never references a missing file.
+      files.push(sessionYamlFile(state));
+      return enqueue(state.session_id, files);
     },
 
     async reportFix(input) {

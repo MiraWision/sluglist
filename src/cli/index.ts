@@ -1,11 +1,24 @@
 import { existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { writeFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
+import {
+  isSessionDir,
+  latestSessionDir,
+  readSession,
+  sessionName,
+} from "../node/read";
+import { formatBytes } from "./embed";
+import { buildReport } from "./report";
 import { createDevServer } from "./server";
 
 /**
- * `sluglist dev` — a local sidecar that receives feedback artifacts from the
- * LocalConnector and writes them into `.sluglist/`. Run it alongside your dev
- * server; a Claude Code skill then reads the folder and fixes the issues.
+ * The sluglist CLI.
+ *
+ * - `sluglist dev` — a local sidecar that receives feedback artifacts from the
+ *   LocalConnector and writes them into `.sluglist/`. Run it alongside your dev
+ *   server; a Claude Code skill then reads the folder and fixes the issues.
+ * - `sluglist report` — renders a finished session into one self-contained HTML
+ *   file you can send to whoever asked for the work.
  */
 
 interface Args {
@@ -13,6 +26,10 @@ interface Args {
   dir: string;
   port: number;
   help: boolean;
+  /** Positional argument after the command (`report [session-dir]`). */
+  target: string;
+  /** `-o` output path for `report`. */
+  out: string;
 }
 
 function parseArgs(argv: string[]): Args {
@@ -21,6 +38,8 @@ function parseArgs(argv: string[]): Args {
     dir: ".sluglist",
     port: 4477,
     help: false,
+    target: "",
+    out: "",
   };
   const rest = argv.slice(2);
   for (let i = 0; i < rest.length; i++) {
@@ -31,33 +50,101 @@ function parseArgs(argv: string[]): Args {
       args.port = Number.parseInt(rest[++i] ?? "", 10);
     } else if (token === "--dir" || token === "-d") {
       args.dir = rest[++i] ?? args.dir;
-    } else if (!token.startsWith("-") && !args.command) {
-      args.command = token;
+    } else if (token === "--out" || token === "-o") {
+      args.out = rest[++i] ?? args.out;
+    } else if (!token.startsWith("-")) {
+      if (args.command) {
+        args.target ||= token;
+      } else {
+        args.command = token;
+      }
     }
   }
   return args;
 }
 
-const USAGE = `sluglist dev — local feedback sidecar
+const USAGE = `sluglist — local feedback sidecar and session reports
 
 Usage:
   npx sluglist dev [--port <n>] [--dir <path>]
+  npx sluglist report [session-dir] [-o <file.html>] [--dir <path>]
+
+Commands:
+  dev      Receive artifacts from a LocalConnector and write them to disk.
+           Also serves checklists read-only from <dir>/checklists/<name>.json
+           at GET /checklists/<name>.json, so the widget can load one without
+           copying it into your app's public folder.
+  report   Render a session as one self-contained HTML file (offline, no
+           external requests) — the proof artifact you send to a client.
 
 Options:
-  -p, --port <n>     Port to listen on (127.0.0.1 only). Default 4477.
-  -d, --dir <path>   Folder to write artifacts into. Default .sluglist
+  -p, --port <n>     dev: port to listen on (127.0.0.1 only). Default 4477.
+  -d, --dir <path>   Artifact folder. Default .sluglist
+  -o, --out <file>   report: output path. Default report.html in the session.
   -h, --help         Show this help.
 
 Pair with a LocalConnector in your app:
   createFeedbackWidget({ project, connectors: [new LocalConnector()] })
+
+Report the newest session, zero config:
+  npx sluglist report
 `;
 
-function main(): void {
+/**
+ * Resolve which session folder to report on: an explicit path (either the
+ * session itself or a folder containing sessions), otherwise the newest
+ * session under `--dir`.
+ */
+async function resolveSessionDir(args: Args): Promise<string | null> {
+  if (args.target) {
+    const target = resolve(args.target);
+    if (await isSessionDir(target)) {
+      return target;
+    }
+    return await latestSessionDir(target);
+  }
+  const root = resolve(args.dir);
+  if (await isSessionDir(root)) {
+    return root;
+  }
+  return await latestSessionDir(root);
+}
+
+async function runReport(args: Args): Promise<void> {
+  const dir = await resolveSessionDir(args);
+  if (!dir) {
+    const where = args.target || args.dir;
+    process.stderr.write(
+      `No session found in ${resolve(where)}.\n` +
+        "Pass a session folder explicitly: npx sluglist report <session-dir>\n"
+    );
+    process.exit(1);
+  }
+
+  const bundle = await readSession(dir);
+  const result = await buildReport(bundle);
+  const out = args.out ? resolve(args.out) : join(dir, "report.html");
+  await writeFile(out, result.html, "utf8");
+
+  for (const warning of result.warnings) {
+    process.stderr.write(`warning: ${warning}\n`);
+  }
+  process.stdout.write(
+    `${sessionName(dir)} → ${out}  (${formatBytes(result.bytes)})\n`
+  );
+}
+
+async function main(): Promise<void> {
   const args = parseArgs(process.argv);
 
-  if (args.help || args.command !== "dev") {
+  if (args.help || (args.command !== "dev" && args.command !== "report")) {
     process.stdout.write(USAGE);
     process.exit(args.help ? 0 : 1);
+  }
+
+  if (args.command === "report") {
+    await runReport(args);
+    return;
   }
 
   if (!Number.isInteger(args.port) || args.port <= 0 || args.port > 65_535) {
@@ -112,4 +199,7 @@ function main(): void {
   process.on("SIGTERM", shutdown);
 }
 
-main();
+main().catch((error: unknown) => {
+  process.stderr.write(`${String(error)}\n`);
+  process.exit(1);
+});

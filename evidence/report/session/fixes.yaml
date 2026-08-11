@@ -1,0 +1,11 @@
+format_version: "1.6"
+fixed_by:
+  name: fix-agent
+  kind: agent
+items:
+  - issue: "01"
+    status: fixed
+    commit: a1b2c3d
+    note: "Save handler looked up element id 'tost'; corrected to 'toast' so the confirmation shows"
+    checklist_item: settings-save-confirms
+    ts: 2026-08-11T14:43:57Z
