@@ -64,6 +64,9 @@ mountFeedbackWidget(createFeedbackWidget({ connectors: [new LocalConnector()] })
 npx sluglist dev        # sidecar that writes to ./.sluglist
 ```
 
+Gate it behind an env flag so it never initializes in production —
+`enabled: process.env.NODE_ENV !== "production"`.
+
 → [Local feedback loop](#local-feedback-loop) · [the fix skill](#let-an-agent-fix-it-claude-code-skill) ·
 [capture modes](#capture-modes) · [record mode](#action-trail--record-mode) ·
 [artifact format](#artifact-format-contract)
@@ -685,10 +688,12 @@ import { createFeedbackWidget, mountFeedbackWidget, LocalConnector } from "slugl
 const widget = createFeedbackWidget({
   project: "my-app",
   connectors: [new LocalConnector()], // POSTs to http://127.0.0.1:4477 by default
-  enabled: process.env.NODE_ENV !== "production",
 });
 mountFeedbackWidget(widget);
 ```
+
+Gate it behind an env flag so it never initializes in production —
+`enabled: process.env.NODE_ENV !== "production"`.
 
 Run the sidecar next to your dev server:
 
@@ -707,11 +712,23 @@ UI is never blocked).
 ### Let an agent fix it (Claude Code skill)
 
 The package ships a `sluglist-fix` skill that reads `.sluglist/` and fixes the reported issues. Install
-it into your project once:
+the bundled skills into your project once:
+
+```bash
+npx sluglist init-skills
+```
+
+That copies every bundled skill into `.claude/skills/`. Re-running it is safe: unchanged skills are
+refreshed silently, and any you have edited are reported and left alone (`--force` replaces them).
+
+<details>
+<summary>or copy manually</summary>
 
 ```bash
 mkdir -p .claude/skills && cp -r node_modules/sluglist/skills/sluglist-fix .claude/skills/
 ```
+
+</details>
 
 Then, after clicking feedback, ask Claude Code to "fix feedback": it reads each issue (comment,
 selector, `element_text`, screenshot, `## Errors`), localizes and fixes the code, and writes a

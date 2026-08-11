@@ -1,5 +1,38 @@
 # Changelog
 
+## 1.14.0 — `sluglist init-skills`, per-page social metadata
+
+A polish release: one new CLI command and a set of site/docs consistency fixes. No library code and
+no artifact-format change — the widget, the writer and the format are untouched.
+
+### `sluglist init-skills`
+
+- New command replacing the documented
+  `mkdir -p .claude/skills && cp -r node_modules/sluglist/skills/… .claude/skills/` line: it copies
+  every bundled skill into `.claude/skills/`, creating the folder if needed.
+- Zero-config; `--dir <path>` retargets and `--force` overrides.
+- **A skill you have edited is never overwritten.** Skills are prompts and editing them to fit a
+  project is expected, so a file identical to the bundled copy is refreshed silently, and anything
+  that differs is reported and kept. A partially-edited skill is left entirely alone rather than
+  half-updated. Note that a package upgrade produces the same "differs" state, so the message names
+  both causes and `--force` is how you take new versions after upgrading.
+- Docs now show the command, with the manual `cp` kept as a collapsed fallback for unusual layouts.
+
+### Site and docs
+
+- **Per-page social metadata.** Internal pages set `title` and `description` but inherited the home
+  page's `og:title`/`og:url`, so sharing a doc in Slack or X showed the home page's headline. Every
+  page (docs, `/for/*`, `/compare/*`, docs index, changelog) now emits its own `og:title`,
+  `og:url`, `og:description` and `twitter:*`, matching its canonical URL and its `<title>`. The
+  shared `og:image` is unchanged.
+- **One canonical dev-loop snippet.** Quick-start showed `LocalConnector` bare while the agents page
+  showed it behind `enabled: process.env.NODE_ENV !== "production"`. All five places (README ×2,
+  quick start, agents, `/for/claude-code/`) now show the clean one-liner followed by the same
+  reminder to gate it behind an env flag.
+- **Privacy footnote** under the artifact example on the landing page: `reporter` comes from the
+  `identity` you configure, so it is not a scrubbing miss — scrubbing applies to text the widget
+  captures, not to fields you set on purpose.
+
 ## 1.13.0 — Verdict evidence, checklist intents, `sluglist report`
 
 Everything here is additive. The `FeedbackConnector` contract is unchanged and the widget — its UI

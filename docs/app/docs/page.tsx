@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { DOC_PAGES } from "@/lib/docs";
+import { pageMetadata } from "@/lib/site";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
+  path: "/docs/",
   title: "Documentation",
   description:
     "sluglist documentation: quick start, capture modes, connectors, checklist mode, production privacy, the agent loop and the artifact format.",
-  alternates: { canonical: "/docs/" },
-};
+  type: "website",
+});
 
 export default function DocsIndexPage() {
   return (

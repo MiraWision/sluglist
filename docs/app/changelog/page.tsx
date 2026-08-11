@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 import { JsonLd } from "@/components/JsonLd";
 import { renderMarkdownFile } from "@/lib/markdown";
-import { SITE_URL } from "@/lib/site";
+import { pageMetadata, SITE_URL } from "@/lib/site";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
+  path: "/changelog/",
   title: "Changelog",
   description:
     "Release notes for the sluglist feedback widget: every version, every feature, and the additive artifact-format history.",
-  alternates: { canonical: "/changelog/" },
-};
+});
 
 export default function ChangelogPage() {
   // The library CHANGELOG is the single source of truth; rendered at build time.

@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/JsonLd";
 import { DOC_PAGES, getDocPage } from "@/lib/docs";
 import { renderMarkdownFile } from "@/lib/markdown";
-import { SITE_URL } from "@/lib/site";
+import { pageMetadata, SITE_URL } from "@/lib/site";
 
 export function generateStaticParams() {
   return DOC_PAGES.map((d) => ({ slug: d.slug }));
@@ -18,11 +18,11 @@ export async function generateMetadata({
   const { slug } = await params;
   const doc = getDocPage(slug);
   if (!doc) return {};
-  return {
+  return pageMetadata({
+    path: `/docs/${doc.slug}/`,
     title: doc.title,
     description: doc.description,
-    alternates: { canonical: `/docs/${doc.slug}/` },
-  };
+  });
 }
 
 export default async function DocPage({

@@ -174,6 +174,9 @@ the note is absent but the standard for *calling something a pass* is identical.
 ## Installing this skill in a project
 
 ```bash
-mkdir -p .claude/skills
-cp -r node_modules/sluglist/skills/sluglist-qa .claude/skills/
+npx sluglist init-skills
 ```
+
+Installs every bundled skill into `.claude/skills/`. Safe to re-run: unchanged skills are refreshed
+silently, edited ones are reported and kept (`--force` replaces them). To copy just this one by hand:
+`cp -r node_modules/sluglist/skills/sluglist-qa .claude/skills/`.

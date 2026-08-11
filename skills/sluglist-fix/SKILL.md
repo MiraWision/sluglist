@@ -216,12 +216,13 @@ the gaps.
 
 ## Installing this skill in a project
 
-Copy this folder into the project's skills directory (or symlink it):
-
 ```bash
-mkdir -p .claude/skills
-cp -r node_modules/sluglist/skills/sluglist-fix .claude/skills/
+npx sluglist init-skills
 ```
+
+Installs every bundled skill into `.claude/skills/`. Safe to re-run: unchanged skills are refreshed
+silently, edited ones are reported and kept (`--force` replaces them). To copy just this one by hand:
+`cp -r node_modules/sluglist/skills/sluglist-fix .claude/skills/`.
 
 Then run `npx sluglist dev` alongside your dev server, click feedback with the widget, and ask the
 agent to "fix feedback".

@@ -28,9 +28,9 @@ export const USE_CASES: UseCase[] = [
 2. **Click feedback.** Report a bug with the widget while you use the app. The full artifact set —
    screenshot, comment, CSS selector, page errors and a trail of action frames — lands in the
    folder.
-3. **Let the agent fix it.** Tell Claude Code to *"read feedback and fix it."* The bundled
-   \`sluglist-fix\` skill reads each issue, localizes by selector and frames, fixes the code, and
-   writes a \`.done\` report.
+3. **Let the agent fix it.** Install the bundled skills once with \`npx sluglist init-skills\`, then
+   tell Claude Code to *"read feedback and fix it."* The \`sluglist-fix\` skill reads each issue,
+   localizes by selector and frames, fixes the code, and writes a \`.done\` report.
 
 \`\`\`ts
 import { createFeedbackWidget, mountFeedbackWidget, LocalConnector } from "sluglist";
@@ -38,10 +38,12 @@ import { createFeedbackWidget, mountFeedbackWidget, LocalConnector } from "slugl
 mountFeedbackWidget(
   createFeedbackWidget({
     connectors: [new LocalConnector()],
-    enabled: process.env.NODE_ENV !== "production",
   })
 );
 \`\`\`
+
+Gate it behind an env flag so it never initializes in production —
+\`enabled: process.env.NODE_ENV !== "production"\`.
 
 \`\`\`bash
 npx sluglist dev        # sidecar that writes to ./.sluglist

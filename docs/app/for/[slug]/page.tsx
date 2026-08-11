@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/JsonLd";
 import { renderMarkdown } from "@/lib/markdown";
-import { SITE_URL } from "@/lib/site";
+import { pageMetadata, SITE_URL } from "@/lib/site";
 import { USE_CASES, getUseCase } from "@/lib/use-cases";
 
 export function generateStaticParams() {
@@ -18,11 +18,11 @@ export async function generateMetadata({
   const { slug } = await params;
   const uc = getUseCase(slug);
   if (!uc) return {};
-  return {
+  return pageMetadata({
+    path: `/for/${uc.slug}/`,
     title: uc.metaTitle,
     description: uc.description,
-    alternates: { canonical: `/for/${uc.slug}/` },
-  };
+  });
 }
 
 export default async function UseCasePage({

@@ -73,9 +73,10 @@ const AGENT_STEPS: { n: string; title: string; body: React.ReactNode }[] = [
     title: "Let the agent fix it",
     body: (
       <>
-        Tell Claude Code to <em>&ldquo;read feedback and fix it.&rdquo;</em> The
-        bundled skill reads each issue, localizes by selector and frames, fixes
-        the code, and writes a <Mono>.done</Mono> report.
+        Install the skills once with <Mono>npx sluglist init-skills</Mono>, then
+        tell Claude Code to <em>&ldquo;read feedback and fix it.&rdquo;</em> The
+        skill reads each issue, localizes by selector and frames, fixes the
+        code, and writes a <Mono>.done</Mono> report.
       </>
     ),
   },
@@ -728,7 +729,19 @@ export default function HomePage() {
             </p>
             <CodeBlock code={ARTIFACTS} lang="text" />
           </div>
-          <CodeBlock code={FRONTMATTER} lang="markdown" />
+          <div>
+            <CodeBlock code={FRONTMATTER} lang="markdown" />
+            {/* This example sits right after the privacy section, where a
+                readable `reporter.email` looks like a contradiction. It is not:
+                scrubbing is for text the widget collects, not for fields the
+                developer sets deliberately. */}
+            <p className="mt-2 text-[12px] text-[var(--color-muted)] leading-relaxed">
+              <code className="font-mono text-[11px]">reporter</code> comes from
+              the <code className="font-mono text-[11px]">identity</code> you
+              configure — scrubbing applies to text the widget captures, not to
+              fields you set on purpose.
+            </p>
+          </div>
         </div>
       </Section>
 

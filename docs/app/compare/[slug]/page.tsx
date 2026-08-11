@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/JsonLd";
 import { COMPARE_PAGES, getComparePage } from "@/lib/compare";
-import { SITE_URL } from "@/lib/site";
+import { pageMetadata, SITE_URL } from "@/lib/site";
 
 export function generateStaticParams() {
   return COMPARE_PAGES.map((c) => ({ slug: c.slug }));
@@ -17,11 +17,11 @@ export async function generateMetadata({
   const { slug } = await params;
   const cp = getComparePage(slug);
   if (!cp) return {};
-  return {
+  return pageMetadata({
+    path: `/compare/${cp.slug}/`,
     title: cp.metaTitle,
     description: cp.description,
-    alternates: { canonical: `/compare/${cp.slug}/` },
-  };
+  });
 }
 
 export default async function ComparePageRoute({

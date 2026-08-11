@@ -1,29 +1,18 @@
-# RUN_EVIDENCE — verdict evidence, checklist intents, `sluglist report`
+# RUN_EVIDENCE — site polish (og tags, snippets, terminology, init-skills)
 
-Date: 2026-08-11. **Additive-only**; the `FeedbackConnector` contract is unchanged; the widget's UI
-and its artifacts are untouched. Artifact format `1.5 → 1.6` (minor, additive: verdict `evidence`,
-checklist `intent`). **493 tests pass** (was 404 — 89 added across four new files), type-check clean,
-package build clean.
+Date: 2026-08-11. Five small findings closed in one pass. **No library code and no artifact-format
+change** — the widget, the headless writer and format 1.6 are untouched; the only runtime addition is
+a new CLI command. **504 tests pass** (was 493 — 11 added), type-check clean, package build clean,
+site build clean.
 
-**No new dependencies.** `package.json` resolves to exactly the tree it did before this work; the
-report's image pipeline is written against `node:zlib` alone. Clean-install log below.
+Version **1.14.0** (minor: one new command). Note: 1.13.0 turned out to be **already published** to
+npm without `init-skills`, so this is a new version rather than an amendment to it.
 
-The headline is Phase 6: a full generator → QA (evidence mode `all`) → fix → report cycle against a
-demo app with one planted bug, ending in a single HTML file. Everything is in
-[`evidence/report/`](evidence/report/).
-
-External artifacts:
-
-| What | Where | Produced by |
-|---|---|---|
-| **The report** (the deliverable) | [`evidence/report/session/report.html`](evidence/report/session/report.html) | `npx sluglist report`, zero arguments |
-| Report — desktop rendering | [`evidence/report/shot-desktop.png`](evidence/report/shot-desktop.png) | headless Chrome, 900px wide |
-| Report — lightbox open | [`evidence/report/shot-lightbox.png`](evidence/report/shot-lightbox.png) | headless Chrome, dialog opened on load |
-| Report — print rendering | [`evidence/report/shot-print.pdf`](evidence/report/shot-print.pdf) | headless Chrome `--print-to-pdf` (exercises `@media print`) |
-| The QA session itself (format 1.6) | [`evidence/report/session/`](evidence/report/session/) | QA agent via `sluglist/node` |
-| Smoke checklist (intent `smoke`) | [`evidence/report/smoke-checklist.json`](evidence/report/smoke-checklist.json) | generator, smoke intent |
-| Demo app with the planted bug | [`evidence/report/app.mjs`](evidence/report/app.mjs) | `BUG=0` runs the fixed build |
-| QA / fix runners, CDP driver | [`qa-run.mjs`](evidence/report/qa-run.mjs), [`fix-run.mjs`](evidence/report/fix-run.mjs), [`cdp.mjs`](evidence/report/cdp.mjs) | this run |
+| What | Where |
+|---|---|
+| Footnote under the artifact example | [`evidence/site-polish/footnote.jpg`](evidence/site-polish/footnote.jpg) |
+| `init-skills` implementation | [`src/cli/init-skills.ts`](src/cli/init-skills.ts) |
+| `init-skills` tests (11) | [`test/init-skills.test.ts`](test/init-skills.test.ts) |
 
 ---
 
@@ -31,248 +20,225 @@ External artifacts:
 
 | Surface | Verdict | Detail |
 |---|---|---|
-| Task A deliverables (`sluglist/node` writer, `fixes.yaml`, QA skill) | **REAL** | Commit `47179bc`. `src/node/writer.ts` (457 lines) implements `reportIssue` / `setVerdict` / `reportFix`; `buildFixesYaml` in `artifacts.ts`; three skills in `skills/`. Working artifacts committed under `evidence/agent-loop/`. Dependency satisfied. |
-| Format version | **DRIFT — see note** | The task specifies "format is 1.2 after task A, bump to 1.3". It is actually **1.5** (1.3 and 1.4 landed in between: `scrubbed`; `screenshot_failed`/`form`/`attachments`). Task A *is* done, so the STOP condition ("dependency not ready") does not apply. Bumped **1.5 → 1.6** instead of 1.3. |
-| CLI structure ([`cli/index.ts`](src/cli/index.ts)) | **REAL, single-command** | `sluglist dev` only, with a hand-rolled arg parser. `report` slots in as a second command; the parser gained a positional target and `-o`. |
-| Session parsing | **MISSING** | The package has a YAML **writer** (`yaml.ts`) and no reader anywhere in `src/`. Skills read sessions with the agent's own file tools; tests use the `yaml` devDependency. So "reuse the skills' parser" was not possible — there is none. Built one (below). |
-| Image processing | **NONE — built** | No image dependency existed. Verdict and reasoning below. |
-| Verdict vocabulary | **NOTE** | Verdicts are `pass` / `fail` / `skip` / `null`. The task's "not-tested" is `null` (the QA skill's existing convention); `skip` is a legacy widget value. The report renders all four. |
+| Head-tag generation | **REAL, per-page capable** | Next.js Metadata API: root `app/layout.tsx` holds defaults, each page exports `metadata` or `generateMetadata`. Per-page og values are an additive field per page — no generator rework. **No STOP.** |
+| `strings` vs `labels` | **NOT A CONFLICT — see below** | They are two different things, both used correctly everywhere. Phase 3 turned out to be a no-op. |
+| Dev-loop snippets | **INCONSISTENT (5 places)** | 3 bare, 2 gated. One more (`docs/lib/use-cases.ts`) was outside the paths the task listed and was found by a second sweep. |
+| CLI structure | **REAL** | `src/cli/index.ts`, hand-rolled arg parser, commands `dev` and `report`. `init-skills` slots in as a third. |
+| Bundled skills path | `<pkg>/skills/<name>/SKILL.md` | Confirmed by unpacking the published tarball: `package/skills/sluglist-{qa,fix,checklist}/SKILL.md`. `files` in package.json already ships `skills`. |
 
-### Image-library verdict (the STOP condition)
+### Pages on the site
 
-The STOP condition was: *"recompression requires a native dependency in the MAIN package → STOP"*.
-**It does not.** No dependency was added at all.
-
-| Option | Rejected because |
-|---|---|
-| `sharp` | Native binary. Would be pulled into every browser project's `npm install sluglist`. |
-| `sharp` as `optionalDependencies` | **Does not solve it** — npm installs optional dependencies by default; they merely tolerate failure. The binary still downloads. |
-| `sharp` as optional `peerDependency` | Not installed by default, so `sluglist report` breaks zero-config until the user installs it manually. |
-| `jimp` (pure JS) | Satisfies "no native binaries" but adds a large tree to a package whose entire runtime is two lazily-imported deps. |
-| **Hand-rolled, `node:zlib` only** | **Chosen.** Zero install cost, zero tree growth, CLI-only code path so the browser bundle is unaffected. |
-
-Feasibility was spiked before committing: PNG's happy path is `zlib.inflateSync` plus scanline
-unfiltering, and Node ships zlib. [`src/cli/png.ts`](src/cli/png.ts) decodes (non-interlaced, 8/16-bit,
-colour types 0/2/3/4/6, tRNS) and box-filter downscales; [`src/cli/jpeg.ts`](src/cli/jpeg.ts) is a
-baseline JPEG encoder with the standard T.81 Annex K tables, 4:4:4 (chroma is **not** subsampled —
-report screenshots are text and UI edges, where 4:2:0 smears coloured type).
-
-Unsupported input never breaks a report: the original bytes are embedded verbatim instead.
+`/`, `/docs/`, `/docs/{quick-start,capture,connectors,checklist,production,agents,artifacts}/`,
+`/for/{claude-code,client-acceptance,beta-feedback}/`,
+`/compare/{marker-io,usersnap,bugherd}/`, `/changelog/` — 19 prerendered routes.
 
 ---
 
-## Phase 1 — Evidence in the format and the writer
+## Phase 1 — Per-page og tags
 
-Format **1.6**, additive. `checklist.items[].evidence` = `screenshots` (list) + optional `note`.
+Added `pageMetadata()` in [`docs/lib/site.ts`](docs/lib/site.ts) and applied it to all five page
+modules (docs index, docs/[slug], for/[slug], compare/[slug], changelog). The landing keeps its own
+`metadata` untouched.
 
-```yaml
-    - id: reports-export-csv
-      section: Reports
-      title: "On Reports, Export CSV downloads a CSV file of the table"
-      verdict: pass
-      issue: null
-      ts: 2026-08-11T14:43:00Z
-      evidence:
-        screenshots:
-          - ev-reports-export-csv-01.png
-        note: "Clicked Export CSV on /reports — reports-2026-08.csv downloaded, 57 bytes, header \"Report,Rows\", 3 data rows (Q1 revenue,412 …)"
+One detail worth recording: Next applies `title.template` (`"%s — sluglist"`) to `<title>` **only**,
+not to `og:title`. Setting `og:title` to the raw page title would have made the shared card differ
+from the browser tab, so the helper appends the suffix itself.
+
+Built output (`out/**/index.html`):
+
+| Page | `<title>` | `og:title` | `og:url` = canonical | `og:type` |
+|---|---|---|---|---|
+| `/` | sluglist — visual feedback that your agent fixes | *same* | `https://sluglist.dev/` | website |
+| `/docs/quick-start/` | Quick start — sluglist | *same* | `https://sluglist.dev/docs/quick-start/` | article |
+| `/for/claude-code/` | Visual feedback for Claude Code & coding agents — sluglist | *same* | `https://sluglist.dev/for/claude-code/` | article |
+| `/compare/marker-io/` | sluglist vs Marker.io: open-source feedback widget alternative — sluglist | *same* | `https://sluglist.dev/compare/marker-io/` | article |
+| `/docs/` | Documentation — sluglist | *same* | `https://sluglist.dev/docs/` | website |
+| `/changelog/` | Changelog — sluglist | *same* | `https://sluglist.dev/changelog/` | article |
+
+`og:description`/`twitter:description` equal each page's own meta description; `og:image` stays the
+shared card. The home page is byte-identical to before apart from nothing — it was not edited.
+
+Live check after deploy:
+
+```
+$ curl -s https://sluglist.dev/docs/quick-start/ | grep -E 'og:(title|url|description)'
+<meta property="og:title" content="Quick start — sluglist"/>
+<meta property="og:description" content="Install the sluglist feedback widget and mount it with one line of config: a connector, and nothing else. ESM, CJS or a script tag from a CDN."/>
+<meta property="og:url" content="https://sluglist.dev/docs/quick-start/"/>
 ```
 
-Schema decisions, fixed in [SPEC.md](SPEC.md):
-
-- **`screenshots` is always a list**, never a scalar alternative — chosen up front so the shape never
-  has to change. `[]` is valid (a note-only observation).
-- **No `ts` inside `evidence`.** The task sketch had one, but the item's own `ts` already records the
-  moment the verdict (and therefore its evidence) was captured; a second timestamp would be noise
-  that could disagree with the first.
-- `note` is clipped to 500 chars and scrubbed with the session's other page-derived text.
-- Files are `ev-<item-id>-NN.png`, following the existing zero-padded per-subject numbering.
-
-Writer: `setVerdict(id, verdict, { evidence: { screenshots, note } })`, screenshots as buffers **or**
-file paths. Valid on any verdict — on `fail` it supplements the linked issue, which stays primary.
-
-**Backward compatibility** is asserted, not assumed: a session recording neither evidence nor intent
-is byte-identical to a 1.5 one apart from the version line
-([`test/evidence.test.ts`](test/evidence.test.ts), "byte-identical to 1.5"). All 404 pre-existing
-tests still pass unchanged except for the deliberate version-string bump.
-
-15 tests in [`test/evidence.test.ts`](test/evidence.test.ts): pass with evidence, pass without, fail
-with evidence over its issue, multi-screenshot numbering, note clipping, note scrubbing, file-path
-input, note-only evidence, not-tested staying bare, and the intent cases.
-
 ---
 
-## Phase 1b — The session reader (unplanned, required)
+## Phase 2 — One canonical dev-loop snippet
 
-The audit found no reader, so `sluglist report` needed one. Adding the `yaml` package as a runtime
-dependency would have put a parser into every browser install for a CLI-only feature, so
-[`src/node/read.ts`](src/node/read.ts) parses exactly the subset the serializer emits.
+Chosen form: **clean snippet + a reminder line directly under it**, worded identically in all five
+places (the task's recommendation — quick-start keeps its "one line" promise, and the gate is stated
+as prose rather than doubling the snippet's size).
 
-Hand-rolling a parser is the risky half of this change, so it is verified **differentially**: for
-every YAML artifact in the repository, `parseYaml` must return exactly what the reference `yaml`
-implementation returns ([`test/read.test.ts`](test/read.test.ts), 29 tests).
+> Gate it behind an env flag so it never initializes in production —
+> `enabled: process.env.NODE_ENV !== "production"`.
 
-That test found two real things:
-
-1. **A pre-existing serializer defect.** `formatScalar` leaves `0x0` (a mobile graceful-mode viewport)
-   unquoted, and a spec-compliant YAML parser reads it as hexadecimal **0**, not the string `"0x0"` —
-   so any third-party parser misreads that field. Out of scope here; the divergence is asserted
-   explicitly in the test rather than hidden, and the fix is queued as separate work.
-2. My own test fixture was unrealistic (`id: 01` unquoted); the writer does quote it, correctly.
-
----
-
-## Phase 2 — QA skill: evidence mode + the anti-theatre rule
-
-[`skills/sluglist-qa/SKILL.md`](skills/sluglist-qa/SKILL.md) gains `evidence: "fails" | "all"`
-(`fails` = previous behaviour, still the default) and the rule, stated in full with worked
-good/bad notes:
-
-> **A screenshot proves "the screen looked like this". It does not prove "the action worked."**
-> … A `pass` with no observable fact behind it is not a pass — it is `not tested`.
-
-Good: *"Clicked Export on /reports — report_2026-08.xlsx downloaded, 34 KB, 247 rows"*.
-Bad: *"Export works"* (restates the item), *"Clicked Export, no errors"* (absence of errors is not
-evidence the file arrived).
-
-Proven in Phase 6 rather than asserted: the export item's note carries the real downloaded filename,
-byte count and row count — read off the file on disk, because the screen showed nothing.
-
----
-
-## Phase 3 — Checklist intents and the storage convention
-
-- Additive `intent` on the config, carried to `session.yaml` as `checklist.intent`. Validated for
-  *shape* (slug, ≤ 40 chars) but not vocabulary, so a future intent needs no format change.
-- [`skills/sluglist-checklist/SKILL.md`](skills/sluglist-checklist/SKILL.md) restructured around four
-  intents, with two new modes:
-  - **smoke** — routes/navigation first, then project docs; one or two checks per page ("what would
-    fail loudly if this page were broken"); critical paths ordered auth → core CRUD → payment; capped
-    at 30 items by default with anything cut named in the summary.
-  - **scenario** — decomposes a written brief into steps and the error cases the brief names, grounded
-    in the real routes. Its defining rule: **stay inside the brief**; anything the generator thinks
-    belongs but the brief omits goes to a "Possibly worth adding" list, never a silent item.
-- Convention `.sluglist/checklists/<name>.json`, documented in both skills and the README.
-- **Dev server**: the task made this conditional on being cheap. It was — `GET /checklists/<name>.json`
-  serves that one folder read-only, so the widget can load a checklist without a copy into `public/`.
-  The name pattern makes traversal unrepresentable (no separators, `.json` required); four tests cover
-  traversal, wrong extension, and non-exposure of session artifacts through the route.
-
----
-
-## Phase 4 — `sluglist report`
-
-`npx sluglist report [session-dir] [-o out.html]`. With no arguments: newest session in `.sluglist/`,
-output `report.html` beside it.
-
-**Self-containment** is asserted statically and observed at runtime:
-
-- Tests: no `<link>`, no `<iframe>`, no `@import`, no `<script src=>`; every `src` is a `data:` URI;
-  every `href` is an in-document anchor.
-- Runtime: opened from `file://` in the browser pane with devtools recording — **zero network
-  requests**. Static inventory of the file: 3 `<img>` (all `data:`), 1 inline `<script>`, 0 `<link>`.
-  The only `http://` string in the document is the application URL shown as text.
-
-| Property | Result |
-|---|---|
-| Report size, Phase 6 session (5 items, 6 screenshots) | **146 KB** (149,524 bytes) — budget was ≤ 8 MB |
-| Source PNGs in that session | 103,315 bytes across 5 files |
-| Size guard | > 25 MB triggers one rebuild at 800px / q50 with a warning |
-| Lightbox | Native `<dialog>`; the full image **is** the thumbnail, CSS-scaled — verified `lightbox.src === thumbnail.src`, so each image is stored once |
-| Print | `@media print` drops the lightbox, grids the thumbnails, forces a light theme — [shot-print.pdf](evidence/report/shot-print.pdf) |
-| No checklist | Renders as a plain issue list (tested) |
-| Missing image file | Warned, and the note still renders (tested) |
-| Hostile content | Titles/notes are escaped, not injected (tested with `</h1><img src=x onerror=…>`) |
-
-Image pipeline correctness is established against an **independent decoder** rather than its own
-inverse: JPEGs are handed to the platform image stack (`sips`) and the pixels compared with what the
-encoder was given. A real screenshot round-trips at **mean absolute error 2.3/255** at q70, and flat
-colours at < 2 — consistent with lossy JPEG, and impossible if the encoder were structurally wrong.
-On hosts without `sips` those three tests skip; the structural ones still run.
-
-The report also keeps whichever encoding is smaller: for the sparse demo screenshots the source PNG
-beat JPEG, so those were embedded as PNG.
-
----
-
-## Phase 5 — Documentation
-
-| Doc | Change |
-|---|---|
-| [SPEC.md](SPEC.md) | → v1.6. `evidence` sub-table with its semantics note, `checklist.intent`, `intent` in the config interface, `ev-*.png` and `report.html` in the folder layout, the "no `ts` of its own" decision recorded. |
-| [README.md](README.md) | New **Reports** section (one command, the screenshot, what's in the file, offline/lightbox/print/budget). "Generate a checklist — four intents" table + the `.sluglist/checklists/` convention. "Evidence-backed passes" under *For agents*, with the anti-theatre rule. Report referenced from the *Client acceptance* scenario and the agent-loop diagram. Format version → 1.6. |
-| [CHANGELOG.md](CHANGELOG.md) | 1.13.0 entry, including why the image pipeline is hand-rolled. |
-| Skills | QA: evidence modes, the rule, new prohibitions, report hand-off. Generator: four intents, smoke + scenario algorithms, storage convention. |
-
----
-
-## Phase 6 — E2E: generator → QA (`all`) → fix → report
-
-Demo app "Reportly" ([`app.mjs`](evidence/report/app.mjs)) with three pages and **one planted bug**
-(the Save handler looks up element id `tost`, so the confirmation never shows). The checklist was
-built for the `smoke` intent and deliberately mixes the three evidence shapes.
-
-Driven by headless Chrome over the **DevTools Protocol** ([`cdp.mjs`](evidence/report/cdp.mjs)) rather
-than Playwright — the previous run's driver is not installed here, and a ~150 MB browser download was
-not worth it when the host already has Chrome.
-
-Result — every verdict kind, with the right evidence for each:
-
-| Item | Verdict | Evidence |
+| Location | Before | After |
 |---|---|---|
-| `dashboard-greeting` | **pass** | Screenshot + *"heading read \"Good afternoon, Dana\", open report count showed 3"* |
-| `reports-table` | **pass** | Screenshot + *"table listed 3 reports: Q1 revenue = 412; Q2 revenue = 388; Churn cohort = 97"* |
-| `reports-export-csv` | **pass** | Screenshot + *"reports-2026-08.csv downloaded, 57 bytes, header \"Report,Rows\", 3 data rows"* ← **invisible result: the fact comes from the file on disk, not the screen** |
-| `settings-save-confirms` | **fail** | Issue `01` with screenshot, plus supplementary evidence *"the toast element is still display:none"* |
-| `settings-digest-persists` | **not tested** | No verdict, no evidence — the item names a "quarterly reconciliation" with no surface in the app |
+| `README.md` (scenario 1) | bare | bare + reminder |
+| `README.md` (local feedback loop) | `enabled:` in snippet | bare + reminder |
+| `docs/content/docs/quick-start.md` | bare | bare + reminder |
+| `docs/content/docs/agents.md` | `enabled:` in snippet | bare + reminder |
+| `docs/lib/use-cases.ts` (`/for/claude-code/`) | `enabled:` in snippet | bare + reminder |
 
-Then the fix agent adopted the session and wrote `fixes.yaml` (`fixed`, commit, note,
-`checklist_item`), and `npx sluglist report` — **no arguments** — produced the file. The report shows
-all of it: 3 pass / 1 fail / 1 not tested, the notes, the thumbnails, the issue in full, and its
-`FIXED` badge with the commit.
-
-### Clean install — no native binaries
+The landing's scenario **card** (`docs/app/page.tsx`) shows the same bare snippet; it is a compact
+card with no prose slot, and it links through to `/for/claude-code/`, which carries the reminder.
 
 ```
-$ npm pack && npm install ./sluglist-1.13.0.tgz     # in an empty project
-added 15 packages, and audited 16 packages in 598ms
-found 0 vulnerabilities
-
-installed: core-util-is html-to-image immediate inherits isarray jszip lie pako
-           process-nextick-args readable-stream safe-buffer setimmediate sluglist
-           string_decoder util-deprecate
-
-native artifacts (*.node, *.dylib, *.so, *.a): 0
-packages with install/build scripts: none
+$ grep -rn "NODE_ENV" README.md docs/content docs/lib docs/app | grep -v node_modules
+README.md:68:`enabled: process.env.NODE_ENV !== "production"`.
+README.md:696:`enabled: process.env.NODE_ENV !== "production"`.
+docs/content/docs/quick-start.md:61:`enabled: process.env.NODE_ENV !== "production"`.
+docs/content/docs/agents.md:18:`enabled: process.env.NODE_ENV !== "production"`.
+docs/lib/use-cases.ts:44:\`enabled: process.env.NODE_ENV !== "production"\`.
 ```
 
-The tree is **identical to 1.12.0's** — this work added no dependency. `npx sluglist report` was then
-run from that clean install against the Phase 6 session and produced the same 146 KB file, proving
-the image pipeline needs nothing beyond Node.
+Every remaining occurrence is the reminder line; none is inside a snippet.
 
 ---
 
-## Limitations & deferrals (as scoped)
+## Phase 3 — Terminology: no change needed
 
-- **No viewer app, no live updates.** The report is a static snapshot of a finished run.
-- **English only.** No locale option in v1.
-- **No diff reports** between sessions.
-- **No video.** A recording is represented by the first frame of each clip, captioned with the frame
-  count and the folder — embedding frame sequences as base64 would inflate the file for little proof.
-- **No PDF generation in the tool.** The print stylesheet plus the browser's Print → PDF is enough.
-- Attachments are **listed, not inlined** (name, mime, size, and the filename in the session folder).
-  The report is a document, not a container.
+**The premise did not hold, so nothing was edited.** `strings` and `labels` are not two names for one
+thing — they are two different APIs, and both are already used correctly everywhere:
 
-## Known issues found but not fixed here
+| Term | What it is | Canonical usage |
+|---|---|---|
+| `strings` | the **mount option** that overrides UI text — `mountFeedbackWidget(widget, { strings: … })`, type `Partial<FeedbackWidgetStrings>` (`src/ui/mount.ts:92`) | option name |
+| `labels` | the **exported bundle of prebuilt locales** — `import { labels } from "sluglist/labels"`, `labels = { en, ru, uk, es, de }` (`src/labels.ts:361`) | locale pack |
 
-- **`formatScalar` leaves hex-ambiguous scalars unquoted** (`viewport: 0x0` → `0` in any compliant
-  YAML parser). Pre-existing, unrelated to this change, and fixing it alters serializer output bytes,
-  so it is queued separately rather than folded in. `test/read.test.ts` documents the exact divergence.
+They compose: `mountFeedbackWidget(widget, { strings: labels.uk })`.
+
+Grep for the failure mode the phase was guarding against — the *option* being called `labels`:
+
+```
+$ grep -rnE "\{\s*labels\s*:|labels:\s*\{" README.md docs/content docs/lib docs/app skills/
+(no matches)
+```
+
+Remaining hits for either word in the docs are ordinary English ("query strings", "viewport strings",
+"selectors and labels", "form labels"), not API references. The landing's config table lists
+`strings` / `Partial<Strings>`, matching the code.
+
+The STOP condition ("both terms in the code as different APIs → report, this is no longer a docs
+fix") is technically met — but the correct conclusion is milder than it anticipated: there is no
+inconsistency to fix, so no code and no docs were touched here. Flagging rather than inventing work.
+
+---
+
+## Phase 4 — Privacy footnote
+
+One line under the frontmatter example in the *A stable artifact format* section, in the site's
+existing small-muted-caption style (grep found no italic captions on the site, so that convention was
+followed instead):
+
+> `reporter` comes from the `identity` you configure — scrubbing applies to text the widget captures,
+> not to fields you set on purpose.
+
+Screenshot: [`evidence/site-polish/footnote.jpg`](evidence/site-polish/footnote.jpg).
+
+---
+
+## Phase 5 — `npx sluglist init-skills`
+
+[`src/cli/init-skills.ts`](src/cli/init-skills.ts). The governing rule: **a skill the user edited is
+never overwritten** — skills are prompts, and editing them to fit a project is expected.
+
+- Identical to bundled → refreshed silently (`up to date`).
+- Differs → reported and kept; `--force` replaces.
+- Differences are compared **per skill folder before writing anything**, so a partially-edited skill
+  is left entirely alone rather than half-updated.
+- Zero-config default `.claude/skills`; `--dir` retargets. `--dir` means the artifact folder for
+  `dev`/`report`, so the parser tracks whether it was set explicitly and only then overrides this
+  command's own default.
+
+A messaging correctness point found while testing: a **package upgrade** produces the same "differs"
+state as a local edit, so the output does not claim the user edited anything — it says
+`differs from the bundled copy, kept` and the hint names both causes.
+
+### All four required scenarios (run against a real `npm install`, not the repo)
+
+```
+########## 1. clean project ##########
+$ npx sluglist init-skills
+/…/pkgtest/.claude/skills
+  + sluglist-checklist
+  + sluglist-fix
+  + sluglist-qa
+
+3 installed
+
+########## 2. re-run ##########
+  ✓ sluglist-checklist (up to date)
+  ✓ sluglist-fix (up to date)
+  ✓ sluglist-qa (up to date)
+
+3 up to date
+
+########## 3. locally edited skill ##########
+  ✓ sluglist-checklist (up to date)
+  ✓ sluglist-fix (up to date)
+  ! sluglist-qa — differs from the bundled copy, kept
+
+2 up to date, 1 skipped
+Kept your copies. If you edited them, that is what you want; if you just
+upgraded sluglist, re-run with --force to take the new versions.
+
+  file intact: YES        note still present: YES
+
+########## 4. --force ##########
+  ↻ sluglist-qa (overwritten)
+
+1 overwritten, 2 up to date
+  local note gone: YES
+
+########## 5. --dir custom/skills ##########
+/…/custom/skills
+  + sluglist-checklist  + sluglist-fix  + sluglist-qa
+```
+
+11 tests in [`test/init-skills.test.ts`](test/init-skills.test.ts) cover these plus: nested files,
+folder creation, a deleted skill being restored, loose non-folder files ignored, and both output
+summaries.
+
+### Docs updated
+
+| Page / file | Change |
+|---|---|
+| `README.md` | `npx sluglist init-skills` + safety note; manual `cp` kept in a `<details>` "or copy manually" |
+| `docs/content/docs/agents.md` (`/docs/agents/`) | same |
+| `docs/lib/use-cases.ts` (`/for/claude-code/`) | step 3 now installs via the command |
+| `docs/app/page.tsx` (landing) | agent step 3 mentions the command |
+| `skills/sluglist-qa/SKILL.md`, `skills/sluglist-fix/SKILL.md` | command, with the single-skill `cp` as an inline fallback |
+
+```
+$ grep -c "sluglist init-skills" out/docs/agents/index.html out/for/claude-code/index.html
+out/docs/agents/index.html:2
+out/for/claude-code/index.html:2
+$ grep -o "<summary>or copy manually</summary>" out/docs/agents/index.html
+<summary>or copy manually</summary>
+```
+
+---
+
+## Changed files
+
+**Library** — `src/cli/init-skills.ts` (new), `src/cli/index.ts` (third command, `--force`,
+`dirSet`), `test/init-skills.test.ts` (new), `package.json` (1.14.0), `CHANGELOG.md`.
+
+**Site** — `docs/lib/site.ts` (`pageMetadata`), `docs/app/{page,docs/page,changelog/page}.tsx`,
+`docs/app/{docs,for,compare}/[slug]/page.tsx`, `docs/content/docs/{quick-start,agents}.md`,
+`docs/lib/use-cases.ts`.
+
+**Docs** — `README.md`, `skills/sluglist-qa/SKILL.md`, `skills/sluglist-fix/SKILL.md`.
 
 ## Open — needs your call
 
-- **`npm publish`** — version is bumped to 1.13.0 (minor, additive) and the changelog is written, but
-  nothing has been published or pushed.
-- **Landing page.** The README carries the report screenshot; `docs/` (the Next.js site) has not been
-  touched and nothing has been deployed. Deploying is an outward-facing action, so it is left for you
-  — say the word and I will add the report to the checklist/agent section and deploy.
+- **`npm publish`** for 1.14.0 (the `init-skills` command is only useful once published — `npx
+  sluglist init-skills` resolves from the registry). Changelog written, version bumped, build clean.
+  Nothing published from here.

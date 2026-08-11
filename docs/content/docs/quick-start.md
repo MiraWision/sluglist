@@ -57,6 +57,9 @@ mountFeedbackWidget(createFeedbackWidget({ connectors: [new LocalConnector()] })
 npx sluglist dev        # sidecar that writes to ./.sluglist
 ```
 
+Gate it behind an env flag so it never initializes in production —
+`enabled: process.env.NODE_ENV !== "production"`.
+
 See [Agents & CLI](/docs/agents/) for the full loop.
 
 ### 2 · Client acceptance — someone signs off a release

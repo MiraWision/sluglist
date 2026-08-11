@@ -8,6 +8,7 @@ import {
   sessionName,
 } from "../node/read";
 import { formatBytes } from "./embed";
+import { formatResults, initSkills } from "./init-skills";
 import { buildReport } from "./report";
 import { createDevServer } from "./server";
 
@@ -19,37 +20,48 @@ import { createDevServer } from "./server";
  *   server; a Claude Code skill then reads the folder and fixes the issues.
  * - `sluglist report` — renders a finished session into one self-contained HTML
  *   file you can send to whoever asked for the work.
+ * - `sluglist init-skills` — copies the bundled Claude Code skills into the
+ *   project's `.claude/skills/`.
  */
 
 interface Args {
   command: string;
   dir: string;
+  /** Whether `--dir` was given (each command has its own default). */
+  dirSet: boolean;
   port: number;
   help: boolean;
   /** Positional argument after the command (`report [session-dir]`). */
   target: string;
   /** `-o` output path for `report`. */
   out: string;
+  /** `--force`: overwrite locally edited skills. */
+  force: boolean;
 }
 
 function parseArgs(argv: string[]): Args {
   const args: Args = {
     command: "",
     dir: ".sluglist",
+    dirSet: false,
     port: 4477,
     help: false,
     target: "",
     out: "",
+    force: false,
   };
   const rest = argv.slice(2);
   for (let i = 0; i < rest.length; i++) {
     const token = rest[i];
     if (token === "--help" || token === "-h") {
       args.help = true;
+    } else if (token === "--force" || token === "-f") {
+      args.force = true;
     } else if (token === "--port" || token === "-p") {
       args.port = Number.parseInt(rest[++i] ?? "", 10);
     } else if (token === "--dir" || token === "-d") {
       args.dir = rest[++i] ?? args.dir;
+      args.dirSet = true;
     } else if (token === "--out" || token === "-o") {
       args.out = rest[++i] ?? args.out;
     } else if (!token.startsWith("-")) {
@@ -63,24 +75,30 @@ function parseArgs(argv: string[]): Args {
   return args;
 }
 
-const USAGE = `sluglist — local feedback sidecar and session reports
+const USAGE = `sluglist — local feedback sidecar, session reports, agent skills
 
 Usage:
   npx sluglist dev [--port <n>] [--dir <path>]
   npx sluglist report [session-dir] [-o <file.html>] [--dir <path>]
+  npx sluglist init-skills [--force] [--dir <path>]
 
 Commands:
-  dev      Receive artifacts from a LocalConnector and write them to disk.
-           Also serves checklists read-only from <dir>/checklists/<name>.json
-           at GET /checklists/<name>.json, so the widget can load one without
-           copying it into your app's public folder.
-  report   Render a session as one self-contained HTML file (offline, no
-           external requests) — the proof artifact you send to a client.
+  dev          Receive artifacts from a LocalConnector and write them to disk.
+               Also serves checklists read-only from <dir>/checklists/<name>.json
+               at GET /checklists/<name>.json, so the widget can load one without
+               copying it into your app's public folder.
+  report       Render a session as one self-contained HTML file (offline, no
+               external requests) — the proof artifact you send to a client.
+  init-skills  Copy the bundled Claude Code skills into .claude/skills/.
+               Unchanged skills are refreshed silently; ones you have edited are
+               reported and left alone unless you pass --force.
 
 Options:
   -p, --port <n>     dev: port to listen on (127.0.0.1 only). Default 4477.
-  -d, --dir <path>   Artifact folder. Default .sluglist
+  -d, --dir <path>   Artifact folder (dev, report). Default .sluglist
+                     init-skills: target folder. Default .claude/skills
   -o, --out <file>   report: output path. Default report.html in the session.
+  -f, --force        init-skills: overwrite skills you have edited locally.
   -h, --help         Show this help.
 
 Pair with a LocalConnector in your app:
@@ -88,7 +106,30 @@ Pair with a LocalConnector in your app:
 
 Report the newest session, zero config:
   npx sluglist report
+
+Install the agent skills into this project:
+  npx sluglist init-skills
 `;
+
+async function runInitSkills(args: Args): Promise<void> {
+  // `--dir` means the artifact folder for dev/report, but the skills folder
+  // here; only an explicit flag overrides this command's own default.
+  const dir = args.dirSet ? args.dir : join(".claude", "skills");
+  const results = await initSkills({ dir, force: args.force });
+
+  if (results.length === 0) {
+    process.stderr.write("No bundled skills found in the sluglist package.\n");
+    process.exit(1);
+  }
+
+  const { lines, warned } = formatResults(results, resolve(dir));
+  process.stdout.write(`${lines.join("\n")}\n`);
+  // A skipped skill is not a failure — the files are intact and the message
+  // says how to override — so this stays exit 0.
+  if (warned) {
+    process.exitCode = 0;
+  }
+}
 
 /**
  * Resolve which session folder to report on: an explicit path (either the
@@ -137,13 +178,19 @@ async function runReport(args: Args): Promise<void> {
 async function main(): Promise<void> {
   const args = parseArgs(process.argv);
 
-  if (args.help || (args.command !== "dev" && args.command !== "report")) {
+  const COMMANDS = new Set(["dev", "report", "init-skills"]);
+  if (args.help || !COMMANDS.has(args.command)) {
     process.stdout.write(USAGE);
     process.exit(args.help ? 0 : 1);
   }
 
   if (args.command === "report") {
     await runReport(args);
+    return;
+  }
+
+  if (args.command === "init-skills") {
+    await runInitSkills(args);
     return;
   }
 
