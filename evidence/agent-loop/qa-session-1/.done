@@ -1,0 +1,10 @@
+# Fix report — session-2026-08-09-6z4l
+
+- issue 01 → public/reports.html → restored the Export CSV button in the toolbar (commit 4be0b62). Closes checklist item `export-button-visible`.
+- issue 02 → public/settings.html → toast lookup used id "tost"; corrected to "toast" so Save shows its confirmation (commit 62d272c). Closes checklist item `settings-save-confirms`.
+
+Status truth is in fixes.yaml (2 × fixed).
+
+## Not verified by client
+- export-downloads-csv — blocked on issue 01 at QA time; will be covered by the re-test.
+- ledger-reconciles — not testable as written (no url/hint, nothing in the UI about a ledger); needs the checklist author to clarify.

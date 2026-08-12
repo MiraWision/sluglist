@@ -1,0 +1,30 @@
+{
+  "id": "reports-settings-2026-08-retest-1",
+  "title": "Reports & settings release — re-test",
+  "description": "Verification pass over the fixed issues from session-2026-08-09-6z4l.",
+  "retest_of": "reports-settings-2026-08",
+  "sections": [
+    {
+      "title": "Reports",
+      "items": [
+        {
+          "id": "export-button-visible",
+          "title": "Previously: Export CSV button missing on Reports. Verify: the button is visible next to Print and downloads a CSV",
+          "url": "/reports",
+          "hint": "Click Export CSV — a file should download"
+        }
+      ]
+    },
+    {
+      "title": "Settings",
+      "items": [
+        {
+          "id": "settings-save-confirms",
+          "title": "Previously: Save showed no confirmation. Verify: clicking Save shows the Settings saved message",
+          "url": "/settings",
+          "hint": "Click Save"
+        }
+      ]
+    }
+  ]
+}

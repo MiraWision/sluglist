@@ -1,0 +1,157 @@
+[
+  {
+    "browser": "chromium",
+    "mode": "fullpage",
+    "ok": true,
+    "ms": 89,
+    "bytes": 253859,
+    "dominantColor": 0.595,
+    "blank": false
+  },
+  {
+    "browser": "chromium",
+    "mode": "area",
+    "ok": true,
+    "ms": 49,
+    "bytes": 23205,
+    "dominantColor": 0.8379,
+    "blank": false
+  },
+  {
+    "browser": "chromium",
+    "mode": "element",
+    "ok": true,
+    "ms": 48,
+    "bytes": 83324,
+    "dominantColor": 0.1963,
+    "blank": false
+  },
+  {
+    "browser": "chromium",
+    "mode": "record(3 frames)",
+    "ok": true,
+    "detail": [
+      276449,
+      276449,
+      276449
+    ]
+  },
+  {
+    "browser": "chromium",
+    "mode": "annotate",
+    "ok": true,
+    "bytes": 16545
+  },
+  {
+    "browser": "chromium",
+    "mode": "_meta",
+    "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+    "consoleErrors": [
+      "Access to fetch at 'http://localhost:5176/nocors/pixel.png' from origin 'http://localhost:5175' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested res",
+      "Failed to load resource: net::ERR_FAILED"
+    ]
+  },
+  {
+    "browser": "firefox",
+    "mode": "fullpage",
+    "ok": true,
+    "ms": 98,
+    "bytes": 119122,
+    "dominantColor": 0.5945,
+    "blank": false
+  },
+  {
+    "browser": "firefox",
+    "mode": "area",
+    "ok": true,
+    "ms": 54,
+    "bytes": 19540,
+    "dominantColor": 0.824,
+    "blank": false
+  },
+  {
+    "browser": "firefox",
+    "mode": "element",
+    "ok": true,
+    "ms": 57,
+    "bytes": 38279,
+    "dominantColor": 0.197,
+    "blank": false
+  },
+  {
+    "browser": "firefox",
+    "mode": "record(3 frames)",
+    "ok": true,
+    "detail": [
+      137932,
+      137932,
+      137932
+    ]
+  },
+  {
+    "browser": "firefox",
+    "mode": "annotate",
+    "ok": true,
+    "bytes": 14178
+  },
+  {
+    "browser": "firefox",
+    "mode": "_meta",
+    "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:153.0) Gecko/20100101 Firefox/153.0",
+    "consoleErrors": [
+      "[JavaScript Error: \"Cross-Origin Request Blocked: The Same Origin Policy disallows reading the remote resource at http://localhost:5176/nocors/pixel.png. (Reason: CORS header ‘Access-Control-Allow-Ori"
+    ]
+  },
+  {
+    "browser": "webkit",
+    "mode": "fullpage",
+    "ok": true,
+    "ms": 111,
+    "bytes": 177894,
+    "dominantColor": 0.6025,
+    "blank": false
+  },
+  {
+    "browser": "webkit",
+    "mode": "area",
+    "ok": true,
+    "ms": 49,
+    "bytes": 21142,
+    "dominantColor": 0.8867,
+    "blank": false
+  },
+  {
+    "browser": "webkit",
+    "mode": "element",
+    "ok": true,
+    "ms": 48,
+    "bytes": 70049,
+    "dominantColor": 0.2009,
+    "blank": false
+  },
+  {
+    "browser": "webkit",
+    "mode": "record(3 frames)",
+    "ok": true,
+    "detail": [
+      198414,
+      198414,
+      198414
+    ]
+  },
+  {
+    "browser": "webkit",
+    "mode": "annotate",
+    "ok": true,
+    "bytes": 14978
+  },
+  {
+    "browser": "webkit",
+    "mode": "_meta",
+    "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.5 Safari/605.1.15",
+    "consoleErrors": [
+      "Origin http://localhost:5175 is not allowed by Access-Control-Allow-Origin. Status code: 200",
+      "Failed to load resource: Origin http://localhost:5175 is not allowed by Access-Control-Allow-Origin. Status code: 200"
+    ]
+  }
+]

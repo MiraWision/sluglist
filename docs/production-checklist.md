@@ -153,6 +153,45 @@ sends the report with no screenshot at all — text only. Leave it on. It is the
 signal you can give someone that a picture of their screen is about to be uploaded, and the
 opt-out costs you a screenshot on the reports where the customer had a reason to withhold it.
 
+## 10. Decide about attachments — deliberately
+
+Attachments let a reporter send you their own files: a phone screenshot, a console export, a
+spreadsheet. Under `preset: "production"` they are **off by default**, and that default is the right
+one for an anonymous production audience. Turning them on means you have decided to accept uploads
+from people you cannot identify.
+
+```ts
+createFeedbackWidget({
+  preset: "production",
+  connectors: [/* … */],
+  attachments: { enabled: true, maxFileSize: 10 * 1024 * 1024, maxFiles: 5 },
+});
+```
+
+If you do turn them on:
+
+**Server-side validation is mandatory.** The widget's whitelist is a UX affordance — it stops an honest
+reporter picking a `.zip` and getting a confusing failure later. It is not a control: anything can POST
+to your endpoint. The endpoint must check the mime itself and cap the size, and it must reject rather
+than store-and-hope. `examples/feedback-route.ts` does both (415 on an unlisted mime, 413 over the cap);
+keep its `MAX_ATTACHMENT_BYTES` equal to your `maxFileSize`, or the browser will accept files your route
+then refuses.
+
+**Executables and archives are never accepted, by either side.** sluglist refuses them even if you list
+them in `accept`. Do not add them to your endpoint's list either: an archive is opaque to every check
+you and your storage run after this point.
+
+**Content scanning is your side of the line.** sluglist checks type and size; it does not and will not
+scan file contents. If your threat model needs antivirus or malware scanning, that belongs in your
+storage pipeline, after the upload and before anything downloads it.
+
+**Attachments change your retention story.** Section 4's retention period now covers files a customer
+chose to send you, which may contain far more than a screenshot of your own UI. If your privacy policy
+paragraph (section 6) enumerates what you collect, add user-supplied files to it.
+
+**Cap the blast radius.** `maxFiles` bounds one issue; the endpoint's per-session file cap bounds one
+session; the rate limit bounds one reporter. Keep all three.
+
 ---
 
 ## Pre-flight
@@ -167,3 +206,8 @@ opt-out costs you a screenshot on the reports where the customer had a reason to
 - [ ] One test report filed against your most sensitive screen, and the artifact read end to end
 - [ ] Sensitive non-input elements marked `data-private` or listed in `maskSelectors`
 - [ ] A "Report a problem" link in the footer calls `ui.show()`
+- [ ] Attachments: decided on purpose (off unless you need them), and if on:
+      endpoint validates mime + size server-side, limits match the client config,
+      and user-supplied files are covered by your retention and privacy policy
+- [ ] Localization: if your users are not English-speaking, a bundle is passed
+      (`strings: labels.uk`) — the widget does not guess the language

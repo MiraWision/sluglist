@@ -1,4 +1,11 @@
-export { buildIssueMarkdown, buildSessionYaml } from "./artifacts";
+export {
+  attachmentFile,
+  buildFixesYaml,
+  buildIssueMarkdown,
+  buildSessionYaml,
+  FORMAT_VERSION,
+  fixesYamlFile,
+} from "./artifacts";
 export { DownloadConnector } from "./connectors/download";
 export { LocalConnector } from "./connectors/local";
 export type { LocalConnectorOptions } from "./connectors/local";
@@ -72,12 +79,47 @@ export type { BrowserInfo } from "./metadata";
 export { parseUserAgent } from "./metadata";
 export { createOfflineQueue } from "./queue";
 export type { OfflineQueue, QueuedBatch } from "./queue";
-export type { AreaRect } from "./screenshot";
+export type {
+  AreaRect,
+  CaptureFailureReason,
+  CaptureOptions,
+  ColorStats,
+} from "./screenshot";
 export {
+  BLANK_MAX_DISTINCT_COLORS,
+  BLANK_RATIO_THRESHOLD,
+  CaptureFailedError,
   captureArea,
   captureElement,
   captureFullPage,
+  DEFAULT_CAPTURE_TIMEOUT_MS,
+  colorStats,
+  describeRenderError,
+  dominantColorRatio,
 } from "./screenshot";
+export {
+  attachmentPath,
+  checkAttachment,
+  DEFAULT_MAX_FILE_SIZE,
+  DEFAULT_MAX_FILES,
+  extensionOf,
+  formatBytes,
+  isImageAttachment,
+  resolveAttachments,
+  TEXT_ATTACHMENT_EXTENSIONS,
+} from "./attachments";
+export type { AttachmentCheck, AttachmentPolicy } from "./attachments";
+export {
+  collectValues,
+  EMAIL_PATTERN,
+  MAX_FORM_FIELDS,
+  MAX_FORM_VALUE_LENGTH,
+  normalizeForm,
+  validateValue,
+} from "./form";
+export type { FormValue, ResolvedFormField } from "./form";
+export { de, en, es, labels, ru, uk } from "./labels";
+export type { LabelLocale } from "./labels";
 export type { KeyValueStorage } from "./session";
 export { createMemoryStorage, SessionManager } from "./session";
 export { slugFromComment } from "./slug";
@@ -89,12 +131,16 @@ export {
 } from "./reporter";
 export type {
   ArtifactFile,
+  AttachmentInput,
+  AttachmentMeta,
   CaptureIssueInput,
   CaptureMode,
   CaptureResult,
   DeliveryFailure,
   DeliveryReport,
   FeedbackActionsConfig,
+  FeedbackAttachmentsConfig,
+  FeedbackCaptureConfig,
   FeedbackConnector,
   FeedbackCustom,
   FeedbackDismissConfig,
@@ -104,6 +150,10 @@ export type {
   FeedbackRecordingConfig,
   FeedbackWidgetConfig,
   FeedbackWidgetPreset,
+  FixesState,
+  FixRecord,
+  FixStatus,
+  FormField,
   IssueIndexEntry,
   ReporterMeta,
   SessionMeta,
@@ -140,9 +190,20 @@ export type {
   SelectorResult,
   SelectorStrategy,
 } from "./selector";
-export type { FeedbackWidgetStrings } from "./ui/strings";
+export type {
+  FeedbackWidgetStrings,
+  PluralCategory,
+  PluralForm,
+} from "./ui/strings";
+export {
+  defaultPluralForm,
+  DEFAULT_STRINGS,
+  interpolate,
+  plural,
+  slavicPluralForm,
+} from "./ui/strings";
 export type {
   CreateFeedbackWidgetOptions,
   FeedbackWidgetCore,
 } from "./widget";
-export { createFeedbackWidget } from "./widget";
+export { createFeedbackWidget, defaultProjectSlug } from "./widget";

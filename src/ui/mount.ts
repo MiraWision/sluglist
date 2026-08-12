@@ -12,8 +12,32 @@ import {
   setDismissed,
 } from "../dismiss";
 import { DEFAULT_DISMISS_DAYS } from "../preset";
-import { captureArea, captureElement, captureFullPage } from "../screenshot";
-import type { CaptureMode, CaptureResult, FeedbackPrivacy } from "../types";
+import {
+  type CaptureOptions,
+  captureArea,
+  captureElement,
+  captureFullPage,
+} from "../screenshot";
+import {
+  type AttachmentPolicy,
+  checkAttachment,
+  extensionOf,
+  formatBytes,
+  isImageAttachment,
+  resolveAttachments,
+} from "../attachments";
+import {
+  collectValues,
+  type FormValue,
+  type ResolvedFormField,
+  validateValue,
+} from "../form";
+import type {
+  AttachmentInput,
+  CaptureMode,
+  CaptureResult,
+  FeedbackPrivacy,
+} from "../types";
 import type { FeedbackWidgetCore } from "../widget";
 import { annotateBlob } from "./annotate";
 import {
@@ -28,6 +52,7 @@ import {
 import { createRecorder } from "./record";
 import {
   DEFAULT_STRINGS,
+  defaultPluralForm,
   type FeedbackWidgetStrings,
   formatString,
   interpolate,
@@ -103,12 +128,37 @@ interface Draft {
   /** True if masking redacted at least one element on any shot. */
   maskedAny: boolean;
   /**
+   * Files the reporter attached (picker / drop / paste). Images also get an
+   * object URL in `attachmentUrls` so they show as real thumbnails and can be
+   * annotated like a captured screenshot.
+   */
+  attachments: DraftAttachment[];
+  /**
+   * A screenshot was attempted for this issue and failed to render. The issue
+   * is still sent — this is what the artifact records instead of the picture.
+   */
+  screenshotFailed: boolean;
+  screenshotError: string | null;
+  /** Answers to the reporter form, keyed by field key (session + issue scope). */
+  answers: Map<string, FormValue>;
+  /**
    * Record mode: one clip per Record→Stop cycle. Kept as separate sequences (not
    * a single flat frame list) so two recordings on the same issue stay distinct
    * clips end to end — in the thumbnails and in the artifacts.
    */
   recording: boolean;
   clips: RecordingClip[];
+}
+
+interface DraftAttachment {
+  blob: Blob;
+  /** Original name from the reporter's machine. */
+  name: string;
+  mime: string;
+  /** Lowercase extension without the dot. */
+  extension: string;
+  /** Object URL — images only (revoked with the draft). */
+  url: string | null;
 }
 
 interface RecordingClip {
@@ -206,12 +256,36 @@ export function mountFeedbackWidget(
   const dismissDays = dismissCfg.days ?? DEFAULT_DISMISS_DAYS;
   // Record mode config (frames per action).
   const recCfg = core.config.recording ?? {};
-  const recordingEnabled = recCfg.enabled !== false;
+  // Screenshot render limits, shared by every mode and by record frames.
+  const captureOptions: CaptureOptions = { ...(core.config.capture ?? {}) };
+  /**
+   * Coarse pointer = graceful mode (see below). Detected from the pointer, not
+   * the user agent: a touch laptop reports a fine pointer and keeps the full
+   * menu, and a UA string proves nothing about the input device.
+   */
+  const coarsePointer =
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    (window.matchMedia("(pointer: coarse)").matches ||
+      window.matchMedia("(hover: none)").matches);
+  // Record mode needs a stream of deliberate clicks; on a touch screen the
+  // frames land mid-scroll and the result is unreadable. Hidden rather than
+  // half-working — see the mobile section of the README.
+  const recordingEnabled = recCfg.enabled !== false && !coarsePointer;
+  const attachPolicy: AttachmentPolicy = resolveAttachments(
+    core.config.attachments,
+    core.config.preset
+  );
+  // Reporter form: `issue` fields on every issue, `session` fields on the first
+  // one only. Empty unless `form` is configured.
+  const issueFields = core.formFields.filter((f) => f.scope === "issue");
+  const sessionFields = core.formFields.filter((f) => f.scope === "session");
   const recorder = createRecorder({
     actions: core.actions,
     maxFrames: recCfg.maxFrames ?? 30,
     frameMinInterval: recCfg.frameMinInterval ?? 650,
     privacy,
+    captureOptions,
     onChange: () => syncRecordingUi(),
   });
   // Resolve the toggle shortcut: core `config.shortcut` (new, canonical) wins,
@@ -283,7 +357,7 @@ export function mountFeedbackWidget(
     fab.classList.add("has-dismiss");
   }
   fab.append(fabIcon, fabLabel);
-  if (shortcut) {
+  if (shortcut && !coarsePointer) {
     const fabHotkey = el("span", "fab-hotkey");
     fabHotkey.textContent = shortcutLabel;
     fab.appendChild(fabHotkey);
@@ -302,9 +376,12 @@ export function mountFeedbackWidget(
     const button = el("button");
     const text = el("span");
     text.textContent = label;
-    const kbd = el("kbd");
-    kbd.textContent = String(menuItems.length + 1);
-    button.append(text, kbd);
+    button.appendChild(text);
+    if (!coarsePointer) {
+      const kbd = el("kbd");
+      kbd.textContent = String(menuItems.length + 1);
+      button.appendChild(kbd);
+    }
     const guardedRun = guardUi(`ui.menu:${label}`, run);
     button.addEventListener("click", guardedRun);
     menu.appendChild(button);
@@ -330,9 +407,12 @@ export function mountFeedbackWidget(
   recSnapBtn.type = "button";
   const recSnapText = el("span");
   recSnapText.textContent = strings.recordingSnap;
-  const recSnapKbd = el("kbd");
-  recSnapKbd.textContent = "S";
-  recSnapBtn.append(recSnapText, recSnapKbd);
+  recSnapBtn.appendChild(recSnapText);
+  if (!coarsePointer) {
+    const recSnapKbd = el("kbd");
+    recSnapKbd.textContent = "S";
+    recSnapBtn.appendChild(recSnapKbd);
+  }
   const recStopBtn = el("button", "rec-stop");
   recStopBtn.type = "button";
   recStopBtn.textContent = strings.recordingStop;
@@ -364,8 +444,26 @@ export function mountFeedbackWidget(
     chips.appendChild(chip);
     return chip;
   });
+  // Reporter form. Two containers, both empty (and `display: none`) unless
+  // `form` is configured: the session block sits above everything (asked once),
+  // the issue block sits under the comment (asked every time).
+  const sessionFormBox = el("div", "form-block form-session");
+  sessionFormBox.style.display = "none";
+  const issueFormBox = el("div", "form-block form-issue");
+  issueFormBox.style.display = "none";
   const commentBox = el("textarea");
   commentBox.placeholder = strings.commentPlaceholder;
+  // Mobile: the on-screen keyboard covers the lower half of the viewport, and a
+  // bottom-anchored panel puts the textarea exactly there. Scroll it back into
+  // view once the keyboard has animated in.
+  commentBox.addEventListener("focus", () => {
+    if (!coarsePointer) {
+      return;
+    }
+    setTimeout(() => {
+      commentBox.scrollIntoView({ block: "center", behavior: "smooth" });
+    }, 300);
+  });
   // Screenshot consent (beta): a checked-by-default "Attach screenshot" toggle.
   // Unchecked → the issue is sent without any screenshot (screenshot: null).
   const consentRow = el("label", "consent");
@@ -376,6 +474,25 @@ export function mountFeedbackWidget(
   consentText.textContent = strings.attachScreenshot;
   consentRow.append(consentBox, consentText);
   consentRow.style.display = consentEnabled ? "flex" : "none";
+  // Attachments: a hidden <input type=file> driven by the "+ Attach file"
+  // button in the thumbnail row, plus a drop overlay for drag & drop. Created
+  // only when the feature is on, so a widget without it has the same tree.
+  const fileInput = el("input");
+  fileInput.type = "file";
+  fileInput.multiple = true;
+  fileInput.accept = attachPolicy.acceptAttribute;
+  fileInput.style.display = "none";
+  fileInput.addEventListener("change", () => {
+    if (fileInput.files) {
+      addFiles([...fileInput.files]);
+    }
+    fileInput.value = ""; // so picking the same file twice still fires
+  });
+  const dropHint = el("div", "drop-hint");
+  dropHint.textContent = strings.attachDrop;
+  dropHint.style.display = "none";
+  const formError = el("div", "form-error");
+  formError.style.display = "none";
   const actions = el("div", "dialog-actions");
   const cancelBtn = el("button");
   cancelBtn.textContent = strings.cancel;
@@ -385,12 +502,18 @@ export function mountFeedbackWidget(
   panel.append(
     panelTitle,
     panelContext,
+    sessionFormBox,
     thumbs,
     chips,
     commentBox,
+    issueFormBox,
     consentRow,
+    formError,
     actions
   );
+  if (attachPolicy.enabled) {
+    panel.append(fileInput, dropHint);
+  }
 
   function syncChips(): void {
     for (const chip of chipButtons) {
@@ -473,11 +596,13 @@ export function mountFeedbackWidget(
   let checklistInitialized = false;
   // Touch devices have no hover, so the per-item issue button is always visible
   // (muted) instead of hover-revealed.
-  const isTouch =
-    typeof window !== "undefined" &&
-    typeof window.matchMedia === "function" &&
-    window.matchMedia("(hover: none)").matches;
+  const isTouch = coarsePointer;
+  // Always defined: the core resolves it from the hostname when omitted.
+  const project = core.config.project as string;
   let addingToDraft = false;
+  // True while the current draft still has to ask the session-scoped block.
+  // Latched when the draft opens so the block does not disappear mid-compose.
+  let askingSessionForm = false;
   // Which recording clips are expanded into their numbered frame ribbon.
   const expandedClips = new Set<number>();
   let annotating = false;
@@ -485,6 +610,28 @@ export function mountFeedbackWidget(
   let hoverTarget: Element | null = null;
   let retryPayload: Pick<CaptureResult, "files" | "sessionId"> | null = null;
   let retryIssueId = "";
+
+  // Plural forms come from the bundle: English needs two, Russian and
+  // Ukrainian three (1 кадр / 2 кадра / 5 кадров).
+  const pluralForm = strings.pluralForm ?? defaultPluralForm;
+  function issueCount(n: number): string {
+    return plural(
+      strings.checklistSummaryIssueOne,
+      strings.checklistSummaryIssueMany,
+      n,
+      strings.checklistSummaryIssueFew,
+      pluralForm
+    );
+  }
+  function frameCount(n: number): string {
+    return plural(
+      strings.recordingFrameOne,
+      strings.recordingFrameMany,
+      n,
+      strings.recordingFrameFew,
+      pluralForm
+    );
+  }
 
   function refreshBadge(): void {
     const count = core.getIssueCount();
@@ -509,7 +656,9 @@ export function mountFeedbackWidget(
   // A <kbd> chip showing the live toggle shortcut (platform-formatted, honoring
   // a custom config value). Null when the shortcut is disabled.
   function makeKbd(): HTMLElement | null {
-    if (!shortcutLabel) {
+    // No keyboard on a touch device — a shortcut chip there is decoration that
+    // costs horizontal space the panel does not have.
+    if (!shortcutLabel || coarsePointer) {
       return null;
     }
     const kbd = el("kbd", "kbd-hint");
@@ -619,13 +768,7 @@ export function mountFeedbackWidget(
         : interpolate(strings.checklistSummaryChecked, { done, total })
     );
     if (issues > 0) {
-      parts.push(
-        plural(
-          strings.checklistSummaryIssueOne,
-          strings.checklistSummaryIssueMany,
-          issues
-        )
-      );
+      parts.push(issueCount(issues));
     }
     if (remaining > 0) {
       parts.push(interpolate(strings.checklistSummaryLeft, { n: remaining }));
@@ -688,13 +831,7 @@ export function mountFeedbackWidget(
         const meta = el("span", "cl-section-meta");
         const metaParts = [`${stat.done}/${stat.total}`];
         if (stat.issues > 0) {
-          metaParts.push(
-            plural(
-              strings.checklistSummaryIssueOne,
-              strings.checklistSummaryIssueMany,
-              stat.issues
-            )
-          );
+          metaParts.push(issueCount(stat.issues));
         }
         meta.textContent = metaParts.join(" · ");
         head.append(chevron, label, meta);
@@ -758,7 +895,9 @@ export function mountFeedbackWidget(
         }
         if (verdict === "fail" && state?.issue) {
           const issueEl = el("span", "cl-item-issue");
-          issueEl.textContent = `issue ${state.issue}`;
+          issueEl.textContent = interpolate(strings.checklistItemIssueLink, {
+            id: state.issue,
+          });
           links.appendChild(issueEl);
         }
         if (links.childElementCount > 0) {
@@ -950,7 +1089,7 @@ export function mountFeedbackWidget(
     if (done > 0) {
       return;
     }
-    const key = `feedback-widget:${core.config.project}:cl-autoopen`;
+    const key = `feedback-widget:${project}:cl-autoopen`;
     try {
       if (typeof sessionStorage !== "undefined") {
         if (sessionStorage.getItem(key)) {
@@ -1046,10 +1185,155 @@ export function mountFeedbackWidget(
           URL.revokeObjectURL(url);
         }
       }
+      for (const file of draft.attachments) {
+        if (file.url) {
+          URL.revokeObjectURL(file.url);
+        }
+      }
     }
     draft = null;
     addingToDraft = false;
     expandedClips.clear();
+  }
+
+  // --- Reporter form ---------------------------------------------------------
+  // Rendered from the validated config. With no `form` configured both
+  // containers stay empty and hidden, and the panel is what it always was.
+
+  /** Build the inputs for one scope into its container. */
+  function renderFormBlock(
+    box: HTMLElement,
+    fields: ResolvedFormField[],
+    heading: string | null
+  ): void {
+    box.innerHTML = "";
+    if (fields.length === 0 || !draft) {
+      box.style.display = "none";
+      return;
+    }
+    const owner = draft;
+    if (heading) {
+      const title = el("div", "form-heading");
+      title.textContent = heading;
+      box.appendChild(title);
+    }
+    for (const field of fields) {
+      const row = el("label", "form-row");
+      row.dataset.field = field.key;
+      const labelText = el("span", "form-label");
+      labelText.textContent = field.label;
+      if (field.required) {
+        const star = el("span", "form-required");
+        star.textContent = "*";
+        star.setAttribute("aria-hidden", "true");
+        labelText.appendChild(star);
+      }
+      const current = owner.answers.get(field.key);
+      if (field.type === "select") {
+        const select = el("select");
+        if (!field.required) {
+          const empty = document.createElement("option");
+          empty.value = "";
+          empty.textContent = strings.formChoose;
+          select.appendChild(empty);
+        }
+        for (const option of field.options ?? []) {
+          const opt = document.createElement("option");
+          opt.value = option;
+          opt.textContent = option;
+          select.appendChild(opt);
+        }
+        select.value = typeof current === "string" ? current : "";
+        // A required select with no empty option starts on its first value, so
+        // record that as the answer rather than leaving it silently unset.
+        if (field.required && !current) {
+          owner.answers.set(field.key, select.value);
+        }
+        select.addEventListener("change", () => {
+          owner.answers.set(field.key, select.value);
+          clearFieldError(row);
+        });
+        row.append(labelText, select);
+      } else if (field.type === "checkbox") {
+        const input = el("input");
+        input.type = "checkbox";
+        input.checked = current === true;
+        input.addEventListener("change", () => {
+          owner.answers.set(field.key, input.checked);
+          clearFieldError(row);
+        });
+        row.classList.add("form-row-check");
+        row.append(input, labelText);
+      } else {
+        const input = el("input");
+        input.type = field.type === "email" ? "email" : "text";
+        input.value = typeof current === "string" ? current : "";
+        input.addEventListener("input", () => {
+          owner.answers.set(field.key, input.value);
+          clearFieldError(row);
+        });
+        row.append(labelText, input);
+      }
+      box.appendChild(row);
+    }
+    box.style.display = "flex";
+  }
+
+  function clearFieldError(row: HTMLElement): void {
+    row.classList.remove("invalid");
+    formError.style.display = "none";
+  }
+
+  /** Which fields this draft is asking about (session block only on the first issue). */
+  function activeFields(): ResolvedFormField[] {
+    return askingSessionForm ? [...sessionFields, ...issueFields] : issueFields;
+  }
+
+  function renderForm(): void {
+    renderFormBlock(
+      sessionFormBox,
+      askingSessionForm ? sessionFields : [],
+      strings.formSessionTitle
+    );
+    renderFormBlock(issueFormBox, issueFields, null);
+  }
+
+  /**
+   * Validate every visible field. On the first problem the row is highlighted,
+   * the message is shown once above the buttons, and sending is blocked.
+   */
+  function validateForm(): boolean {
+    if (!draft) {
+      return true;
+    }
+    formError.style.display = "none";
+    for (const box of [sessionFormBox, issueFormBox]) {
+      for (const row of box.querySelectorAll<HTMLElement>(".form-row")) {
+        row.classList.remove("invalid");
+      }
+    }
+    for (const field of activeFields()) {
+      const problem = validateValue(field, draft.answers.get(field.key));
+      if (!problem) {
+        continue;
+      }
+      const row =
+        sessionFormBox.querySelector<HTMLElement>(
+          `.form-row[data-field="${field.key}"]`
+        ) ??
+        issueFormBox.querySelector<HTMLElement>(
+          `.form-row[data-field="${field.key}"]`
+        );
+      row?.classList.add("invalid");
+      formError.textContent =
+        problem === "email" ? strings.formInvalidEmail : strings.formRequired;
+      formError.style.display = "block";
+      row?.querySelector("input, select")?.scrollIntoView?.({
+        block: "nearest",
+      });
+      return false;
+    }
+    return true;
   }
 
   // Full (re)open of the panel: sets the comment field and focuses it. Called
@@ -1066,6 +1350,7 @@ export function mountFeedbackWidget(
     panelContext.textContent = context;
     panelContext.title = context;
     renderThumbs();
+    renderForm();
     syncChips();
     if (commentBox.value !== draft.comment) {
       commentBox.value = draft.comment;
@@ -1075,6 +1360,81 @@ export function mountFeedbackWidget(
     panel.style.display = "flex";
     commentBox.focus();
     syncOverlayState();
+  }
+
+  /**
+   * Take files from the picker, a drop or a paste into the open draft. Each is
+   * checked against the policy on its own: one refused file never costs the
+   * reporter the ones that were fine, and every refusal says why in a message
+   * that names the file and the actual limit.
+   */
+  function addFiles(files: File[]): void {
+    if (!(attachPolicy.enabled && draft)) {
+      return;
+    }
+    const owner = draft;
+    for (const file of files) {
+      const check = checkAttachment(file, attachPolicy, owner.attachments.length);
+      if (!check.ok) {
+        showToast(rejectionMessage(file, check.reason), { error: true });
+        continue;
+      }
+      const extension = check.extension ?? extensionOf(file.name);
+      const mime = file.type || guessMime(extension);
+      const isImage = isImageAttachment(mime, extension);
+      owner.attachments.push({
+        blob: file,
+        name: file.name,
+        mime,
+        extension,
+        // Images join the thumbnail row as real previews, so a pasted phone
+        // screenshot annotates exactly like a captured one.
+        url: isImage ? URL.createObjectURL(file) : null,
+      });
+    }
+    if (draft === owner) {
+      renderThumbs();
+    }
+  }
+
+  function rejectionMessage(
+    file: { name: string; size: number },
+    reason: ReturnType<typeof checkAttachment>["reason"]
+  ): string {
+    switch (reason) {
+      case "size":
+        return interpolate(strings.attachRejectedSize, {
+          name: file.name,
+          size: formatBytes(file.size),
+          limit: formatBytes(attachPolicy.maxFileSize),
+        });
+      case "count":
+        return interpolate(strings.attachRejectedCount, {
+          n: attachPolicy.maxFiles,
+        });
+      case "empty":
+        return interpolate(strings.attachRejectedEmpty, { name: file.name });
+      default:
+        return interpolate(strings.attachRejectedType, { name: file.name });
+    }
+  }
+
+  /** Fallback mime for files the browser reported nothing for (.md, .heic, …). */
+  function guessMime(extension: string): string {
+    switch (extension) {
+      case "md":
+        return "text/markdown";
+      case "csv":
+        return "text/csv";
+      case "json":
+        return "application/json";
+      case "txt":
+        return "text/plain";
+      case "heic":
+        return "image/heic";
+      default:
+        return "application/octet-stream";
+    }
   }
 
   // Rebuilds only the thumbnail row (real shots + pending placeholders + the
@@ -1098,7 +1458,7 @@ export function mountFeedbackWidget(
       thumb.type = "button";
       const img = el("img");
       img.src = url;
-      img.alt = `Screenshot ${i + 1}`;
+      img.alt = interpolate(strings.imageAlt, { n: i + 1 });
       thumb.appendChild(img);
       const remove = el("button", "thumb-remove");
       remove.type = "button";
@@ -1151,11 +1511,7 @@ export function mountFeedbackWidget(
       const expanded = expandedClips.has(ci);
       const deckLabel = `${interpolate(strings.recordingClip, {
         n: ci + 1,
-      })} · ${plural(
-        strings.recordingFrameOne,
-        strings.recordingFrameMany,
-        count
-      )}`;
+      })} · ${frameCount(count)}`;
       const deck = el("button", "thumb frame-deck");
       deck.type = "button";
       deck.classList.toggle("open", expanded);
@@ -1200,13 +1556,72 @@ export function mountFeedbackWidget(
           const frame = el("div", "thumb frame-thumb");
           const fimg = el("img");
           fimg.src = url;
-          fimg.alt = `Frame ${i + 1}`;
+          fimg.alt = interpolate(strings.frameAlt, { n: i + 1 });
           const num = el("span", "frame-num");
           num.textContent = String(i + 1).padStart(2, "0");
           frame.append(fimg, num);
           thumbs.appendChild(frame);
         });
       }
+    });
+    // Attachments share the thumbnail row: an image is a real preview (and
+    // annotatable), anything else is a labelled tile with its type and size.
+    draft.attachments.forEach((file, i) => {
+      const remove = el("button", "thumb-remove");
+      remove.type = "button";
+      remove.textContent = "×";
+      remove.title = strings.attachRemove;
+      remove.setAttribute("aria-label", strings.attachRemove);
+      remove.addEventListener("click", (event) => {
+        event.stopPropagation();
+        if (!draft) {
+          return;
+        }
+        if (file.url) {
+          URL.revokeObjectURL(file.url);
+        }
+        draft.attachments.splice(i, 1);
+        renderThumbs();
+      });
+      const label = `${file.name} · ${formatBytes(file.blob.size)}`;
+      if (file.url) {
+        const thumb = el("button", "thumb");
+        thumb.type = "button";
+        thumb.title = label;
+        const img = el("img");
+        img.src = file.url;
+        img.alt = file.name;
+        thumb.append(img, remove);
+        thumb.addEventListener("click", async () => {
+          if (!draft) {
+            return;
+          }
+          annotating = true;
+          try {
+            const annotated = await annotateBlob(shadow, file.blob, strings);
+            if (annotated) {
+              URL.revokeObjectURL(file.url as string);
+              file.blob = annotated;
+              file.url = URL.createObjectURL(annotated);
+              renderThumbs();
+            }
+          } finally {
+            annotating = false;
+          }
+        });
+        thumbs.appendChild(thumb);
+        return;
+      }
+      const tile = el("div", "thumb file-tile");
+      tile.title = label;
+      const ext = el("span", "file-ext");
+      ext.textContent = file.extension.toUpperCase();
+      const name = el("span", "file-name");
+      name.textContent = file.name;
+      const size = el("span", "file-size");
+      size.textContent = formatBytes(file.blob.size);
+      tile.append(ext, name, size, remove);
+      thumbs.appendChild(tile);
     });
     const addBtn = el("button", "add-shot");
     addBtn.type = "button";
@@ -1221,6 +1636,14 @@ export function mountFeedbackWidget(
     }
     addBtn.addEventListener("click", addScreenshotToDraft);
     thumbs.appendChild(addBtn);
+    if (attachPolicy.enabled) {
+      const attachBtn = el("button", "add-shot attach-file");
+      attachBtn.type = "button";
+      attachBtn.textContent = strings.attachFile;
+      attachBtn.setAttribute("aria-label", strings.attachFile);
+      attachBtn.addEventListener("click", () => fileInput.click());
+      thumbs.appendChild(attachBtn);
+    }
   }
 
   // Start (or reuse) the draft that a capture belongs to. When adding a shot to
@@ -1235,6 +1658,8 @@ export function mountFeedbackWidget(
     }
     discardDraft();
     consentBox.checked = true; // fresh draft → consent defaults to checked
+    // Session-scoped fields are asked once per session, on the first issue.
+    askingSessionForm = core.needsSessionForm();
     // A fail-flow capture stamps the draft with its checklist item, consumed
     // once so a later unrelated capture is never mislabeled.
     const checklistItem = pendingChecklistItem;
@@ -1253,6 +1678,10 @@ export function mountFeedbackWidget(
       maskedAny: false,
       recording: false,
       clips: [],
+      attachments: [],
+      screenshotFailed: false,
+      screenshotError: null,
+      answers: new Map(),
     };
     return draft;
   }
@@ -1288,7 +1717,19 @@ export function mountFeedbackWidget(
         owner.shots.push(shot);
         owner.urls.push(URL.createObjectURL(shot));
       } catch (error) {
-        console.error("[feedback-widget] capture failed:", error);
+        // The screenshot is the one part of an issue that can fail on the
+        // browser's terms — a webfont that never resolves, a tainted canvas, a
+        // render that hangs. It must never cost the report: the panel stays
+        // open with what the reporter already typed, they are told once, and
+        // the issue goes out comment-only with the reason in its frontmatter.
+        const message =
+          error instanceof Error ? error.message : String(error);
+        if (draft === owner) {
+          owner.screenshotFailed = true;
+          owner.screenshotError = message;
+        }
+        showToast(strings.screenshotFailed, { error: true });
+        console.warn("[sluglist] screenshot failed:", error);
       } finally {
         if (draft === owner) {
           owner.pending = Math.max(0, owner.pending - 1);
@@ -1332,7 +1773,7 @@ export function mountFeedbackWidget(
     // Collect selector + metadata synchronously, before the capture (which
     // reveals scroll-hidden nodes and could otherwise perturb the DOM).
     const meta = collectElementMetadata(target);
-    captureIntoDraft("element", meta, () => captureElement(target));
+    captureIntoDraft("element", meta, () => captureElement(target, captureOptions));
   }
 
   function startElementMode(): void {
@@ -1346,7 +1787,7 @@ export function mountFeedbackWidget(
   function startFullpageMode(): void {
     closeMenu();
     fabWrap.style.display = "none";
-    captureIntoDraft("fullpage", null, () => captureFullPage());
+    captureIntoDraft("fullpage", null, () => captureFullPage(captureOptions));
     fabWrap.style.display = "flex";
   }
 
@@ -1366,7 +1807,7 @@ export function mountFeedbackWidget(
   function startAreaMode(): void {
     closeMenu();
     fabWrap.style.display = "none";
-    showHint("Drag to select an area. Esc to cancel.");
+    showHint(strings.areaHint);
     areaOverlay.style.display = "block";
   }
 
@@ -1396,7 +1837,7 @@ export function mountFeedbackWidget(
     if (rect.width < 8 || rect.height < 8) {
       return;
     }
-    captureIntoDraft("area", null, () => captureArea(rect));
+    captureIntoDraft("area", null, () => captureArea(rect, captureOptions));
   });
 
   function startNoScreenshot(): void {
@@ -1457,10 +1898,15 @@ export function mountFeedbackWidget(
     // the frames, then a new draft carrying this recording as clip-01.
     const mask = applyMask(privacy);
     let main: Blob | null = null;
+    let failure: string | null = null;
     try {
-      main = await captureFullPage();
+      main = await captureFullPage(captureOptions);
     } catch (error) {
-      console.error("[sluglist] final capture failed:", error);
+      // Same rule as every other capture: the recording and the comment are
+      // still worth sending without the closing screenshot.
+      failure = error instanceof Error ? error.message : String(error);
+      showToast(strings.screenshotFailed, { error: true });
+      console.warn("[sluglist] final capture failed:", error);
     } finally {
       mask.restore();
     }
@@ -1479,6 +1925,10 @@ export function mountFeedbackWidget(
       maskedAny: maskedAny || mask.count > 0,
       recording: frames.length > 0,
       clips: frames.length > 0 ? [makeClip(frames)] : [],
+      attachments: [],
+      screenshotFailed: failure !== null,
+      screenshotError: failure,
+      answers: new Map(),
     };
     renderPanel();
   }
@@ -1549,6 +1999,11 @@ export function mountFeedbackWidget(
       commentBox.focus();
       return;
     }
+    // Required fields block sending, with the offending row highlighted. This
+    // runs before anything is captured or delivered, so nothing is half-sent.
+    if (!validateForm()) {
+      return;
+    }
     sendBtn.disabled = true;
     const current = draft;
     // A screenshot may still be rendering in the background. Wait for it so it
@@ -1579,6 +2034,20 @@ export function mountFeedbackWidget(
           : privacyConfigured
             ? false
             : undefined;
+    // Session-scoped answers are stored on the session BEFORE the capture, so
+    // the session.yaml this issue puts already carries them.
+    if (askingSessionForm) {
+      const sessionValues = collectValues(sessionFields, current.answers);
+      if (sessionValues) {
+        core.setSessionForm(sessionValues);
+      }
+    }
+    const issueValues = collectValues(issueFields, current.answers);
+    const attachments: AttachmentInput[] = current.attachments.map((file) => ({
+      blob: file.blob,
+      name: file.name,
+      mime: file.mime,
+    }));
     try {
       const meta = current.meta;
       const result = await core.captureIssue({
@@ -1591,6 +2060,17 @@ export function mountFeedbackWidget(
           ? { checklistItem: current.checklistItem }
           : {}),
         ...(masked !== undefined ? { masked } : {}),
+        // A failed render is recorded rather than silently dropped — but only
+        // when nothing was salvaged, so a two-shot issue that lost one still
+        // reads as a normal issue.
+        ...(current.screenshotFailed && shots.length === 0
+          ? {
+              screenshotFailed: true,
+              screenshotError: current.screenshotError,
+            }
+          : {}),
+        ...(issueValues ? { form: issueValues } : {}),
+        ...(attachments.length > 0 ? { attachments } : {}),
         // Record mode: attach the clips (unless consent dropped them).
         ...(current.recording && frameTotal > 0
           ? { recording: true, clips }
@@ -1717,12 +2197,12 @@ export function mountFeedbackWidget(
     closeChecklistPanel();
     closePanel();
     hideToast();
-    setDismissed(core.config.project);
+    setDismissed(project);
     applyDismissed(true);
   }
 
   function showWidget(): void {
-    clearDismissed(core.config.project);
+    clearDismissed(project);
     applyDismissed(false);
   }
 
@@ -1731,7 +2211,7 @@ export function mountFeedbackWidget(
     dismissWidget();
   });
   // Honour a dismissal from a previous page load before anything is shown.
-  if (dismissEnabled && readIsDismissed(core.config.project, dismissDays)) {
+  if (dismissEnabled && readIsDismissed(project, dismissDays)) {
     applyDismissed(true);
   }
 
@@ -1805,8 +2285,14 @@ export function mountFeedbackWidget(
   // Ordered by expected frequency of use: quick captures first, the
   // no-screenshot escape hatch last.
   menuItem(strings.menuFullpage, startFullpageMode);
-  menuItem(strings.menuArea, startAreaMode);
-  menuItem(strings.menuElement, startElementMode);
+  // Graceful mobile mode: area needs a drag that a touch screen spends on
+  // scrolling, and element mode is built on hover, which does not exist. Both
+  // are hidden on coarse pointers rather than offered and then failing —
+  // full page and comment-only cover the report either way.
+  if (!coarsePointer) {
+    menuItem(strings.menuArea, startAreaMode);
+    menuItem(strings.menuElement, startElementMode);
+  }
   if (recordingEnabled) {
     menuItem(strings.menuRecord, () => {
       startRecording().catch((error) =>
@@ -1830,6 +2316,70 @@ export function mountFeedbackWidget(
       sendDraft().catch(() => undefined);
     })
   );
+  // --- Attachments: drag & drop and paste ------------------------------------
+  // Both are registered only when attachments are enabled, so a widget without
+  // them installs no extra listeners at all.
+  let dragDepth = 0;
+  const guardedPaste = guardUi("ui.paste", (event: ClipboardEvent) => {
+    if (!(isPanelOpen() && draft && event.clipboardData)) {
+      return;
+    }
+    // The headline case: a screenshot taken on a phone or lifted from an email,
+    // pasted straight into the panel with Cmd/Ctrl+V. Clipboard images have no
+    // file name, so they get a generated one — the artifact keeps it as
+    // `original_name` and the file itself is renamed after the issue anyway.
+    const files: File[] = [];
+    for (const item of event.clipboardData.items) {
+      if (item.kind !== "file") {
+        continue;
+      }
+      const file = item.getAsFile();
+      if (file) {
+        files.push(
+          file.name
+            ? file
+            : new File([file], `pasted.${(file.type.split("/")[1] || "png")}`, {
+                type: file.type,
+              })
+        );
+      }
+    }
+    if (files.length > 0) {
+      event.preventDefault();
+      addFiles(files);
+    }
+  });
+  if (attachPolicy.enabled) {
+    document.addEventListener("paste", guardedPaste);
+    panel.addEventListener("dragenter", (event) => {
+      event.preventDefault();
+      dragDepth += 1;
+      dropHint.style.display = "flex";
+    });
+    panel.addEventListener("dragover", (event) => {
+      // Without this the browser navigates to the dropped file and the
+      // half-written issue is gone.
+      event.preventDefault();
+    });
+    panel.addEventListener("dragleave", () => {
+      dragDepth = Math.max(0, dragDepth - 1);
+      if (dragDepth === 0) {
+        dropHint.style.display = "none";
+      }
+    });
+    panel.addEventListener(
+      "drop",
+      guardUi("ui.drop", (event: DragEvent) => {
+        event.preventDefault();
+        dragDepth = 0;
+        dropHint.style.display = "none";
+        const files = [...(event.dataTransfer?.files ?? [])];
+        if (files.length > 0) {
+          addFiles(files);
+        }
+      })
+    );
+  }
   const guardedKeyDown = guardUi("ui.keydown", onKeyDown);
   document.addEventListener("keydown", guardedKeyDown, true);
   // The UI's share of the self-disable path: drop the two document listeners it
@@ -1838,6 +2388,7 @@ export function mountFeedbackWidget(
   core.guard.onTrip(() => {
     document.removeEventListener("keydown", guardedKeyDown, true);
     document.removeEventListener("pointerdown", guardedPointerDown, true);
+    document.removeEventListener("paste", guardedPaste);
     recorder.cancel();
     host.remove();
   });
@@ -1849,7 +2400,9 @@ export function mountFeedbackWidget(
     isDismissed: () => dismissed,
     show: showWidget,
     unmount: () => {
-      document.removeEventListener("keydown", onKeyDown, true);
+      document.removeEventListener("keydown", guardedKeyDown, true);
+      document.removeEventListener("pointerdown", guardedPointerDown, true);
+      document.removeEventListener("paste", guardedPaste);
       recorder.cancel();
       resetModes();
       closePanel();

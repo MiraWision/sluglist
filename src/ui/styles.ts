@@ -752,6 +752,115 @@ export function widgetStyles(theme: UiTheme): string {
   border-color: ${theme.accentColor};
   color: ${theme.accentColor};
 }
+/* Non-image attachment: a labelled tile instead of a preview. */
+.file-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 1px;
+  padding: 6px 8px;
+  cursor: default;
+  overflow: hidden;
+}
+.file-tile:hover {
+  border-color: #e5e7eb;
+}
+.file-ext {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: ${theme.accentColor};
+}
+.file-name {
+  font-size: 10px;
+  color: #374151;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.file-size {
+  font-size: 10px;
+  color: #9ca3af;
+}
+/* Drag & drop: an overlay over the whole panel while a file is held over it. */
+.drop-hint {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border-radius: 12px;
+  border: 2px dashed ${theme.accentColor};
+  background: rgba(255, 255, 255, 0.92);
+  color: ${theme.accentColor};
+  font-size: 13px;
+  font-weight: 600;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+/* Reporter form: session block above, issue block under the comment. */
+.form-block {
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+}
+.form-session {
+  padding-bottom: 10px;
+  border-bottom: 1px solid #f3f4f6;
+}
+.form-heading {
+  font-size: 12px;
+  font-weight: 600;
+  color: #111;
+}
+.form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.form-row-check {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+.form-label {
+  font-size: 12px;
+  color: #374151;
+}
+.form-required {
+  color: #dc2626;
+  margin-left: 2px;
+}
+.form-row input[type="text"],
+.form-row input[type="email"],
+.form-row select {
+  font: inherit;
+  font-size: 13px;
+  color: #111;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 7px 8px;
+  width: 100%;
+  /* iOS zooms the page when a focused field is under 16px; 16px on touch keeps
+     the viewport where the reporter left it. */
+  min-height: 36px;
+}
+.form-row input:focus,
+.form-row select:focus {
+  outline: none;
+  border-color: ${theme.accentColor};
+}
+.form-row.invalid input,
+.form-row.invalid select {
+  border-color: #dc2626;
+}
+.form-error {
+  font-size: 12px;
+  color: #dc2626;
+  display: none;
+}
 .spinner {
   width: 18px;
   height: 18px;
@@ -1132,6 +1241,12 @@ textarea:focus {
   color: #dc2626;
   opacity: 1;
 }
+/* --- Mobile graceful mode ---------------------------------------------------
+   Not a separate mobile UI: the same widget, with the panels going full-width,
+   the controls reaching thumb size, and the launcher clearing the home
+   indicator. The capture modes that need hover or a drag are removed in
+   ui/mount.ts, not hidden here. 430px covers every current phone in portrait
+   (iPhone Pro Max included), where 480px also caught small tablet splits. */
 @media (max-width: 480px) {
   .panel {
     left: 12px;
@@ -1139,6 +1254,10 @@ textarea:focus {
     bottom: 12px;
     width: auto;
     max-width: none;
+    /* The panel is bottom-anchored, so a long form would grow under the
+       keyboard. Cap it and scroll inside instead. */
+    max-height: calc(100vh - 80px);
+    overflow-y: auto;
   }
   .checklist-panel {
     left: 12px;
@@ -1154,13 +1273,56 @@ textarea:focus {
     bottom: 76px;
     min-width: 0;
   }
-  .fab {
-    bottom: 16px;
+  /* The launcher is .fab-wrap (fixed); .fab is relative inside it, so the old
+     rule on .fab did nothing. Also clear the home indicator / gesture bar. */
+  .fab-wrap {
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
     ${side}: 16px;
   }
   .annotate-toolbar {
     width: 100%;
     justify-content: center;
+  }
+}
+/* Coarse pointer: thumb-sized targets and no 16px-zoom on focus. Keyed off the
+   pointer rather than the width, so a phone in landscape keeps them. */
+@media (pointer: coarse) {
+  .menu button {
+    min-height: 44px;
+  }
+  .dialog-actions button {
+    min-height: 44px;
+    padding: 0 16px;
+  }
+  .add-shot {
+    min-height: 44px;
+  }
+  /* A finger-sized ✕ would swallow a 76px thumbnail, so the thumbnail grows
+     with it rather than the button growing alone. */
+  .thumb {
+    width: 92px;
+    height: 68px;
+  }
+  .thumb .thumb-remove {
+    width: 20px;
+    height: 20px;
+    font-size: 12px;
+    line-height: 20px;
+  }
+  .cl-item {
+    min-height: 44px;
+  }
+  .cl-issue-btn {
+    min-width: 36px;
+    min-height: 36px;
+  }
+  /* iOS zooms into any focused field with a font-size below 16px and never
+     zooms back out, which strands the reporter mid-report. */
+  .panel textarea,
+  .form-row input[type="text"],
+  .form-row input[type="email"],
+  .form-row select {
+    font-size: 16px;
   }
 }
 `;

@@ -1,0 +1,27 @@
+{
+  "sessionId": "session-2026-08-09-6z4l",
+  "pass": [
+    "dashboard-greeting",
+    "reports-table"
+  ],
+  "fail": [
+    {
+      "id": "export-button-visible",
+      "issue": "01"
+    },
+    {
+      "id": "settings-save-confirms",
+      "issue": "02"
+    }
+  ],
+  "notTested": [
+    {
+      "id": "export-downloads-csv",
+      "reason": "the Export CSV button does not exist (see export-button-visible), so the download cannot be attempted"
+    },
+    {
+      "id": "ledger-reconciles",
+      "reason": "item is not verifiable in the app: no url/hint, and nothing in the UI relates to \"The quarterly sync reconciles with the upstream ledger\" — needs the author to clarify what to open and what to look at"
+    }
+  ]
+}

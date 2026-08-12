@@ -1,5 +1,233 @@
 # Changelog
 
+## 1.14.0 — `sluglist init-skills`, per-page social metadata
+
+A polish release: one new CLI command and a set of site/docs consistency fixes. No library code and
+no artifact-format change — the widget, the writer and the format are untouched.
+
+### `sluglist init-skills`
+
+- New command replacing the documented
+  `mkdir -p .claude/skills && cp -r node_modules/sluglist/skills/… .claude/skills/` line: it copies
+  every bundled skill into `.claude/skills/`, creating the folder if needed.
+- Zero-config; `--dir <path>` retargets and `--force` overrides.
+- **A skill you have edited is never overwritten.** Skills are prompts and editing them to fit a
+  project is expected, so a file identical to the bundled copy is refreshed silently, and anything
+  that differs is reported and kept. A partially-edited skill is left entirely alone rather than
+  half-updated. Note that a package upgrade produces the same "differs" state, so the message names
+  both causes and `--force` is how you take new versions after upgrading.
+- Docs now show the command, with the manual `cp` kept as a collapsed fallback for unusual layouts.
+
+### Site and docs
+
+- **Per-page social metadata.** Internal pages set `title` and `description` but inherited the home
+  page's `og:title`/`og:url`, so sharing a doc in Slack or X showed the home page's headline. Every
+  page (docs, `/for/*`, `/compare/*`, docs index, changelog) now emits its own `og:title`,
+  `og:url`, `og:description` and `twitter:*`, matching its canonical URL and its `<title>`. The
+  shared `og:image` is unchanged.
+- **One canonical dev-loop snippet.** Quick-start showed `LocalConnector` bare while the agents page
+  showed it behind `enabled: process.env.NODE_ENV !== "production"`. All five places (README ×2,
+  quick start, agents, `/for/claude-code/`) now show the clean one-liner followed by the same
+  reminder to gate it behind an env flag.
+- **Privacy footnote** under the artifact example on the landing page: `reporter` comes from the
+  `identity` you configure, so it is not a scrubbing miss — scrubbing applies to text the widget
+  captures, not to fields you set on purpose.
+
+## 1.13.0 — Verdict evidence, checklist intents, `sluglist report`
+
+Everything here is additive. The `FeedbackConnector` contract is unchanged and the widget — its UI
+and its artifacts — is untouched. A session that records no evidence and no intent is byte-identical
+to a 1.12 one apart from the format-version line. **No new dependencies**: `npm install sluglist`
+resolves to exactly the same tree as before, with no native binaries.
+
+### Evidence for a verdict (format 1.6)
+
+- `checklist.items[].evidence` in `session.yaml`: `screenshots` (files stored next to the session as
+  `ev-<item-id>-NN.png`) plus a one-line `note` (≤ 500 chars, scrubbed with the session's other
+  page-derived text). Absent unless recorded, so a bare verdict stays exactly as it was.
+- Writer API: `setVerdict(id, verdict, { evidence: { screenshots, note } })`. Screenshots may be
+  buffers or file paths. Valid on any verdict — on `pass` it is the point (a verifiable sign-off
+  rather than a self-report); on `fail` it supplements the linked issue.
+- The reason it exists: a `fail` has always been evidenced by its issue, while a `pass` was a bare
+  tick. Now both can be checked.
+
+### The anti-theatre rule (`sluglist-qa`)
+
+- New run parameter `evidence: "fails" | "all"` — `fails` is the previous behaviour and stays the
+  default; `all` requires a screenshot and a note for every pass.
+- The skill now states, and enforces by example, that **a screenshot proves "the screen looked like
+  this", not "the action worked"**. For a check with no visible result (a download, a submission, a
+  background job) the note must carry the observed fact — the downloaded file's name and size, the
+  toast's text, the counter that changed — and a pass with nothing observable behind it must be
+  recorded as *not tested*.
+
+### Checklist intents (format 1.6)
+
+- Additive `intent` on the checklist config, carried into `session.yaml` as `checklist.intent`:
+  `branch` | `re-test` | `smoke` | `scenario` (open vocabulary — readers tolerate unknown values).
+- `sluglist-checklist` gains two generator modes: **smoke** (a broad pass built from the app's routes
+  and docs, critical paths first, capped at 30 items) and **scenario** (a focused list decomposed
+  from a written brief, with anything outside the brief surfaced as a suggestion, never a silent
+  item).
+- Convention: checklists live in `.sluglist/checklists/<name>.json`. `sluglist dev` serves that
+  folder read-only at `GET /checklists/<name>.json` so the widget can load one without a copy into
+  `public/`.
+
+### `sluglist report`
+
+- New command: `npx sluglist report [session-dir] [-o out.html]`. Zero-config — with no arguments it
+  reports the newest session in `.sluglist/` and writes `report.html` beside it.
+- Output is **one self-contained HTML file**: inlined CSS/JS, system fonts, `data:` URI images, no
+  external request of any kind. It opens from `file://` offline and forwards as a single attachment.
+- Contents: header (title, date, application, reporter, intent), summary tiles, the checklist as an
+  article with verdict badges / notes / evidence thumbnails, every issue in full with its fix status
+  from `fixes.yaml`, and a footer naming the format version. A session with no checklist renders as a
+  plain issue list.
+- Click a thumbnail for a full-size `<dialog>` lightbox (the full image *is* the thumbnail, scaled by
+  CSS — each image is stored once). A print stylesheet drops the lightbox, grids the thumbnails and
+  forces a light theme, so Print → Save as PDF gives a clean document.
+- Images are downscaled to 1200px and re-encoded before inlining; a typical session (5 items, 6
+  screenshots) lands around 150 KB. Over 25 MB the report is rebuilt once at 800px / q50 with a
+  warning.
+- The PNG decoder and baseline JPEG encoder are **part of the CLI, written against `node:zlib`
+  alone**. This was deliberate: `sharp` is a native binary and `optionalDependencies` install by
+  default, so it would land in every browser project; `jimp` is pure JS but a large tree for a
+  package whose whole runtime is two lazily-imported deps.
+
+### Internal
+
+- New dependency-free reader (`parseYaml`, `readSession`) for the subset the serializer emits, tested
+  differentially against a reference YAML implementation on every artifact in the repository.
+
+## 1.12.0 — Agent-to-agent loop: headless writer, QA skill, fixes.yaml, re-test
+
+Everything here is additive. The `FeedbackConnector` contract is unchanged, and the widget — its UI
+and its artifacts — is untouched (byte-for-byte, minus the format-version line). sluglist becomes a
+protocol between agents: dev agent → checklist → QA agent → issues → fix agent → fixes.yaml →
+re-test checklist → QA again.
+
+### `sluglist/node` — the headless writer
+
+- New subpath export for Node ≥ 18 (no DOM, no browser code; the bundle's only imports are
+  `node:fs/promises` and `node:path`): `createSession` → `reportIssue` (PNG buffers, attachments,
+  form, category, checklist links) / `setVerdict` (put-per-verdict) / `reportFix`. Same builders,
+  same delivery retries, same format as the widget. Zero-config: one connector is a working session.
+- Node-side `LocalConnector({ dir })` writes artifacts straight to disk (no sidecar needed in a Node
+  process), with the sidecar's traversal defenses.
+- `createSession({ sessionId })` adopts an existing session folder for fix passes (fix-only by
+  design: connectors are put-only).
+- Documented simplification: no offline outbox in Node — the delivery report is returned instead.
+
+### Format 1.5 (additive)
+
+- `reporter.kind`: `"human" | "agent"` in `reporter`/`fixed_by` blocks; absent ⇒ human.
+- `fixes.yaml`: per-session machine-readable resolution records
+  (`fixed | wontfix | needs_info`, commit, note, checklist_item, ts), upserted by issue id. Absence
+  is valid — the session just has not been through a fix pass.
+- `retest_of` on the checklist input: provenance of a re-test checklist (`<orig>-retest-N`).
+
+### Skills
+
+- **New `sluglist-qa`**: a browser-driving QA agent walks the checklist through the writer. Protocol
+  rule: no `fail` without a screenshot-backed issue, no `pass` without performing the check, unclear
+  item ⇒ not-tested with a reason — never a guess. QA never writes to the repo.
+- **`sluglist-fix`**: now records every resolution in `fixes.yaml` (writer API or direct file);
+  `needs_info` over guessed fixes; `.done` stays for humans, fixes.yaml is the status truth.
+- **`sluglist-checklist`**: new re-test mode — a checklist from a fixed session's `fixes.yaml`
+  (`status: fixed` only, "Previously: … Verify: …" phrasing, url/hint inherited, wontfix/needs_info
+  surfaced separately).
+
+The full evidence for the end-to-end cycle (two planted bugs → fail with screenshots → real fix
+commits → green re-test) is in `RUN_EVIDENCE.md` and `evidence/agent-loop/`.
+
+## 1.11.0 — Capture resilience, mobile graceful mode, form fields, attachments, i18n
+
+Everything here is additive. The `FeedbackConnector` contract is unchanged, and a widget configured
+the way it was before this release behaves exactly as it did. Every new feature is optional: none of
+them adds a required parameter or a setup step.
+
+### `project` is now optional
+
+- `createFeedbackWidget({ connectors: [...] })` is a complete call. An omitted `project` defaults to
+  the page's hostname as a slug (`app.acme.com` → `app-acme-com`). An explicit slug is still
+  validated exactly as before. Naming it is still the better choice — it is what your artifacts sort
+  under.
+
+### A failed screenshot no longer costs the issue
+
+- Any render failure — a throw, a render slower than **8s** (was 60s), or a blank canvas — now
+  delivers the issue **comment-only** instead of silently dropping the screenshot. The reporter keeps
+  everything they typed and sees "Screenshot failed — sending without it".
+- Format **1.3 → 1.4** (additive): `screenshot_failed: true` and `screenshot_error: "<why>"` on such
+  issues. The message is scrubbed like any other page-derived text.
+- **Fixed: one cross-origin image without CORS headers used to fail every capture mode**, in every
+  engine. Measured across Chromium 151, Firefox 153 and WebKit 26.5. The unreadable image now renders
+  blank and the rest of the page still captures.
+- Record mode: a failed frame is skipped and the recording continues, with the gap marked in
+  `## Actions` as `— frame skipped (render failed)`.
+- New optional `capture: { timeoutMs, detectBlank }` for unusually heavy pages.
+- `backdrop-filter` is not rendered by any engine — now documented in Notes and limits rather than
+  discovered in production.
+
+### Mobile graceful mode
+
+- On a coarse pointer (detected from the pointer, never the user agent) the menu offers **full page**
+  and **comment only**. Element mode (hover) and area mode (a drag the browser spends on scrolling)
+  are hidden rather than offered and then failing. Record mode is hidden.
+- Panels are usable at 360–390px: capped height with internal scrolling, 44px targets, 16px inputs so
+  iOS does not zoom in and strand the reporter, and the textarea scrolls itself clear of the keyboard.
+- **Fixed:** the mobile launcher rule targeted `.fab`, which stopped being the fixed element when the
+  dismiss ✕ was added — the launcher never moved. It now also clears the home indicator
+  (`safe-area-inset-bottom`).
+- Shortcut hints are no longer shown on devices without a keyboard.
+
+### Reporter form fields (`form`)
+
+- Ask the reporter what only they can answer. `scope: "session"` is asked once, on the first issue,
+  and lands in `session.yaml`; `scope: "issue"` is asked every time and lands in the issue
+  frontmatter (both additive, format 1.4).
+- Types `text | email | select | checkbox`; `required` blocks sending with the row highlighted;
+  `email` is pattern-checked; values capped at 500 chars; at most 8 fields, with invalid ones dropped
+  with a warning rather than breaking the widget.
+- **Form values are never scrubbed**, including under the production preset — the reporter typed them
+  for you on purpose.
+- With no `form` configured the panel is unchanged.
+
+### Attachments
+
+- The reporter can attach their own files through a picker, drag & drop, or **paste** (Cmd/Ctrl+V) —
+  the last being the common case, since a client's evidence usually arrives in their clipboard.
+- Attached images join the thumbnail row and annotate like any capture; other types render as a
+  labelled tile.
+- Whitelist by default: images, video, pdf, txt/csv/json/md, xlsx/docx — checked on **both** the
+  extension and the mime. **Executables and archives are never accepted**, not even through `accept`.
+- Limits: 10MB per file, 5 files per issue, both configurable. Nothing is compressed client-side; an
+  oversized file is an honest error naming the actual limit.
+- Format 1.4 (additive): an `attachments:` list per issue; files land next to it as
+  `NN-slug-att-01.<ext>` with the reporter's own name kept as `original_name`, never as a path.
+- **Off by default under `preset: "production"`** — accepting uploads from anonymous users is a
+  decision, not a default. `examples/feedback-route.ts` gained a matching server-side whitelist and
+  size cap (415 / 413), and `docs/production-checklist.md` a section on what is your side of the line.
+
+### Localization
+
+- Ready-made bundles for `en`, `ru`, `uk`, `es`, `de`: `import { labels } from "sluglist/labels"`,
+  then `mountFeedbackWidget(widget, { strings: labels.uk })`. Partial overrides work by spreading;
+  anything omitted falls back to English.
+- Plurals now go through the bundle's own rule, so Russian and Ukrainian get all three forms
+  (`1 кадр / 2 кадра / 5 кадров`), including the 11–14 exception. `slavicPluralForm` is exported.
+- Four remaining hardcoded strings moved into the label registry; a test now enforces that there are
+  no others.
+
+### Docs
+
+- README opens with a one-line quick start and three scenarios (Dev loop / Client acceptance /
+  Beta & Production), with an "Attach your user" recipe putting `identity`, `setContext` and `form`
+  in one place. Notes and limits rewritten from the measured browser matrix.
+- SPEC.md updated to 1.4 (it had drifted at 1.2 while the code emitted 1.3).
+- The `sluglist-fix` skill reads attachments (images as screenshots, text files as evidence), `form`
+  answers, and understands `screenshot_failed`.
+
 ## 1.10.0 — Production preset, PII text scrub, dismiss, self-isolation
 
 Everything here is additive. The `FeedbackConnector` contract is unchanged and the `dev` preset

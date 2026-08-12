@@ -3,7 +3,9 @@ import type { ChecklistState } from "./checklist";
 import { type ErrorRecord, formatErrorAge } from "./errors";
 import type {
   ArtifactFile,
+  AttachmentMeta,
   CaptureMode,
+  FixesState,
   IssueIndexEntry,
   ReporterMeta,
   SessionState,
@@ -56,8 +58,20 @@ function yamlBlock(
  *       the `<frames_dir>/<clip-id>/NN.png` frame layout it discriminates.
  * 1.3 — additive `scrubbed` issue frontmatter: whether the text surfaces of the
  *       issue were run through the PII scrub (`privacy.scrubText`).
+ * 1.4 — additive issue frontmatter: `screenshot_failed` / `screenshot_error`
+ *       (the render failed and the issue was sent without it), `form` (reporter
+ *       form fields, `scope: "issue"`) and `attachments` (files the reporter
+ *       attached), plus the additive `form` block in session.yaml
+ *       (`scope: "session"` answers).
+ * 1.5 — additive `reporter.kind` ("human" | "agent"; absent ⇒ human) and the
+ *       optional per-session `fixes.yaml` file (fix-agent resolution records;
+ *       absent for every session that predates it or was never fixed).
+ * 1.6 — additive `checklist.items[].evidence` (`screenshots` + `note`: proof
+ *       attached to a verdict, so a `pass` can be verified and not merely
+ *       trusted) and additive `checklist.intent` (why the checklist exists:
+ *       branch / re-test / smoke / scenario). Both absent unless recorded.
  */
-export const FORMAT_VERSION = "1.3";
+export const FORMAT_VERSION = "1.6";
 
 /**
  * The `checklist:` block: definition identity + one entry per item with its
@@ -65,25 +79,51 @@ export const FORMAT_VERSION = "1.3";
  * additive top-level key.
  */
 function yamlChecklist(checklist: ChecklistState): string {
-  const head = `checklist:\n${yamlLine("id", checklist.id, "  ")}\n${yamlLine(
+  let head = `checklist:\n${yamlLine("id", checklist.id, "  ")}\n${yamlLine(
     "title",
     checklist.title,
     "  "
   )}`;
+  // Additive (format 1.6): why this checklist exists. Emitted only when the
+  // definition declared it, so sessions without it stay byte-identical.
+  if (checklist.intent !== undefined) {
+    head += `\n${yamlLine("intent", checklist.intent, "  ")}`;
+  }
   if (checklist.items.length === 0) {
     return `${head}\n  items: []`;
   }
-  const items = yamlListOfMaps(
-    checklist.items.map((item) => [
-      ["id", item.id],
-      ["section", item.section],
-      ["title", item.title],
-      ["verdict", item.verdict],
-      ["issue", item.issue],
-      ["ts", item.ts],
-    ]),
-    "    "
-  );
+  // Rendered item-by-item rather than through `yamlListOfMaps` because the
+  // additive `evidence` block is nested — the flat helper cannot express it.
+  const items = checklist.items
+    .map((item) => {
+      let block = yamlListOfMaps(
+        [
+          [
+            ["id", item.id],
+            ["section", item.section],
+            ["title", item.title],
+            ["verdict", item.verdict],
+            ["issue", item.issue],
+            ["ts", item.ts],
+          ],
+        ],
+        "    "
+      );
+      // Additive (format 1.6): proof for this verdict. Absent for a bare
+      // verdict, so pre-1.6 sessions stay byte-identical.
+      if (item.evidence) {
+        block += "\n      evidence:";
+        block +=
+          item.evidence.screenshots.length > 0
+            ? `\n${yamlLine("screenshots", item.evidence.screenshots, "        ")}`
+            : "\n        screenshots: []";
+        if (item.evidence.note !== undefined) {
+          block += `\n${yamlLine("note", item.evidence.note, "        ")}`;
+        }
+      }
+      return block;
+    })
+    .join("\n");
   return `${head}\n  items:\n${items}`;
 }
 
@@ -125,6 +165,11 @@ export function buildSessionYaml(state: SessionState): string {
   // (null when configured but empty). Sessions without it stay byte-identical.
   if (state.reporter !== undefined) {
     head += `\n${yamlBlock("reporter", state.reporter)}`;
+  }
+  // Additive (format 1.4): answers to `scope: "session"` form fields, asked once
+  // on the first issue. Absent unless such fields are configured and answered.
+  if (state.form !== undefined) {
+    head += `\n${yamlBlock("form", state.form)}`;
   }
   // Additive (format 1.1): acceptance checklist with per-item verdicts. Present
   // only when a checklist is configured; sessions without one stay byte-identical.
@@ -214,6 +259,24 @@ export interface IssueMarkdownInput {
   /** Whether masking was applied to the screenshot(s); emitted when defined. */
   masked?: boolean;
   /**
+   * A screenshot was attempted and the render failed; the issue was delivered
+   * without it. Emitted as `screenshot_failed` (format 1.4).
+   */
+  screenshotFailed?: boolean;
+  /** Renderer message for the failure above; emitted as `screenshot_error`. */
+  screenshotError?: string | null;
+  /**
+   * Reporter form answers with `scope: "issue"`; emitted as a `form:` block
+   * (format 1.4). Session-scoped answers live in session.yaml instead.
+   */
+  form?: Record<string, YamlScalar> | null;
+  /**
+   * Files the reporter attached to this issue, in order; emitted as an
+   * `attachments:` list (format 1.4). Each file sits next to the issue as
+   * `<id>-<slug>-att-NN.<ext>`.
+   */
+  attachments?: AttachmentMeta[];
+  /**
    * Whether the text surfaces of this issue were run through the PII scrub;
    * emitted only when `privacy.scrubText` was set explicitly (or by the
    * production preset), so artifacts written without it stay byte-identical.
@@ -280,6 +343,15 @@ export function buildIssueMarkdown(input: IssueMarkdownInput): string {
   if (input.masked !== undefined) {
     lines.push(yamlLine("masked", input.masked));
   }
+  // Additive (format 1.4): the screenshot render failed and the issue was sent
+  // without it. Only ever emitted on the failure path, so successful captures
+  // stay byte-identical.
+  if (input.screenshotFailed) {
+    lines.push(yamlLine("screenshot_failed", true));
+    if (input.screenshotError !== undefined) {
+      lines.push(yamlLine("screenshot_error", input.screenshotError));
+    }
+  }
   // Additive (format 1.3): emitted only when scrubText was set explicitly, so
   // dev and default-beta artifacts stay byte-identical.
   if (input.scrubbed !== undefined) {
@@ -328,6 +400,23 @@ export function buildIssueMarkdown(input: IssueMarkdownInput): string {
   if (input.context !== undefined) {
     lines.push(yamlBlock("context", input.context));
   }
+  // Additive (format 1.4): reporter-entered fields with `scope: "issue"`.
+  if (input.form !== undefined) {
+    lines.push(yamlBlock("form", input.form));
+  }
+  // Additive (format 1.4): files the reporter attached, one map per file.
+  if (input.attachments && input.attachments.length > 0) {
+    const attachments = yamlListOfMaps(
+      input.attachments.map((a) => [
+        ["file", a.file],
+        ["mime", a.mime],
+        ["size", a.size],
+        ["original_name", a.original_name],
+      ]),
+      "  "
+    );
+    lines.push(`attachments:\n${attachments}`);
+  }
   const frontmatter = lines.join("\n");
 
   let body = input.comment.trim();
@@ -366,6 +455,50 @@ export function buildIssueMarkdown(input: IssueMarkdownInput): string {
   return `---\n${frontmatter}\n---\n\n${body}\n`;
 }
 
+/**
+ * Build `fixes.yaml` (format 1.5): the machine-readable resolution record a
+ * fix agent writes next to session.yaml. One entry per handled issue, upserted
+ * by issue id as fixing progresses. A session without the file is valid — it
+ * just has not been through a fix pass.
+ */
+export function buildFixesYaml(state: FixesState): string {
+  let head = yamlLine("format_version", FORMAT_VERSION);
+  if (state.fixed_by !== undefined) {
+    head += `\n${yamlBlock("fixed_by", state.fixed_by)}`;
+  }
+  if (state.items.length === 0) {
+    return `${head}\nitems: []\n`;
+  }
+  const items = yamlListOfMaps(
+    state.items.map((item) => {
+      const entries: [string, YamlValue][] = [
+        ["issue", item.issue],
+        ["status", item.status],
+      ];
+      if (item.commit !== undefined) {
+        entries.push(["commit", item.commit]);
+      }
+      if (item.note !== undefined) {
+        entries.push(["note", item.note]);
+      }
+      if (item.checklist_item !== undefined) {
+        entries.push(["checklist_item", item.checklist_item]);
+      }
+      entries.push(["ts", item.ts]);
+      return entries;
+    })
+  );
+  return `${head}\nitems:\n${items}\n`;
+}
+
+export function fixesYamlFile(state: FixesState): ArtifactFile {
+  return {
+    path: "fixes.yaml",
+    blob: new Blob([buildFixesYaml(state)], { type: "text/yaml" }),
+    mime: "text/yaml",
+  };
+}
+
 export function sessionYamlFile(state: SessionState): ArtifactFile {
   return {
     path: "session.yaml",
@@ -387,4 +520,17 @@ export function issueMarkdownFile(
 
 export function screenshotFile(path: string, blob: Blob): ArtifactFile {
   return { path, blob, mime: "image/png" };
+}
+
+/**
+ * A file the reporter attached. Unlike the three mime types the core produces
+ * itself, the mime here comes from the picked file — already validated against
+ * the attachment whitelist before it reaches this point.
+ */
+export function attachmentFile(
+  path: string,
+  blob: Blob,
+  mime: string
+): ArtifactFile {
+  return { path, blob, mime };
 }

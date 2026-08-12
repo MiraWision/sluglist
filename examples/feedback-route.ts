@@ -16,7 +16,8 @@
  *   401  no / wrong bearer token   — an open endpoint is an open write to your
  *                                    storage bill and your triage queue
  *   413  body too large            — recordings are many PNGs; cap them
- *   415  unexpected content type   — only three mime types are ever produced
+ *   415  unexpected content type   — core artifacts are three mime types;
+ *                                    attachments are a short whitelist
  *   429  too many requests         — per-IP sliding window
  *   400  malformed path or payload — path traversal, missing fields
  *   409  session file cap reached  — one runaway page cannot fill a bucket
@@ -33,8 +34,43 @@ const MAX_FILES_PER_SESSION = 200;
 const WINDOW_MS = 60_000;
 const MAX_PER_WINDOW = 20;
 
-/** The only mime types sluglist core ever produces. */
-const ALLOWED_MIME = new Set(["text/yaml", "text/markdown", "image/png"]);
+/** The only mime types sluglist core ever produces itself. */
+const CORE_MIME = ["text/yaml", "text/markdown", "image/png"];
+
+/**
+ * Reporter attachments (`attachments` in the widget config) arrive through this
+ * same route with the mime of the file the reporter picked, so the endpoint
+ * needs its own whitelist — the client-side one is a UX affordance, not a
+ * control. Keep this in sync with `src/attachments.ts`; trim it to what you
+ * actually want to receive.
+ *
+ * Executables and archives are absent on purpose and must stay absent: an
+ * archive is opaque to every check you and your storage run after this point.
+ *
+ * If you do NOT enable attachments, delete this list and pass `CORE_MIME` to
+ * `ALLOWED_MIME` — a narrower endpoint is a better endpoint.
+ */
+const ATTACHMENT_MIME = [
+  "image/png", "image/jpeg", "image/webp", "image/gif", "image/heic", "image/heif",
+  "video/mp4", "video/webm", "video/quicktime",
+  "application/pdf",
+  "text/plain", "text/csv", "application/csv", "text/markdown", "text/x-markdown",
+  "application/json", "text/json",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+];
+
+const ALLOWED_MIME = new Set([...CORE_MIME, ...ATTACHMENT_MIME]);
+
+/**
+ * Attachments are the only artifacts whose size the reporter controls (a phone
+ * video is tens of megabytes), so they get their own cap — keep it equal to the
+ * widget's `attachments.maxFileSize`, or the browser will accept a file this
+ * route then rejects.
+ */
+const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+/** Artifact names the widget gives attachments: `03-checkout-att-01.png`. */
+const ATTACHMENT_PATH = /-att-\d{2}\.[A-Za-z0-9]+$/;
 /**
  * Relative POSIX paths inside the session folder. Allows the one level of
  * nesting recordings use (`01-slug-frames/clip-01/02.png`) and nothing else —
@@ -52,6 +88,8 @@ export interface FeedbackRouteDeps {
   /** Test seam. */
   now?(): number;
   maxBytes?: number;
+  /** Per-attachment cap; keep it equal to the widget's attachments.maxFileSize. */
+  maxAttachmentBytes?: number;
   maxFilesPerSession?: number;
 }
 
@@ -145,9 +183,20 @@ export function createFeedbackHandler(
     if (!ALLOWED_MIME.has(mime)) {
       return new Response("Unsupported media type", { status: 415 });
     }
+    // An attachment must be a type the reporter is allowed to send, not just a
+    // type sluglist can produce — and a core artifact must never arrive with an
+    // attachment mime. Checking the pair closes the gap where "image/png" would
+    // let any file through under an artifact-shaped name.
+    const isAttachment = ATTACHMENT_PATH.test(path);
+    if (!isAttachment && !CORE_MIME.includes(mime)) {
+      return new Response("Unsupported media type", { status: 415 });
+    }
+    const limit = isAttachment
+      ? (deps.maxAttachmentBytes ?? MAX_ATTACHMENT_BYTES)
+      : maxBytes;
     // base64 is 4 chars per 3 bytes; check before decoding so a 1GB string is
     // never materialised as a buffer.
-    if ((base64.length * 3) / 4 > maxBytes) {
+    if ((base64.length * 3) / 4 > limit) {
       return new Response("Payload too large", { status: 413 });
     }
 
@@ -159,7 +208,7 @@ export function createFeedbackHandler(
     sessionFileCount.set(sessionId, count + 1);
 
     const bytes = Buffer.from(base64, "base64");
-    if (bytes.byteLength > maxBytes) {
+    if (bytes.byteLength > limit) {
       return new Response("Payload too large", { status: 413 });
     }
 

@@ -1,0 +1,50 @@
+[
+  {
+    "scenario": "render-throw",
+    "elapsedMs": 11568,
+    "toast": "Screenshot failed — sending without itRetry",
+    "delivered": [
+      "01-totals-are-wrong-on-the-invoice.md",
+      "session.yaml"
+    ],
+    "hasScreenshotFailed": true,
+    "screenshotError": "\"injected: canvas encode refused\"",
+    "screenshotNull": true,
+    "panelClosed": true,
+    "warnings": [
+      "[sluglist] screenshot failed: CaptureFailedError: injected: canvas encode refused\n    at http://localhost:5175/dist/sluglist.global.js:42:12965\n    at async ri "
+    ]
+  },
+  {
+    "scenario": "timeout",
+    "elapsedMs": 11541,
+    "toast": "Screenshot failed — sending without itRetry",
+    "delivered": [
+      "01-totals-are-wrong-on-the-invoice.md",
+      "session.yaml"
+    ],
+    "hasScreenshotFailed": true,
+    "screenshotError": "screenshot render timed out after 8000ms",
+    "screenshotNull": true,
+    "panelClosed": true,
+    "warnings": [
+      "[sluglist] screenshot failed: CaptureFailedError: screenshot render timed out after 8000ms\n    at http://localhost:5175/dist/sluglist.global.js:42:13029"
+    ]
+  },
+  {
+    "scenario": "blank-canvas",
+    "elapsedMs": 11541,
+    "toast": "Screenshot failed — sending without itRetry",
+    "delivered": [
+      "01-totals-are-wrong-on-the-invoice.md",
+      "session.yaml"
+    ],
+    "hasScreenshotFailed": true,
+    "screenshotError": "screenshot render produced a blank image",
+    "screenshotNull": true,
+    "panelClosed": true,
+    "warnings": [
+      "[sluglist] screenshot failed: CaptureFailedError: screenshot render produced a blank image\n    at http://localhost:5175/dist/sluglist.global.js:42:14728\n    at "
+    ]
+  }
+]

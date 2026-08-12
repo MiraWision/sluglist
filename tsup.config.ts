@@ -5,7 +5,7 @@ export default defineConfig([
   // html-to-image stays a lazily-imported chunk and jszip is only pulled in
   // by consumers that use DownloadConnector.
   {
-    entry: ["src/index.ts"],
+    entry: ["src/index.ts", "src/labels.ts"],
     format: ["esm", "cjs"],
     dts: true,
     sourcemap: true,
@@ -24,6 +24,16 @@ export default defineConfig([
     sourcemap: true,
     noExternal: ["html-to-image", "jszip"],
     target: "es2020",
+  },
+  // Node-only headless writer (`sluglist/node`) for agents and scripts.
+  // Separate entry so its node:fs imports never reach the browser bundle.
+  {
+    entry: { node: "src/node/index.ts" },
+    format: ["esm", "cjs"],
+    dts: true,
+    platform: "node",
+    target: "node18",
+    sourcemap: true,
   },
   // Node-only CLI (`sluglist dev`). Separate entry so its node:fs/node:http
   // imports never reach the browser bundle. Emitted as an executable ESM file.

@@ -232,3 +232,85 @@ describe("feedback endpoint — abuse caps", () => {
     expect(other.status).toBe(200);
   });
 });
+
+/**
+ * Attachments arrive through the same route with the mime of whatever the
+ * reporter picked, so the endpoint needs its own whitelist and its own size
+ * cap — the client-side checks are a UX affordance, not a control.
+ */
+describe("feedback endpoint — attachments", () => {
+  function attachment(
+    overrides: Record<string, unknown> = {},
+    bytes = 32
+  ): Record<string, unknown> {
+    return {
+      sessionId: "session-2026-07-31-ab12",
+      path: "03-checkout-att-01.png",
+      mime: "image/png",
+      base64: Buffer.from(new Uint8Array(bytes)).toString("base64"),
+      ...overrides,
+    };
+  }
+
+  it("accepts a whitelisted attachment", async () => {
+    const { handler, store } = makeHandler();
+    const res = await handler(request(attachment()));
+    expect(res.status).toBe(200);
+    expect(store).toHaveBeenCalledTimes(1);
+  });
+
+  it("accepts the office and text types the widget allows", async () => {
+    const { handler } = makeHandler();
+    for (const [path, mime] of [
+      ["03-checkout-att-01.pdf", "application/pdf"],
+      ["03-checkout-att-02.csv", "text/csv"],
+      [
+        "03-checkout-att-03.xlsx",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      ],
+      ["03-checkout-att-04.mp4", "video/mp4"],
+    ]) {
+      const res = await handler(request(attachment({ path, mime })));
+      expect(res.status).toBe(200);
+    }
+  });
+
+  it("415s a mime that is not on either whitelist", async () => {
+    const { handler, store } = makeHandler();
+    const res = await handler(
+      request(
+        attachment({
+          path: "03-checkout-att-01.zip",
+          mime: "application/zip",
+        })
+      )
+    );
+    expect(res.status).toBe(415);
+    expect(store).not.toHaveBeenCalled();
+  });
+
+  it("415s an attachment mime on a core artifact path", async () => {
+    // A file claiming to be an issue markdown but declaring a video mime is
+    // either a bug or an attempt; either way it is not stored.
+    const { handler } = makeHandler();
+    const res = await handler(
+      request(
+        attachment({ path: "01-broken-header.md", mime: "video/mp4" })
+      )
+    );
+    expect(res.status).toBe(415);
+  });
+
+  it("413s an attachment over the attachment cap", async () => {
+    const { handler, store } = makeHandler({ maxAttachmentBytes: 1024 });
+    const res = await handler(request(attachment({}, 4096)));
+    expect(res.status).toBe(413);
+    expect(store).not.toHaveBeenCalled();
+  });
+
+  it("keeps the core-artifact cap independent of the attachment cap", async () => {
+    const { handler } = makeHandler({ maxAttachmentBytes: 16 });
+    const res = await handler(request(markdown("x".repeat(2048))));
+    expect(res.status).toBe(200);
+  });
+});

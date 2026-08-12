@@ -1,8 +1,11 @@
 import {
+  attachmentFile,
   issueMarkdownFile,
   screenshotFile,
   sessionYamlFile,
 } from "./artifacts";
+import { attachmentPath, extensionOf } from "./attachments";
+import { normalizeForm, type ResolvedFormField } from "./form";
 import { type ActionCapture, type ActionRecord, createActionCapture } from "./actions";
 import {
   type ChecklistDef,
@@ -40,6 +43,7 @@ import { type KeyValueStorage, SessionManager } from "./session";
 import { slugFromComment } from "./slug";
 import type {
   ArtifactFile,
+  AttachmentMeta,
   CaptureIssueInput,
   CaptureResult,
   DeliveryReport,
@@ -87,6 +91,23 @@ export interface FeedbackWidgetCore {
    * no checklist is configured.
    */
   clearVerdict(itemId: string): void;
+  /**
+   * The validated `form` config (empty when none is configured). The UI renders
+   * `scope: "issue"` fields on every issue and `scope: "session"` fields only
+   * while {@link FeedbackWidgetCore.needsSessionForm} is true.
+   */
+  readonly formFields: ResolvedFormField[];
+  /**
+   * Whether the session-scoped block still has to be asked. False once
+   * {@link FeedbackWidgetCore.setSessionForm} has run for this session — the
+   * reporter is asked once, not on every issue.
+   */
+  needsSessionForm(): boolean;
+  /**
+   * Store the session-scoped answers on the session and re-put session.yaml.
+   * No-op when no session-scoped fields are configured.
+   */
+  setSessionForm(values: Record<string, string | number | boolean>): void;
   /** Number of issues captured in the current session. */
   getIssueCount(): number;
   /** Number of delivery batches still uploading. */
@@ -154,6 +175,25 @@ async function fetchChecklist(url: string): Promise<ChecklistDef | null> {
 const PROJECT_SLUG = /^[a-z0-9][a-z0-9-]*$/;
 
 /**
+ * Project slug when the host did not pick one. Derived from the hostname, so
+ * artifacts from `app.acme.com` land under `app-acme-com/` without anyone
+ * having to name anything. Naming the project stays the better choice — this
+ * exists so `createFeedbackWidget({ connectors })` is a complete, working call
+ * on its own, which is the whole promise of the quick start.
+ */
+export function defaultProjectSlug(hostname?: string): string {
+  const source =
+    hostname ??
+    (typeof window !== "undefined" ? window.location?.hostname : "") ??
+    "";
+  const slug = source
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return PROJECT_SLUG.test(slug) ? slug : "app";
+}
+
+/**
  * Scrub the page-derived text carried by an error record. `message` covers all
  * four sources — console text, exception and rejection messages, and the
  * `METHOD /path → status` line of a network failure, where the path segments
@@ -188,7 +228,10 @@ export function createFeedbackWidget(
   config: FeedbackWidgetConfig,
   options: CreateFeedbackWidgetOptions = {}
 ): FeedbackWidgetCore {
-  if (!(config.project && PROJECT_SLUG.test(config.project))) {
+  // An omitted project is filled in from the hostname; a provided one still has
+  // to be a valid slug, because it becomes a storage path.
+  const project = config.project ?? defaultProjectSlug();
+  if (config.project !== undefined && !PROJECT_SLUG.test(config.project)) {
     throw new Error(
       `[feedback-widget] invalid project slug: ${JSON.stringify(config.project)}`
     );
@@ -201,6 +244,9 @@ export function createFeedbackWidget(
   const resolvedErrors = resolveErrors(config);
   const resolvedConfig: FeedbackWidgetConfig = {
     ...config,
+    // The UI and the storage keys read this, so it must be the resolved slug,
+    // not the possibly-absent one the caller passed.
+    project,
     privacy: resolvedPrivacy,
     ...(resolvedErrors !== undefined ? { errors: resolvedErrors } : {}),
     dismiss: resolveDismiss(config),
@@ -219,6 +265,9 @@ export function createFeedbackWidget(
   // (backward compatible); `null` means "configured but empty".
   const reporter = normalizeIdentity(config.identity);
   const custom = normalizeCustom(config.custom);
+  // Reporter form fields, validated once at init. An invalid field is dropped
+  // with a warning; an absent `form` leaves the panel exactly as it was.
+  const formFields = normalizeForm(config.form);
   // Runtime host context (setContext). `undefined` until the host calls it →
   // omitted from artifacts (back-compat); `null`/map once configured.
   let context: Record<string, YamlScalar> | null | undefined;
@@ -256,7 +305,7 @@ export function createFeedbackWidget(
   guard.onTrip(() => errorCapture.uninstall());
   guard.onTrip(() => actionCapture.uninstall());
   const sessions = new SessionManager({
-    project: config.project,
+    project,
     storage: options.storage,
   });
   const readEnvironment = options.environment ?? collectPageEnvironment;
@@ -264,7 +313,7 @@ export function createFeedbackWidget(
     options.queue ??
     (config.offlineQueue === false
       ? NOOP_QUEUE
-      : createOfflineQueue(config.project));
+      : createOfflineQueue(project));
   // Deliveries are chained so batches never interleave: otherwise a slow
   // upload of issue N's session.yaml could overwrite the newer index written
   // by issue N+1.
@@ -342,7 +391,7 @@ export function createFeedbackWidget(
   function makeMeta(): Omit<SessionMeta, "session_id" | "created_at"> {
     const env = readEnvironment();
     return {
-      project: config.project,
+      project,
       base_url: env.baseUrl,
       browser: env.browser,
       os: env.os,
@@ -407,6 +456,18 @@ export function createFeedbackWidget(
     const pngPaths = shots.map((_, i) =>
       i === 0 ? `${id}-${slug}.png` : `${id}-${slug}-${i + 1}.png`
     );
+    // Attachments: named after the issue, never after the reporter's file (a
+    // remote-supplied name must not become a path). The original name is kept
+    // in the metadata, where it is data rather than a location.
+    const attachmentInputs = input.attachments ?? [];
+    const attachmentsMeta: AttachmentMeta[] = attachmentInputs.map(
+      (file, i) => ({
+        file: attachmentPath(id, slug, i, extensionOf(file.name) || "bin"),
+        mime: file.mime,
+        size: file.blob.size,
+        original_name: file.name,
+      })
+    );
     const createdAtMs = now();
     const createdAt = isoTimestamp(new Date(createdAtMs));
     // Snapshot the error + action buffers at issue time; relative ages vs createdAtMs.
@@ -460,6 +521,11 @@ export function createFeedbackWidget(
     for (const frame of framePairs) {
       files.push(screenshotFile(frame.path, frame.blob));
     }
+    attachmentInputs.forEach((file, i) => {
+      files.push(
+        attachmentFile(attachmentsMeta[i].file, file.blob, file.mime)
+      );
+    });
     files.push(
       issueMarkdownFile(mdPath, {
         id,
@@ -497,6 +563,23 @@ export function createFeedbackWidget(
         ...(input.screen !== undefined ? { screen: input.screen } : {}),
         ...(input.masked !== undefined ? { masked: input.masked } : {}),
         ...(scrubbedFlag !== undefined ? { scrubbed: scrubbedFlag } : {}),
+        // A failed render never blocks the issue; it is recorded instead. The
+        // message comes from the renderer, so it is a page-derived text surface
+        // and goes through the scrub with the rest of them.
+        ...(input.screenshotFailed
+          ? {
+              screenshotFailed: true,
+              screenshotError: input.screenshotError
+                ? text(input.screenshotError)
+                : null,
+            }
+          : {}),
+        // Reporter-entered fields (scope: "issue"). Deliberately NOT scrubbed —
+        // see the note on collectValues.
+        ...(input.form !== undefined ? { form: input.form } : {}),
+        ...(attachmentsMeta.length > 0
+          ? { attachments: attachmentsMeta }
+          : {}),
         // Reporter + custom mirrored into each issue (present only when
         // configured), so an issue file is self-contained.
         ...(reporter !== undefined ? { reporter } : {}),
@@ -548,6 +631,21 @@ export function createFeedbackWidget(
     // itself is synchronous.
     captureIssue: (input) => Promise.resolve().then(() => doCapture(input)),
     getSession: () => sessions.read(),
+    formFields,
+    needsSessionForm: () =>
+      formFields.some((f) => f.scope === "session") &&
+      sessions.read()?.form === undefined,
+    setSessionForm: (values) => {
+      if (!(enabled && formFields.some((f) => f.scope === "session"))) {
+        return;
+      }
+      const state = ensureSession();
+      state.form = values;
+      sessions.write(state);
+      // Put-per-answer, like put-per-verdict: the answers survive the tab
+      // closing between the first issue and the next.
+      enqueueDelivery(state.session_id, [sessionYamlFile(state)]);
+    },
     getIssueCount: () => sessions.read()?.issues.length ?? 0,
     getPendingDeliveries: () => pendingDeliveries,
     redeliver: (capture) => enqueueDelivery(capture.sessionId, capture.files),

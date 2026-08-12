@@ -1,0 +1,4 @@
+62d272c fix: correct toast element id so Save shows its confirmation (issue 02)
+4be0b62 fix: render the Export CSV button on Reports (issue 01)
+8503cd9 feat: dashboard greeting, reports table + print/export, settings with save + digest toggle
+2342d5a chore: app skeleton (server + styles)

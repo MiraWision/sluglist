@@ -1,0 +1,50 @@
+format_version: "1.4"
+project: trugenix
+session_id: session-2026-08-09-hhhh
+created_at: 2026-08-09T12:00:00Z
+base_url: https://dev.trugenix.example
+browser: Chrome 138
+os: macOS
+viewport: 1512x982
+device_pixel_ratio: 2
+screen: 2560x1440
+language: en-US
+languages:
+  - en-US
+  - de
+timezone: Europe/Berlin
+color_scheme: dark
+reduced_motion: false
+reporter:
+  email: "k@example.com"
+  name: Kerby
+checklist:
+  id: release-1
+  title: Release checks
+  items:
+    - id: export-visible
+      section: Export
+      title: Export button visible
+      verdict: fail
+      issue: "01"
+      ts: 2026-08-09T12:00:00Z
+    - id: export-works
+      section: Export
+      title: Export downloads a file
+      verdict: pass
+      issue: null
+      ts: 2026-08-09T12:00:00Z
+issues:
+  - id: "01"
+    file: 01-broken-header-on-the-dashboard.md
+    screenshot: 01-broken-header-on-the-dashboard.png
+    category: bug
+    url: /dashboard/animals
+    selector: header .logo
+    created_at: 2026-08-09T12:00:00Z
+  - id: "02"
+    file: 02-second-problem-with-the-form.md
+    screenshot: null
+    url: /dashboard/animals
+    selector: null
+    created_at: 2026-08-09T12:00:00Z

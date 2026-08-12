@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import type { Server } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -12,17 +12,23 @@ describe("resolveTarget", () => {
     expect(t).toBe("/base/session-2026-07-22-ab12/01-x.md");
   });
 
-  it("accepts a single frames subfolder (record mode)", () => {
+  it("accepts a single frames subfolder (pre-clip recordings)", () => {
     expect(
       resolveTarget("/base", "session-1", "01-x-frames/02.png")
     ).toBe("/base/session-1/01-x-frames/02.png");
+  });
+
+  it("accepts two-level clip frame paths (format 1.2 recordings)", () => {
+    expect(
+      resolveTarget("/base", "session-1", "01-x-frames/clip-01/01.png")
+    ).toBe("/base/session-1/01-x-frames/clip-01/01.png");
   });
 
   it("rejects traversal, absolute paths, deep nesting and bad session ids", () => {
     const base = "/base";
     expect(resolveTarget(base, "session-1", "../../etc/passwd")).toBeNull();
     expect(resolveTarget(base, "session-1", "/etc/passwd")).toBeNull();
-    expect(resolveTarget(base, "session-1", "a/b/c.md")).toBeNull(); // > 1 level
+    expect(resolveTarget(base, "session-1", "a/b/c/d.md")).toBeNull(); // > 2 levels
     expect(resolveTarget(base, "session-1", "frames/../../x")).toBeNull();
     expect(resolveTarget(base, "../evil", "x.md")).toBeNull();
     expect(resolveTarget(base, "notasession", "x.md")).toBeNull();
@@ -46,6 +52,53 @@ describe("sluglist dev server", () => {
   afterAll(async () => {
     await new Promise<void>((res) => server.close(() => res()));
     await rm(dir, { recursive: true, force: true });
+  });
+
+  describe("GET /checklists/<name>.json", () => {
+    it("serves a checklist from the conventional folder", async () => {
+      await mkdir(join(dir, "checklists"), { recursive: true });
+      const checklist = {
+        id: "smoke",
+        title: "Smoke",
+        intent: "smoke",
+        sections: [{ title: "Home", items: [{ id: "loads", title: "Home loads" }] }],
+      };
+      await writeFile(
+        join(dir, "checklists", "smoke.json"),
+        JSON.stringify(checklist)
+      );
+
+      const res = await fetch(`${base}/checklists/smoke.json`);
+      expect(res.status).toBe(200);
+      expect(res.headers.get("content-type")).toContain("application/json");
+      expect(await res.json()).toEqual(checklist);
+    });
+
+    it("404s for a checklist that does not exist", async () => {
+      const res = await fetch(`${base}/checklists/nope.json`);
+      expect(res.status).toBe(404);
+    });
+
+    it("refuses traversal and non-json names", async () => {
+      for (const name of [
+        "..%2F..%2Fsession.yaml",
+        "../../etc/passwd",
+        "sub/dir.json",
+        "smoke.yaml",
+        "smoke.json.exe",
+        ".env",
+      ]) {
+        const res = await fetch(`${base}/checklists/${name}`);
+        expect(res.status).not.toBe(200);
+      }
+    });
+
+    it("does not expose session artifacts through the checklist route", async () => {
+      await writeFile(join(dir, "secret.json"), '{"a":1}');
+      const res = await fetch(`${base}/checklists/secret.json`);
+      // The file exists, but not under checklists/ — it must not be served.
+      expect(res.status).toBe(404);
+    });
   });
 
   it("GET /health reports ok + absolute dir", async () => {
@@ -74,6 +127,53 @@ describe("sluglist dev server", () => {
       "utf8"
     );
     expect(written).toBe("project: acme\n");
+  });
+
+  it("accepts a clip frame two levels deep (recording put)", async () => {
+    const res = await fetch(`${base}/put`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        sessionId: "session-2026-07-22-ab12",
+        path: "03-bug-frames/clip-01/01.png",
+        mime: "image/png",
+        base64: Buffer.from([137, 80, 78, 71]).toString("base64"),
+      }),
+    });
+    expect(res.status).toBe(200);
+    const written = await stat(
+      join(dir, "session-2026-07-22-ab12", "03-bug-frames", "clip-01", "01.png")
+    );
+    expect(written.size).toBe(4);
+  });
+
+  it("accepts attachment mimes (text/plain) and still refuses unknown ones", async () => {
+    const put = (path: string, mime: string) =>
+      fetch(`${base}/put`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          sessionId: "session-2026-07-22-ab12",
+          path,
+          mime,
+          base64: Buffer.from("evidence line\n").toString("base64"),
+        }),
+      });
+    const txt = await put("03-bug-att-01.txt", "text/plain");
+    expect(txt.status).toBe(200);
+    expect(
+      await readFile(
+        join(dir, "session-2026-07-22-ab12", "03-bug-att-01.txt"),
+        "utf8"
+      )
+    ).toBe("evidence line\n");
+    const pdf = await put("03-bug-att-02.pdf", "application/pdf");
+    expect(pdf.status).toBe(200);
+    // Not on any whitelist — still refused.
+    const evil = await put("03-bug-att-03.html", "text/html");
+    expect(evil.status).toBe(400);
+    const exe = await put("03-bug-att-04.exe", "application/x-msdownload");
+    expect(exe.status).toBe(400);
   });
 
   it("rejects path traversal with 400 and writes nothing", async () => {

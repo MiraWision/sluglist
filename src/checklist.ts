@@ -43,6 +43,21 @@ export interface Checklist {
   title: string;
   /** Optional 1–2 sentence instruction shown in the panel header. */
   description?: string;
+  /**
+   * Provenance (additive): the id of the checklist this one re-tests. Set by
+   * the generator's re-test mode (the derived id is `<orig>-retest-N`); absent
+   * on a first-pass checklist. Carried through validation for readers; the
+   * widget itself ignores it.
+   */
+  retest_of?: string;
+  /**
+   * Provenance (additive, format 1.6): why this checklist exists — `branch`
+   * (generated from a diff), `re-test` (a previous run's failures), `smoke` (a
+   * broad pass over the app), `scenario` (a focused list from a written brief).
+   * Free-form so future intents need no format change; readers must tolerate a
+   * value they do not know. Advisory only — the widget never acts on it.
+   */
+  intent?: string;
   sections: ChecklistSection[];
 }
 
@@ -69,10 +84,36 @@ export interface ChecklistDef {
   title: string;
   /** Optional 1–2 sentence instruction shown in the panel header. */
   description?: string;
+  /** Provenance: id of the checklist this one re-tests (see {@link Checklist}). */
+  retest_of?: string;
+  /** Provenance: why this checklist exists (see {@link Checklist.intent}). */
+  intent?: string;
   sections: ChecklistDefSection[];
 }
 
 export type Verdict = "pass" | "fail" | "skip";
+
+/** Max length of an evidence note (one line of observed fact). */
+export const MAX_EVIDENCE_NOTE = 500;
+
+/**
+ * Optional proof attached to a verdict (format 1.6). Symmetry with `fail`: a
+ * `pass` may carry the screenshot(s) taken at the moment of the check plus a
+ * one-line note stating the *observed fact* — so a reader can verify the
+ * verdict instead of trusting the reporter's word.
+ *
+ * A screenshot proves "the screen looked like this", never "the action
+ * worked": for checks whose result is invisible on screen (a download, a
+ * submission, a background job) the note carries the observation — the
+ * downloaded file's name and size, the toast text, the changed counter.
+ * See the anti-theatre rule in the sluglist-qa skill.
+ */
+export interface ChecklistEvidence {
+  /** Evidence file names, in order; each sits next to session.yaml. */
+  screenshots: string[];
+  /** One line of observed fact; clipped to {@link MAX_EVIDENCE_NOTE}. */
+  note?: string;
+}
 
 /**
  * A checklist item's verdict as persisted in the session and written to
@@ -87,12 +128,24 @@ export interface ChecklistVerdictItem {
   issue: string | null;
   /** ISO timestamp when the verdict was set; null when unset. */
   ts: string | null;
+  /**
+   * Additive (format 1.6): proof for this verdict. Absent when the reporter
+   * recorded a bare verdict — the pre-1.6 behaviour, and still the default for
+   * `fail` (whose evidence is the linked issue) and for unverified items.
+   */
+  evidence?: ChecklistEvidence;
 }
 
 /** The session-level checklist block: definition identity + per-item verdicts. */
 export interface ChecklistState {
   id: string;
   title: string;
+  /**
+   * Additive (format 1.6): the definition's {@link Checklist.intent}, carried
+   * into the session so a reader of session.yaml alone knows what kind of run
+   * this was. Absent when the checklist declares no intent.
+   */
+  intent?: string;
   items: ChecklistVerdictItem[];
 }
 
@@ -104,6 +157,7 @@ const MAX_TITLE = 120;
 const MAX_DESCRIPTION = 280;
 const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
 const MAX_ID = 80;
+const MAX_INTENT = 40;
 
 const VERDICTS = new Set<Verdict>(["pass", "fail", "skip"]);
 
@@ -262,7 +316,35 @@ export function normalizeChecklist(raw: unknown): ChecklistDef | null {
     warn("no valid items — checklist ignored");
     return null;
   }
-  return { id, title, ...(description ? { description } : {}), sections };
+  // Additive provenance: preserved when it is a valid id, so re-test readers
+  // can trace the chain; the widget itself never acts on it.
+  const retestOf =
+    typeof raw.retest_of === "string" &&
+    raw.retest_of.trim() &&
+    ID_PATTERN.test(raw.retest_of.trim()) &&
+    raw.retest_of.trim().length <= MAX_ID
+      ? raw.retest_of.trim()
+      : undefined;
+  // Additive provenance (1.6): free-form so a future intent needs no format
+  // change; only shape is enforced (a short slug), never the vocabulary.
+  const intent =
+    typeof raw.intent === "string" &&
+    raw.intent.trim() &&
+    ID_PATTERN.test(raw.intent.trim()) &&
+    raw.intent.trim().length <= MAX_INTENT
+      ? raw.intent.trim()
+      : undefined;
+  if (raw.intent !== undefined && intent === undefined) {
+    warn(`dropping invalid intent ${JSON.stringify(raw.intent)}`);
+  }
+  return {
+    id,
+    title,
+    ...(description ? { description } : {}),
+    ...(retestOf ? { retest_of: retestOf } : {}),
+    ...(intent ? { intent } : {}),
+    sections,
+  };
 }
 
 /** Flatten a definition's items in order. */
@@ -278,6 +360,7 @@ export function seedChecklistState(def: ChecklistDef): ChecklistState {
   return {
     id: def.id,
     title: def.title,
+    ...(def.intent ? { intent: def.intent } : {}),
     items: checklistItems(def).map((item) => ({
       id: item.id,
       section: item.section,

@@ -1,22 +1,47 @@
 ---
 name: sluglist-checklist
-description: Generate a client-facing acceptance checklist from the current branch's diff, for the sluglist widget's checklist mode. Use when the user says "generate a checklist", "make an acceptance checklist", "checklist from this branch", or "sluglist checklist".
+description: Generate a client-facing acceptance checklist for the sluglist widget or a QA agent — from the current branch's diff, from a fixed session's fixes.yaml (re-test), as a broad smoke pass over the app, or focused on a written scenario. Use when the user says "generate a checklist", "make an acceptance checklist", "checklist from this branch", "re-test checklist", "smoke checklist", "checklist for <scenario>", or "sluglist checklist".
 ---
 
 # sluglist-checklist
 
-Turn a branch of work into a **client acceptance checklist** the sluglist widget can render (checklist
-mode). The developer runs this before a release; the client opens the app with the widget, walks the
-checklist, and records a verdict per item (pass / fail / skip). Your job is to translate a code diff
-into a list of things a **non-developer** can open, look at, and confirm.
+Produce a **client acceptance checklist** the sluglist widget can render (checklist mode) and the
+`sluglist-qa` agent can walk. The developer runs this before a release; a client or a QA agent then
+opens the app, walks the checklist, and records a verdict per item (pass / fail / skip). Your job is
+to turn some source of truth into a list of things a **non-developer** can open, look at, and confirm.
 
-## When to use
+## Intents — pick one first
 
-- The user says "generate a checklist", "acceptance checklist", "checklist from this branch/PR", or
-  "sluglist checklist".
-- A release/QA hand-off where someone will click through the app to sign off on what shipped.
+The source of truth differs; everything downstream (voice, limits, rules) is shared. Record the
+choice in the checklist's `intent` field.
 
-## Input
+| Intent | Source of truth | Use when |
+| --- | --- | --- |
+| `branch` | `git diff <base>...HEAD` | "checklist from this branch/PR", a release hand-off. **Default.** |
+| `re-test` | a session folder's `fixes.yaml` | "re-test checklist", after a fix pass |
+| `smoke` | the app's routes/navigation + its docs | "smoke checklist", "test the basic flows", a first pass on an unfamiliar app |
+| `scenario` | a written brief from the owner | "check the whole card-payment flow including the error cases" |
+
+If the request is ambiguous, ask which one — the four produce very different lists.
+
+## Where checklists live
+
+Write to `.sluglist/checklists/<name>.json` (`smoke.json`, `regression.json`,
+`feature-export.json`, `release-2026-08.json`…). One folder, one file per checklist, named for what
+it covers. Both consumers take a path:
+
+```ts
+// widget
+createFeedbackWidget({ checklist: "/checklists/smoke.json" /* or an inline object */ });
+// QA agent / headless writer
+createSession({ checklist: ".sluglist/checklists/smoke.json" });
+```
+
+The widget fetches over HTTP, so a checklist it must load has to be served by the app (copy or
+symlink it under `public/`, or pass the object inline). The `sluglist/node` writer reads a **local
+path** directly, which is what the QA agent uses — no serving needed.
+
+## Input — `branch` intent
 
 - The current branch versus its base: `git diff <base>...HEAD` (three-dot: what this branch added).
 - **Base branch:** default to `main`, then `master` if `main` is absent. Honor an explicit base the
@@ -40,7 +65,7 @@ A checklist item is something a client can **see or do in the running app**. Inc
 - Build config, CI, tooling, dependency bumps, types, lockfiles.
 - Pure backend/internal changes with no visible surface (unless they change something on screen).
 
-## Algorithm
+## Algorithm — `branch` intent
 
 1. **Resolve the base** (above) and read `git diff <base>...HEAD`. If the branch is huge, work from
    `--stat` first, then read the files with user-facing changes.
@@ -53,9 +78,9 @@ A checklist item is something a client can **see or do in the running app**. Inc
    terms. Point the client at the page with the link fields below, and add an optional one-line `hint`.
    - Bad (developer voice): "`ExportButton` renders when `canExport` is true".
    - Good (client voice): "On **Reports**, the **Export** button is visible and downloads a CSV."
-5. **Emit JSON** in the `Checklist` shape (below) to the project's checklist file — default
-   `public/checklist.json` (so the app can serve it and pass `checklist: "/checklist.json"`), or a
-   path the user names. Then give the user a short summary: how many sections/items, and the file path.
+5. **Emit JSON** in the `Checklist` shape (below) to `.sluglist/checklists/<name>.json` (see "Where
+   checklists live"), or a path the user names, with `"intent": "branch"`. Then give the user a short
+   summary: how many sections/items, and the file path.
 
 ## Output shape
 
@@ -66,6 +91,7 @@ Write valid JSON matching the widget's `Checklist` type:
   "id": "export-release-2026-07",
   "title": "Export + notifications release",
   "description": "Walk each item and check it off. Flag anything that looks wrong.",
+  "intent": "branch",
   "sections": [
     {
       "title": "Export",
@@ -95,6 +121,9 @@ Write valid JSON matching the widget's `Checklist` type:
 - `url` (optional): the page where the item is verified. **Static routes only** (see below).
 - `url_match` (optional): a wildcard path pattern for **dynamic** routes (see below).
 - `hint` (optional): one extra line of human navigation ("Open the dashboard and pick any assessment").
+- `intent` (optional): `branch` | `re-test` | `smoke` | `scenario` — why this checklist exists. Set it
+  always; it is carried into `session.yaml` and shown in the generated report.
+- `retest_of` (optional, re-test only): the id of the checklist this one re-tests.
 - Limits the widget enforces: ≤ 20 sections, ≤ 50 items total. Stay well under — a checklist a human
   will actually finish is short. If the diff is larger, prioritize the most user-visible changes.
 
@@ -136,15 +165,120 @@ Non-wildcard `url_match` values (a plain static path) are dropped by the widget 
 - **Additive only.** You produce the checklist JSON; you don't touch the widget config or app code
   unless the user asks you to wire `checklist: "/checklist.json"` into their `createFeedbackWidget`.
 
+## Smoke mode — a broad pass over the whole app
+
+When the user says "smoke checklist", "test the basic flows", "general checklist for the app", you
+are not reading a diff — you are mapping **what the application is**.
+
+**Sources**, in order of authority:
+
+1. **Routes / navigation** — the router config, the pages/app directory, the nav menu component.
+   This is the backbone: every significant page becomes one or a few items.
+2. **The project's own docs** — README, docs/, onboarding notes. They say what the app is *for*,
+   which tells you which pages are critical and which are incidental.
+3. **The running app**, if it is up — the fastest way to see what a page actually offers.
+
+**Algorithm**:
+
+1. Enumerate the routes. Drop the ones with no user-facing surface (API handlers, redirects,
+   `_app`/layout files, error boundaries).
+2. For each remaining page, ask *what is this page for?* and write the **one or two checks that
+   would fail loudly if the page were broken** — it loads, its primary content is there, its primary
+   action works. Not an exhaustive audit of every control.
+3. **Prioritise critical paths.** In order: authentication (sign in / sign out), the app's core CRUD
+   (whatever the product is fundamentally for), payment or billing if present, then everything else.
+   If you must cut, cut from the bottom.
+4. **Cap the list at 30 items by default** (the widget's hard limit is 50; a smoke list a human will
+   actually finish is shorter). If the app is bigger than that, keep the critical paths and say in
+   your summary which areas you left out.
+5. Group by area/page, one section per coherent area.
+6. Write to `.sluglist/checklists/smoke.json` with `"intent": "smoke"`.
+
+**Rules specific to smoke mode**: cover breadth, not depth — one solid check per page beats five
+variations of the same one. Do not invent features you have not seen in the routes, the docs, or the
+running app; if you cannot tell what a page does, list it under "Not included — please confirm"
+rather than guessing a check for it.
+
+## Scenario mode — a focused checklist from a written brief
+
+When the owner describes a flow in words — "check the whole card-payment flow including the error
+cases", "test what happens when an invite expires" — the brief is the specification and the
+checklist is its decomposition.
+
+**Algorithm**:
+
+1. **Decompose the brief into steps a tester performs**, in the order they occur. A flow brief
+   becomes: entry point → each step → the success end state → each error case the brief names.
+2. **Ground each item in the real app.** Find the actual routes and controls for the flow (read the
+   code or open the app) so items carry correct `url` / `url_match` / `hint`. The brief says *what*
+   to test; the code says *where*.
+3. **Stay inside the brief.** This is the defining rule of the intent: the owner asked for a focused
+   list, and a focused list that quietly grows is no longer the thing they asked for.
+   - In scope: everything the brief names, including error cases it names.
+   - Out of scope: adjacent features, "while we're here" checks, general regressions.
+   - Anything you believe genuinely belongs but the brief does not cover goes in your summary under
+     **"Possibly worth adding"** — a suggestion for the owner, never a silent checklist item.
+4. If the brief is too vague to decompose ("test the app properly"), say so and offer `smoke`
+   instead — do not quietly turn a scenario request into a broad sweep.
+5. Write to `.sluglist/checklists/<flow-name>.json` (e.g. `card-payment.json`) with
+   `"intent": "scenario"`.
+
+**Rules specific to scenario mode**: depth over breadth — here the variations *are* the point, so
+error cases, edge inputs and the unhappy paths the brief names each get their own item.
+
+## Re-test mode — a checklist from a fixed session
+
+When the user says "re-test checklist" / "generate the re-test" (or points you at a session folder
+after a fix pass), you are not reading a diff — you are reading a **session folder** that has been
+through the QA → fix cycle:
+
+- `session.yaml` — the original checklist block with verdicts and issue links;
+- `NN-*.md` — the filed issues;
+- `fixes.yaml` — the fix agent's resolution records (`fixed` | `wontfix` | `needs_info` per issue).
+
+**Input**: the session folder path. If it has no `fixes.yaml`, stop and say so — there is nothing to
+re-test until a fix pass has run.
+
+**Algorithm**:
+
+1. Read `fixes.yaml`. Take only records with `status: fixed`.
+2. For each fixed record, find its checklist item: the record's `checklist_item`, or the
+   `checklist.items[]` entry whose `issue` matches. A fixed issue with no checklist link still gets a
+   re-test item — derive it from the issue file's comment (what was reported is what to re-check).
+3. Emit a new checklist containing **only** those items, with provenance:
+   - checklist `id`: `<original-id>-retest-1` (bump the suffix if that id was already used);
+   - checklist `retest_of`: the original checklist id;
+   - checklist `intent`: `"re-test"`;
+   - item `id`: keep the original item id (verdicts must map back);
+   - item `title`: a *verification of the fix*, structured as "Previously: <what was broken>.
+     Verify: <what must now be true>" — e.g. "Previously: Export button missing on Reports.
+     Verify: the button is visible and downloads a file". Client voice still applies.
+   - `url` / `url_match` / `hint`: inherited from the original item (or derived from the issue's
+     `url` when the item was unlinked).
+4. `wontfix` and `needs_info` records are **excluded** from the re-test checklist. List them in your
+   summary under two separate headings — "Won't fix (by decision)" and "Needs info (blocked)" — so the
+   owner sees exactly what dropped out of the loop and why.
+5. Write the file (default `.sluglist/checklists/<original-name>-retest-1.json`, or a path the user
+   names) and summarize: N items to re-test, the two excluded lists, the file path.
+
+The re-test checklist is a perfectly normal `Checklist` — the widget and the `sluglist-qa` skill
+consume it without any special handling; `retest_of` is provenance for readers, nothing more.
+
 ## After generation
 
-Tell the user to serve the file and point the widget at it:
+Point the consumer at the file. For a QA agent, the local path is enough:
+
+```ts
+createSession({ connectors: [/* ... */], checklist: ".sluglist/checklists/smoke.json" });
+```
+
+For the widget, serve it (copy under `public/`) or pass the object inline:
 
 ```ts
 createFeedbackWidget({
   project: "myapp",
   connectors: [/* ... */],
-  checklist: "/checklist.json", // or the inline object
+  checklist: "/checklists/smoke.json", // or the inline object
 });
 ```
 

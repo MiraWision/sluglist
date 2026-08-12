@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>sluglist — iteration E2E harness</title>
+    <style>
+      body { font-family: -apple-system, system-ui, sans-serif; margin: 0; color: #111; background: #fff; }
+      main { padding: 24px 20px 120px; max-width: 720px; }
+      h1 { font-size: 20px; margin: 0 0 4px; }
+      p.sub { color: #6b7280; font-size: 13px; margin: 0 0 20px; }
+      .card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+      .row { display: flex; justify-content: space-between; font-size: 14px; padding: 6px 0; }
+      .row + .row { border-top: 1px solid #f3f4f6; }
+      button.app { padding: 10px 16px; border-radius: 8px; border: 1px solid #d1d5db; background: #f9fafb; font-size: 15px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Checkout</h1>
+      <p class="sub">E2E harness — the widget is configured by the query string (see the script).</p>
+      <div class="card">
+        <div class="row"><span>Annual plan</span><span>€ 1 188.00</span></div>
+        <div class="row"><span>Extra seats × 4</span><span>€ 240.00</span></div>
+        <div class="row"><strong>Total</strong><strong>€ 1 428.00</strong></div>
+      </div>
+      <button class="app" id="pay" data-testid="pay">Pay now</button>
+    </main>
+
+    <script src="../dist/sluglist.global.js"></script>
+    <script>
+      /**
+       * Two runs from one page, chosen by `?mode=`:
+       *   zero    — init with nothing but a connector (the product's core promise)
+       *   full    — production preset + form + attachments + Ukrainian labels
+       */
+      const mode = new URLSearchParams(location.search).get("mode") ?? "zero";
+      const memory = new Sluglist.MemoryConnector();
+
+      const config =
+        mode === "full"
+          ? {
+              project: "acme",
+              connectors: [memory],
+              preset: "production",
+              attachments: { enabled: true },
+              form: [
+                { id: "email", label: "Ваш email", type: "email", scope: "session" },
+                { id: "device", label: "Пристрій", type: "text", scope: "session" },
+                {
+                  id: "severity",
+                  label: "Наскільки критично?",
+                  type: "select",
+                  options: ["блокує", "заважає", "косметика"],
+                  required: true,
+                  scope: "issue",
+                },
+              ],
+            }
+          : // The zero-config run: a connector and nothing else.
+            { project: "acme", connectors: [memory] };
+
+      const widget = Sluglist.createFeedbackWidget(config);
+      const ui = Sluglist.mountFeedbackWidget(
+        widget,
+        mode === "full" ? { strings: Sluglist.labels.uk } : {}
+      );
+
+      window.__widget = widget;
+      window.__ui = ui;
+      window.__mode = mode;
+      window.__memory = {
+        list: () => memory.getSessionIds().flatMap((id) => memory.getFiles(id)),
+        text: async (suffix) => {
+          const file = window.__memory
+            .list()
+            .find((f) => f.path.endsWith(suffix));
+          return file ? await file.blob.text() : null;
+        },
+      };
+      window.__shadow = () =>
+        document.querySelector("[data-feedback-widget]").shadowRoot;
+    </script>
+  </body>
+</html>

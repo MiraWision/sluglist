@@ -1,4 +1,4 @@
-# sluglist artifact format — v1.2
+# sluglist artifact format — v1.6
 
 This is the on-disk contract sluglist produces for each feedback session. It is stable and safe to
 build parsers against: **within a major version the format only ever changes additively** (new optional
@@ -9,13 +9,35 @@ Source of truth: `src/artifacts.ts` (`buildSessionYaml`, `buildIssueMarkdown`, `
 
 ## Versioning
 
-- `session.yaml` starts with `format_version: "1.2"` (a quoted string, always the first line).
+- `session.yaml` starts with `format_version: "1.6"` (a quoted string, always the first line).
 - **Missing `format_version` ⇒ treat as `"1.0"`** (artifacts written before versioning was added).
 - **1.1** added the additive `checklist:` block (acceptance checklist verdicts) and the
   `checklist_item` issue field; everything from 1.0 is unchanged.
 - **1.2** added the additive `clips:` issue frontmatter (a per-clip breakdown of a recording) and the
   `<frames_dir>/<clip-id>/NN.png` frame layout it discriminates. Recordings written before 1.2 have no
   `clips:` and use the flat `<frames_dir>/NN.png` layout — both are readable (see the frames note below).
+- **1.3** added the additive `scrubbed` issue field (whether the text surfaces of the issue went through
+  the PII scrub). Emitted only when `privacy.scrubText` was set explicitly or by the production preset.
+- **1.4** added, all additive and all emitted only when the corresponding feature is used:
+  - `screenshot_failed` / `screenshot_error` (issue) — the render failed and the issue was delivered
+    without a picture. A reader should treat such an issue as a normal comment-only issue.
+  - `form` (session.yaml) — answers to `scope: "session"` reporter fields.
+  - `form` (issue) — answers to `scope: "issue"` reporter fields.
+  - `attachments` (issue) — files the reporter attached, stored next to the issue.
+- **1.5** added, all additive:
+  - `reporter.kind` (`"human"` | `"agent"`) in the session/issue `reporter` block and the `fixed_by`
+    block below. **Absent ⇒ human** (every pre-1.5 artifact was human-reported).
+  - the optional per-session **`fixes.yaml`** file — a fix agent's machine-readable resolution
+    records (full dictionary below). **A session without `fixes.yaml` is valid**: it has simply not
+    been through a fix pass.
+  - `retest_of` in the checklist *config* (input contract, below) — provenance of a re-test checklist.
+- **1.6** added, all additive:
+  - `checklist.items[].evidence` — optional proof attached to a verdict (`screenshots` + `note`).
+    Its purpose is symmetry: a `fail` has always been evidenced by its linked issue, so a `pass` may
+    now be evidenced too, and a reader can verify a verdict rather than trust it. **Absent ⇒ the
+    reporter recorded a bare verdict**, which stays valid and is still the default.
+  - `checklist.intent` (session.yaml) and `intent` in the checklist *config* — why the checklist
+    exists (`branch` | `re-test` | `smoke` | `scenario`, open-ended). Absent when undeclared.
 - The number is `MAJOR.MINOR`:
   - **MINOR** bumps for additive changes (a new optional field/section). Parsers must ignore unknown
     fields and keep working.
@@ -30,9 +52,15 @@ Delivered per session, one folder:
 ```
 {project}/session-{YYYY-MM-DD}-{shortid}/
   session.yaml                     # index, upserted on every issue
+  fixes.yaml                       # 1.5, optional: fix-agent resolution records (upserted per fix)
+  report.html                      # 1.6, optional: `sluglist report` output — a self-contained
+                                   #   rendering of this folder, not an input to any reader
+  ev-{item-id}-01.png              # 1.6, optional: verdict evidence, numbered per checklist item
   01-{slug}.md                     # one issue: YAML frontmatter + body
   01-{slug}.png                    # the issue screenshot (absent when none)
   01-{slug}-2.png                  # extra screenshots (2..n), only if multiple
+  01-{slug}-att-01.png             # reporter attachments (1.4), numbered per issue;
+                                   #   the extension is the attached file's own
   01-{slug}-frames/                # record mode only
     clip-01/                       # one folder per clip (a Record→Stop cycle)
       01.png  02.png  …            # per-clip, 1-based; 01.png = clip's start state
@@ -64,7 +92,8 @@ are zero-padded and monotonic within a session.
 | `timezone` | string | optional | 1.0 | IANA tz. |
 | `color_scheme` | string | optional | 1.0 | `light` \| `dark`. |
 | `reduced_motion` | boolean | optional | 1.0 | |
-| `reporter` | map \| null | optional | 1.0 | Present only when `identity` configured (`null` if empty). Keys: `user_id`, `email`, `name`. |
+| `reporter` | map \| null | optional | 1.0 | Present only when `identity` configured (`null` if empty). Keys: `user_id`, `email`, `name`, `kind` (1.5: `human` \| `agent`; absent ⇒ human). |
+| `form` | map | optional | 1.4 | Answers to `scope: "session"` reporter fields, asked once on the first issue. Snake_case keys → string/number/boolean. Never scrubbed. |
 | `checklist` | map | optional | 1.1 | Present only when a checklist is configured. See below. |
 | `issues` | list | yes | 1.0 | `[]` when empty; otherwise a list of the entries below. |
 
@@ -77,6 +106,7 @@ map — a coverage snapshot of *this* run, not a durable status.
 |---|---|---|---|---|
 | `id` | string | yes | 1.1 | Checklist id. |
 | `title` | string | yes | 1.1 | Human title. |
+| `intent` | string | optional | 1.6 | Why this checklist exists: `branch` \| `re-test` \| `smoke` \| `scenario`. Open vocabulary — readers must tolerate an unknown value. Absent when the config declared none. |
 | `items` | list | yes | 1.1 | One entry per checklist item (below). |
 
 Each `items[]` entry:
@@ -89,6 +119,30 @@ Each `items[]` entry:
 | `verdict` | string \| null | yes | 1.1 | `pass` \| `fail` \| `skip`, or `null` when not yet checked. See note on `skip`. |
 | `issue` | string \| null | yes | 1.1 | The id of the issue that documents a flag; else `null`. See note. |
 | `ts` | string \| null | yes | 1.1 | ISO time the verdict was set; `null` when unset. |
+| `evidence` | map | optional | 1.6 | Proof for this verdict (below). Absent for a bare verdict. |
+
+#### `evidence` (verdict proof, 1.6)
+
+| Field | Type | Required | Since | Notes |
+|---|---|---|---|---|
+| `screenshots` | list of string | yes | 1.6 | Evidence file names, in order; each sits next to `session.yaml` as `ev-<item-id>-NN.png`. `[]` is valid (a note-only observation). |
+| `note` | string | optional | 1.6 | One line stating the **observed fact**; ≤ 500 chars. Scrubbed with the session's other page-derived text when `scrubText` is on. |
+
+The block is valid on **any** verdict:
+
+- on `pass` it is the point of the feature — the screenshot and note that let a reader verify the
+  sign-off instead of trusting the reporter;
+- on `fail` it is supplementary: the linked `issue` remains the primary evidence;
+- an item with **no verdict** (`null`) carries no evidence — there is nothing to show.
+
+`evidence` has **no `ts` of its own**: it is captured at the moment the verdict is recorded, which the
+item's own `ts` already states.
+
+**Semantics a reader should know** (enforced by the `sluglist-qa` skill, not by the format): a
+screenshot proves *the screen looked like this*, never *the action worked*. For checks whose result is
+invisible on screen — a download, a submission, a background job — the `note` is expected to carry the
+observable fact (downloaded file name and size, toast text, a changed counter) rather than a
+restatement of the item's title.
 
 Verdicts are written **put-per-verdict**: every action upserts `session.yaml` (same idempotent path as
 per-issue writes). In the widget the client either **checks a row off** (`verdict: pass`) or **flags a
@@ -137,6 +191,11 @@ YAML frontmatter between `---` fences, then the reporter's comment, then optiona
 | `screenshot` | string \| null | yes | 1.0 | |
 | `screenshots` | string[] | optional | 1.0 | Only when more than one PNG. |
 | `masked` | boolean | optional | 1.0 | Emitted only when privacy is configured. |
+| `scrubbed` | boolean | optional | 1.3 | Whether the text surfaces went through the PII scrub. |
+| `screenshot_failed` | boolean (`true`) | optional | 1.4 | Only on the failure path: a screenshot was attempted, the render failed, the issue was sent without it. `screenshot` is `null`. |
+| `screenshot_error` | string \| null | optional | 1.4 | Why it failed (renderer message, `timed out`, `blank image`). Scrubbed like any page-derived text. |
+| `form` | map | optional | 1.4 | Answers to `scope: "issue"` reporter fields. Never scrubbed — the reporter typed them deliberately. |
+| `attachments` | list | optional | 1.4 | Files the reporter attached. One entry per file: `{ file, mime, size, original_name }`. |
 | `errors_count` | number | optional | 1.0 | Present once error capture is engaged (0 when none). |
 | `actions_count` | number | optional | 1.0 | Present once the action trail is engaged. |
 | `recording` | boolean (`true`) | optional | 1.0 | Record mode only. |
@@ -144,7 +203,7 @@ YAML frontmatter between `---` fences, then the reporter's comment, then optiona
 | `frames_dir` | string | optional | 1.0 | Record mode only. Parent dir; frames live under `<frames_dir>/<clip-id>/NN.png`. |
 | `clips` | list | optional | 1.2 | Record mode only. One entry per clip: `{ id, frames }`. See below. |
 | `created_at` | string (ISO 8601) | yes | 1.0 | |
-| `reporter` | map \| null | optional | 1.0 | Mirrors the session reporter; present only when `identity` configured. |
+| `reporter` | map \| null | optional | 1.0 | Mirrors the session reporter; present only when `identity` configured. `kind` key since 1.5. |
 | `custom` | map \| null | optional | 1.0 | Static project fields (`config.custom`). Present only when configured. |
 | `context` | map \| null | optional | 1.0 | Runtime host state (`setContext`). Present only once `setContext` has been called. |
 
@@ -202,6 +261,47 @@ timeline; frame numbering restarts at `01` per clip. A recording always has at l
 recording is one clip). An artifact with `recording: true`, `frames_count`/`frames_dir`, and **no** `clips`
 is a pre-1.2 recording with the flat `<frames_dir>/NN.png` layout.
 
+## `fixes.yaml` — fix-agent resolution records (1.5)
+
+Written into the session folder by a fix pass (the `sluglist-fix` skill via the `sluglist/node`
+writer, or any tool producing the same shape). **Optional**: a session without it is valid and simply
+has not been fixed yet. Upserted **by `issue` id** as fixing progresses — re-fixing an issue replaces
+its record; the file never accumulates duplicates.
+
+```yaml
+format_version: "1.5"
+fixed_by:
+  name: fix-agent
+  kind: agent
+items:
+  - issue: "01"
+    status: fixed
+    commit: a1b2c3d
+    note: Null check added in ExportButton
+    checklist_item: export-button-visible
+    ts: 2026-08-09T18:40:00Z
+```
+
+| Field | Type | Required | Since | Notes |
+|---|---|---|---|---|
+| `format_version` | string | yes | 1.5 | First line, same versioning as session.yaml. |
+| `fixed_by` | map \| null | optional | 1.5 | Fixer identity; same keys/rules as `reporter` (incl. `kind`). |
+| `items` | list | yes | 1.5 | `[]` when empty; one entry per handled issue. |
+
+Each `items[]` entry:
+
+| Field | Type | Required | Since | Notes |
+|---|---|---|---|---|
+| `issue` | string | yes | 1.5 | Issue id the record resolves, e.g. `"01"`. Unique within the file (upsert key). |
+| `status` | string | yes | 1.5 | `fixed` \| `wontfix` \| `needs_info`. |
+| `commit` | string | optional | 1.5 | Commit hash of the fix (expected for `fixed`). |
+| `note` | string | optional | 1.5 | One-line note: what was done / why not / what is missing. |
+| `checklist_item` | string | optional | 1.5 | The checklist item the issue was evidence for, when linked. |
+| `ts` | string (ISO 8601) | yes | 1.5 | When the record was written. |
+
+Reader rules: only `status: fixed` items enter a re-test checklist; `wontfix` and `needs_info` are
+surfaced to the owner instead. Unknown fields are ignored (additive growth, as everywhere).
+
 ## Checklist config (input — the shape the generator emits)
 
 Not an on-disk artifact, but the contract between the `sluglist-checklist` generator skill and the widget:
@@ -210,9 +310,14 @@ the generator and the reader agree on one source of truth.
 
 ```ts
 interface Checklist {
-  id: string;                    // kebab-case slug
+  id: string;                    // kebab-case slug; a re-test checklist uses "<orig>-retest-N"
   title: string;                 // document-style heading
   description?: string;          // 1–2 sentence instruction shown in the panel header (≤ 280 chars)
+  retest_of?: string;            // 1.5, additive: id of the checklist this one re-tests (provenance;
+                                 //   set by the generator's re-test mode, ignored by the widget)
+  intent?: string;               // 1.6, additive: why this checklist exists — "branch" | "re-test" |
+                                 //   "smoke" | "scenario". Open vocabulary; carried into session.yaml
+                                 //   as `checklist.intent`. Ignored by the widget.
   sections: { title: string; items: ChecklistItem[] }[];
 }
 interface ChecklistItem {
@@ -227,7 +332,7 @@ interface ChecklistItem {
 
 Rules the widget enforces (invalid input is dropped with a `console.warn`, never thrown — a bad checklist
 must not block plain capture): ≤ 20 sections, ≤ 50 items total, titles clipped to 120 chars, description to
-280, unique item ids. **`url` is for static routes only**; a dynamic route (an id/uuid segment) uses `hint`
+280, `intent` to 40 and matching the id pattern, unique item ids. **`url` is for static routes only**; a dynamic route (an id/uuid segment) uses `hint`
 + a **wildcard** `url_match` and never a guessed `url`. A `url_match` without a `*` is not a pattern (it is a
 static path) and is dropped with a warning. `url` and `url_match` may coexist (a list `url` + a detail
 `url_match`). The widget maps a check to `verdict: pass`, a flag to `verdict: fail` + an issue; it never
