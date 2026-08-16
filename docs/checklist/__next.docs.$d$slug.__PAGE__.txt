@@ -1,6 +1,6 @@
 1:"$Sreact.fragment"
 2:I[38822,["/_next/static/chunks/1b58asu43-lub.js"],""]
-3:T1456,<p>Feedback normally fills a session <strong>from the bottom</strong> — the client freely creates issues. A
+3:T1a60,<p>Feedback normally fills a session <strong>from the bottom</strong> — the client freely creates issues. A
 <strong>checklist</strong> fills it <strong>from the top</strong>: the developer pre-seeds a list of &quot;what shipped and what
 to verify&quot;, and the client walks it with one natural motion — <strong>click a row to check it off; click
 the slug button on a row to flag a problem</strong> (that opens the normal issue flow, linked back to the
@@ -73,7 +73,26 @@ checklist warns and is skipped; capture still works.</p>
 <p>The package ships a <code>sluglist-checklist</code> skill: point Claude Code at a branch and it builds a
 client-facing checklist from the diff (user-visible pages/components/text only — refactors, tests
 and config are excluded), grouped by feature and phrased for a non-developer, written to
-<code>public/checklist.json</code>. Ask it to <em>&quot;generate a checklist from this branch&quot;</em>.</p>
+<code>.sluglist/checklists/&lt;name&gt;.json</code>. Ask it to <em>&quot;generate a checklist from this branch&quot;</em>.</p>
+<p>Five intents, one per source of truth: <code>branch</code> (the diff), <code>re-test</code> (a fixed session&#39;s
+<code>fixes.yaml</code>), <code>smoke</code> (routes + docs), <code>regression</code> (the project&#39;s standing baseline), and
+<code>scenario</code> (a written brief). The base branch a <code>branch</code> diff runs against comes from
+<a href="/docs/project-conventions/"><code>.sluglist/PROJECT.md</code></a>.</p>
+<h2>The regression checklist has a lifecycle</h2>
+<p>Four of the five intents produce a list you use once. <code>regression</code> is different: it is a <strong>committed
+baseline</strong> at <code>.sluglist/checklists/regression.json</code>, seeded once with the smoke algorithm and then
+<strong>updated after each merge</strong> — ask for <em>&quot;update the regression checklist from this branch&quot;</em>.</p>
+<p>An update is a diff of the list, not a regeneration:</p>
+<ul>
+<li><strong>Additions</strong> for user-visible surface the branch added — one or two loud checks per feature,
+folded into an existing section when one fits.</li>
+<li><strong>Removals</strong> for items whose surface the branch deleted — always <strong>proposed for you to confirm</strong>,
+never applied silently.</li>
+<li><strong>The ~30-item cap holds.</strong> If additions would push past it, the skill names which existing items
+to cut instead of growing the file.</li>
+<li><strong>Item ids stay stable</strong> for unchanged items, so verdicts recorded in past sessions still map to
+them.</li>
+</ul>
 <h2>Scope — the checklist is a session input, verdicts are its output</h2>
 <p>The checklist enters a session and the verdicts leave with it. There is <strong>no lifecycle beyond the
 session</strong>: items are never reopened, verdicts never sync between sessions, nothing is stored as a
@@ -84,7 +103,7 @@ tracker.</p>
 7:X
 c:X
 c:C
-0:{"buildId":"PpNDhC5Jsm0vG7tMzIkBE","data":[{"rsc":["$","$1","c",{"children":[["$","div",null,{"className":"mx-auto max-w-3xl px-6 py-16 md:py-20","children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Docs\",\"item\":\"https://sluglist.dev/docs/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Checklist mode: structured acceptance\",\"item\":\"https://sluglist.dev/docs/checklist/\"}]}"}}],["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"TechArticle\",\"headline\":\"Checklist mode: structured acceptance\",\"description\":\"Pre-seed an acceptance checklist the client walks and checks off. Verdicts land in session.yaml as a coverage map — and an agent can generate the list from a branch diff.\",\"url\":\"https://sluglist.dev/docs/checklist/\",\"author\":{\"@id\":\"https://sluglist.dev/#org\"},\"about\":{\"@id\":\"https://sluglist.dev/#software\"}}"}}],["$","nav",null,{"className":"mb-6 text-[13px] text-[var(--color-muted)]","children":[["$","$L2",null,{"className":"hover:text-[var(--color-ink)]","href":"/docs/","children":"Docs"}]," ","/ ","Checklist mode"]}],["$","h1",null,{"className":"mb-8 font-bold text-3xl tracking-tight md:text-4xl","children":"Checklist mode: structured acceptance"}],["$","article",null,{"className":"prose prose-site max-w-none","dangerouslySetInnerHTML":{"__html":"$3"}}],"$L4"]}],null,"$L5"]}],"isPartial":"$@6","staleTime":"$7","varyParams":null},{"rsc":"$L8","isPartial":"$@9","staleTime":"$7","varyParams":null},{"rsc":"$La","isPartial":"$@b","staleTime":"$7","varyParams":"$c"},{"rsc":"$Ld","isPartial":"$@e","staleTime":"$7","varyParams":"$c"}],"isUpgradeableISRFallback":false,"a":"$@f","rootVaryParams":null,"needsRuntimeRequest":"$@10"}
+0:{"buildId":"RRgV_udH8wQMoZu1RZ9bX","data":[{"rsc":["$","$1","c",{"children":[["$","div",null,{"className":"mx-auto max-w-3xl px-6 py-16 md:py-20","children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Docs\",\"item\":\"https://sluglist.dev/docs/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Checklist mode: structured acceptance\",\"item\":\"https://sluglist.dev/docs/checklist/\"}]}"}}],["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"TechArticle\",\"headline\":\"Checklist mode: structured acceptance\",\"description\":\"Pre-seed an acceptance checklist the client walks and checks off. Verdicts land in session.yaml as a coverage map — and an agent can generate the list from a branch diff.\",\"url\":\"https://sluglist.dev/docs/checklist/\",\"author\":{\"@id\":\"https://sluglist.dev/#org\"},\"about\":{\"@id\":\"https://sluglist.dev/#software\"}}"}}],["$","nav",null,{"className":"mb-6 text-[13px] text-[var(--color-muted)]","children":[["$","$L2",null,{"className":"hover:text-[var(--color-ink)]","href":"/docs/","children":"Docs"}]," ","/ ","Checklist mode"]}],["$","h1",null,{"className":"mb-8 font-bold text-3xl tracking-tight md:text-4xl","children":"Checklist mode: structured acceptance"}],["$","article",null,{"className":"prose prose-site max-w-none","dangerouslySetInnerHTML":{"__html":"$3"}}],"$L4"]}],null,"$L5"]}],"isPartial":"$@6","staleTime":"$7","varyParams":null},{"rsc":"$L8","isPartial":"$@9","staleTime":"$7","varyParams":null},{"rsc":"$La","isPartial":"$@b","staleTime":"$7","varyParams":"$c"},{"rsc":"$Ld","isPartial":"$@e","staleTime":"$7","varyParams":"$c"}],"isUpgradeableISRFallback":false,"a":"$@f","rootVaryParams":null,"needsRuntimeRequest":"$@10"}
 11:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"OutletBoundary"]
 12:"$Sreact.suspense"
 14:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"ViewportBoundary"]

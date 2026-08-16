@@ -1,0 +1,130 @@
+1:"$Sreact.fragment"
+2:T5fa,{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Which agent runs this?","acceptedAnswer":{"@type":"Answer","text":"Any that can read files, run a browser and edit code. Claude Code is supported out of the box through the four bundled skills; everything they do is a documented CLI command or a public API on sluglist/node."}},{"@type":"Question","name":"What stops it looping forever?","acceptedAnswer":{"@type":"Answer","text":"Two things. sluglist status returns stalled as soon as an item has failed in two rounds — a fix pass already tried and did not work — and blocked when everything left is wontfix or needs_info. On top of that the skill has a round ceiling, three by default, set in PROJECT.md."}},{"@type":"Question","name":"Can an agent just mark everything as passing?","acceptedAnswer":{"@type":"Answer","text":"It can lie the way any agent can, which is why the protocol makes lying visible: a pass in evidence mode all carries the screenshot and the observed fact, the report inlines both, and the skill's hard prohibitions forbid editing a check or writing wontfix to reach green. You audit artifacts, not a chat summary."}},{"@type":"Question","name":"Do humans and agents produce different artifacts?","acceptedAnswer":{"@type":"Answer","text":"No. The headless writer emits byte-identical structure to the browser widget, with reporter.kind recording which one it was. A session a client produced and a session an agent produced are read by the same tools."}}]}a:X
+f:X
+f:C
+0:{"buildId":"RRgV_udH8wQMoZu1RZ9bX","data":[{"rsc":["$","$1","c",{"children":[["$","div",null,{"className":"mx-auto max-w-3xl px-6 py-16 md:py-20","children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"$2"}}],["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"WebPage\",\"name\":\"Autonomous agent QA loop: test, fix, re-test until green\",\"description\":\"A QA agent walks the checklist in a real browser and writes evidence-backed verdicts; a fix agent answers them; a re-test round closes the loop — and sluglist status decides when to stop.\",\"url\":\"https://sluglist.dev/for/agent-loop/\",\"isPartOf\":{\"@id\":\"https://sluglist.dev/#website\"},\"about\":{\"@id\":\"https://sluglist.dev/#software\"}}"}}],["$","p",null,{"className":"mb-2 font-mono text-[12px] text-[var(--color-brand)] uppercase tracking-widest","children":"Use case"}],["$","h1",null,{"className":"mb-4 font-bold text-3xl tracking-tight md:text-4xl","children":"An autonomous QA loop: test, fix, re-test, until green"}],["$","p",null,{"className":"mb-6 text-[16px] text-[var(--color-ink-2)] leading-relaxed","children":"Both ends of the loop can be agents: one walks the app in a browser and writes down what it saw, another reads those artifacts and fixes the code. What makes it more than a demo is that neither of them is trusted — every verdict carries evidence, and a third command decides whether another round is worth running."}],["$","p",null,{"className":"mb-8 rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] px-4 py-3 text-[14px] text-[var(--color-ink-2)]","children":[["$","span",null,{"className":"font-mono text-[11px] text-[var(--color-brand)] uppercase tracking-wider","children":"For"}],["$","span",null,{"className":"ml-2","children":"A repo where an agent can run the app in a browser and edit the code."}]]}],"$L3","$L4","$L5","$L6","$L7"]}],null,"$L8"]}],"isPartial":"$@9","staleTime":"$a","varyParams":null},{"rsc":"$Lb","isPartial":"$@c","staleTime":"$a","varyParams":null},{"rsc":"$Ld","isPartial":"$@e","staleTime":"$a","varyParams":"$f"},{"rsc":"$L10","isPartial":"$@11","staleTime":"$a","varyParams":"$f"}],"isUpgradeableISRFallback":false,"a":"$@12","rootVaryParams":null,"needsRuntimeRequest":"$@13"}
+15:I[38822,["/_next/static/chunks/1b58asu43-lub.js"],""]
+16:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"OutletBoundary"]
+17:"$Sreact.suspense"
+19:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"ViewportBoundary"]
+1a:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"MetadataBoundary"]
+1b:I[4094,["/_next/static/chunks/1b58asu43-lub.js"],"IconMark"]
+1c:I[29713,["/_next/static/chunks/1b58asu43-lub.js"],"default"]
+1d:I[59292,["/_next/static/chunks/1b58asu43-lub.js"],"default"]
+3:["$","div",null,{"className":"mb-12 grid gap-4 sm:grid-cols-3 [&>*]:min-w-0","children":[["$","div","Evidence, not claims",{"className":"rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] p-4","children":[["$","span",null,{"className":"font-mono text-[12px] text-[var(--color-brand)]","children":"01"}],["$","h2",null,{"className":"mt-1 mb-1.5 font-semibold text-[14.5px] leading-snug","children":"Evidence, not claims"}],["$","p",null,{"className":"text-[13.5px] text-[var(--color-ink-2)] leading-relaxed","children":"The QA agent may not record a fail without a screenshot, or a pass without performing the check. An item it could not reach is reported as not tested — the honest answer an eager agent would otherwise invent."}]]}],["$","div","The loop stops for the right reasons",{"className":"rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] p-4","children":[["$","span",null,{"className":"font-mono text-[12px] text-[var(--color-brand)]","children":"02"}],["$","h2",null,{"className":"mt-1 mb-1.5 font-semibold text-[14.5px] leading-snug","children":"The loop stops for the right reasons"}],["$","p",null,{"className":"text-[13.5px] text-[var(--color-ink-2)] leading-relaxed","children":"npx sluglist status reads the artifacts and returns green, continue, stalled or blocked. An item that already survived a fix pass goes to a human instead of being ground on for another round."}]]}],["$","div","You get an audit trail, not a “done”",{"className":"rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] p-4","children":[["$","span",null,{"className":"font-mono text-[12px] text-[var(--color-brand)]","children":"03"}],["$","h2",null,{"className":"mt-1 mb-1.5 font-semibold text-[14.5px] leading-snug","children":"You get an audit trail, not a “done”"}],["$","p",null,{"className":"text-[13.5px] text-[var(--color-ink-2)] leading-relaxed","children":"Every round leaves a session folder and a single-file HTML report — verdicts, observed facts, screenshots — so you can check the work instead of trusting the summary."}]]}]]}]
+14:T1264,<h2>Set the project up</h2>
+<pre><code class="language-bash">npx sluglist init --agents-md
+</code></pre>
+<p>That installs the four bundled skills into <code>.claude/skills/</code>, creates <code>.sluglist/checklists/</code>,
+writes the <code>.gitignore</code> rules, and drops a <code>.sluglist/PROJECT.md</code> to fill in. Fill it in — it is
+where the loop learns your base branch, how to start the app, how to sign in (referenced, never
+stored), the actions it must never complete, and how far it may go on its own:</p>
+<pre><code>max rounds: 3
+fix without asking: no
+commits: leave the changes uncommitted, one summary at the end
+</code></pre>
+<h2>Ask for the whole thing</h2>
+<blockquote>
+<p>QA this branch and fix everything until it passes.</p>
+</blockquote>
+<p>The <code>sluglist-loop</code> skill takes it from there:</p>
+<ol>
+<li><strong>Checklist</strong> — the branch diff becomes a client-voice list at <code>.sluglist/checklists/</code>.</li>
+<li><strong>QA run</strong> — a browser walks every item and writes verdicts and issues through the headless
+writer, <code>sluglist/node</code>.</li>
+<li><strong>Report</strong> — <code>npx sluglist report</code> renders the round as one HTML file.</li>
+<li><strong>Status</strong> — <code>npx sluglist status --json</code> says what is still failing and whether it is worth
+another round.</li>
+<li><strong>Fix</strong> — the failing issues are patched; each outcome is recorded in <code>fixes.yaml</code>.</li>
+<li><strong>Re-test</strong> — a checklist of only the fixed items, ids preserved and provenance attached, then
+back to step 4.</li>
+</ol>
+<h2>The decision point</h2>
+<pre><code class="language-bash">npx sluglist status
+</code></pre>
+<pre><code>release-2026-08 · branch · 3 items
+  1  session-2026-08-15-tw1w  1 pass · 1 fail · 1 not tested  ·  1 fixed
+  2  session-2026-08-15-jtyf  0 pass · 1 fail · 0 not tested  ·  no fix pass yet
+
+  still failing (1)
+    csv-columns — for the next fix pass · failed in 2 rounds · issue 01
+
+verdict: stalled — 1 item failed in 2 or more rounds — a fix pass has already been tried
+</code></pre>
+<p>It is derived entirely from the artifacts — the verdicts in <code>session.yaml</code>, the resolutions in
+<code>fixes.yaml</code>, and the <code>retest_of</code> chain that links round 2 back to round 1. That matters: the one
+thing an agent should not be asked is whether its own work is done.</p>
+<table>
+<thead>
+<tr>
+<th>Verdict</th>
+<th>The loop</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>green</code></td>
+<td>stops — hand over the report</td>
+</tr>
+<tr>
+<td><code>continue</code></td>
+<td>runs another round, if the budget allows</td>
+</tr>
+<tr>
+<td><code>stalled</code></td>
+<td>stops — a human takes the item that keeps coming back</td>
+</tr>
+<tr>
+<td><code>blocked</code></td>
+<td>stops — <code>wontfix</code> and <code>needs_info</code> are the owner&#39;s calls</td>
+</tr>
+</tbody></table>
+<h2>The guarantees that make it usable</h2>
+<ul>
+<li><strong>No fail without a screenshot; no pass without performing the check.</strong> An unreachable item is
+<em>not tested</em>, with the reason.</li>
+<li><strong>A screenshot proves the screen looked right, never that the action worked.</strong> For downloads,
+submissions and background jobs the verdict carries the observed fact — the file name and size,
+the toast text, the row count.</li>
+<li><strong>The loop may not manufacture green.</strong> It cannot edit, narrow or delete a check so it stops
+failing, and it cannot write <code>wontfix</code> to end a round; those are proposals surfaced to you.</li>
+<li><strong>Hard limits are enforced.</strong> Live payments, real emails, external submissions: the run stops at
+the last safe step and records <em>not tested</em> with the reason.</li>
+</ul>
+<h2>Drive it yourself</h2>
+<p>The skills are convenience, not dependency — the writer is a public API:</p>
+<pre><code class="language-ts">import { createSession, LocalConnector } from &quot;sluglist/node&quot;;
+
+const session = await createSession({
+  connectors: [new LocalConnector({ dir: &quot;.sluglist&quot; })],
+  project: &quot;acme&quot;,
+  baseUrl: &quot;http://localhost:3000&quot;,
+  checklist: &quot;.sluglist/checklists/release-2026-08.json&quot;,
+  reporter: { name: &quot;qa-agent&quot;, kind: &quot;agent&quot; },
+});
+
+await session.setVerdict(&quot;csv-columns&quot;, &quot;pass&quot;, {
+  evidence: {
+    screenshots: [png],
+    note: &quot;Exported reports-2026-08.csv — 4.1 KB, 57 rows, all 9 columns present&quot;,
+  },
+});
+</code></pre>
+<p>Any language that can write files can produce the same artifacts:
+<a href="/docs/artifacts/">the format is documented field by field</a>.</p>
+4:["$","article",null,{"className":"prose prose-site max-w-none","dangerouslySetInnerHTML":{"__html":"$14"}}]
+5:["$","section",null,{"className":"mt-12 border-[var(--color-line)] border-t pt-8","children":[["$","h2",null,{"className":"mb-5 font-semibold text-xl tracking-tight","children":"Frequently asked questions"}],["$","div",null,{"className":"space-y-5","children":[["$","div","Which agent runs this?",{"children":[["$","h3",null,{"className":"mb-1.5 font-semibold text-[15px]","children":"Which agent runs this?"}],["$","p",null,{"className":"text-[14px] text-[var(--color-ink-2)] leading-relaxed","children":"Any that can read files, run a browser and edit code. Claude Code is supported out of the box through the four bundled skills; everything they do is a documented CLI command or a public API on sluglist/node."}]]}],["$","div","What stops it looping forever?",{"children":[["$","h3",null,{"className":"mb-1.5 font-semibold text-[15px]","children":"What stops it looping forever?"}],["$","p",null,{"className":"text-[14px] text-[var(--color-ink-2)] leading-relaxed","children":"Two things. sluglist status returns stalled as soon as an item has failed in two rounds — a fix pass already tried and did not work — and blocked when everything left is wontfix or needs_info. On top of that the skill has a round ceiling, three by default, set in PROJECT.md."}]]}],["$","div","Can an agent just mark everything as passing?",{"children":[["$","h3",null,{"className":"mb-1.5 font-semibold text-[15px]","children":"Can an agent just mark everything as passing?"}],["$","p",null,{"className":"text-[14px] text-[var(--color-ink-2)] leading-relaxed","children":"It can lie the way any agent can, which is why the protocol makes lying visible: a pass in evidence mode all carries the screenshot and the observed fact, the report inlines both, and the skill's hard prohibitions forbid editing a check or writing wontfix to reach green. You audit artifacts, not a chat summary."}]]}],["$","div","Do humans and agents produce different artifacts?",{"children":[["$","h3",null,{"className":"mb-1.5 font-semibold text-[15px]","children":"Do humans and agents produce different artifacts?"}],["$","p",null,{"className":"text-[14px] text-[var(--color-ink-2)] leading-relaxed","children":"No. The headless writer emits byte-identical structure to the browser widget, with reporter.kind recording which one it was. A session a client produced and a session an agent produced are read by the same tools."}]]}]]}]]}]
+6:["$","section",null,{"className":"mt-12 border-[var(--color-line)] border-t pt-8","children":[["$","h2",null,{"className":"mb-4 font-semibold text-xl tracking-tight","children":"The other ways it is used"}],["$","div",null,{"className":"grid gap-3 sm:grid-cols-3 [&>*]:min-w-0","children":[["$","$L15","local-dev",{"className":"rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] p-4 transition hover:bg-[var(--color-canvas)]","href":"/for/local-dev/","children":[["$","p",null,{"className":"font-semibold text-[14px]","children":"Your own dev loop"}],["$","p",null,{"className":"mt-1 text-[13px] text-[var(--color-ink-2)] leading-relaxed","children":"You, with the app running on localhost."}]]}],["$","$L15","client-acceptance",{"className":"rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] p-4 transition hover:bg-[var(--color-canvas)]","href":"/for/client-acceptance/","children":[["$","p",null,{"className":"font-semibold text-[14px]","children":"Your team & client"}],["$","p",null,{"className":"mt-1 text-[13px] text-[var(--color-ink-2)] leading-relaxed","children":"The people who decide whether it shipped correctly — the client, the PM, the tester."}]]}],["$","$L15","beta-feedback",{"className":"rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] p-4 transition hover:bg-[var(--color-canvas)]","href":"/for/beta-feedback/","children":[["$","p",null,{"className":"font-semibold text-[14px]","children":"Real users"}],["$","p",null,{"className":"mt-1 text-[13px] text-[var(--color-ink-2)] leading-relaxed","children":"Real users in your beta or production app."}]]}]]}]]}]
+7:["$","div",null,{"className":"mt-12 flex flex-wrap gap-3","children":[["$","$L15",null,{"className":"rounded-xl bg-[var(--color-brand)] px-5 py-2.5 font-medium text-[14px] text-[var(--color-brand-ink)] transition hover:opacity-90","href":"/docs/quick-start/","children":"Get started"}],["$","$L15",null,{"className":"rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] px-5 py-2.5 font-medium text-[14px] transition hover:bg-[var(--color-canvas)]","href":"/#demo","children":"Try the live demo"}]]}]
+8:["$","$L16",null,{"children":["$","$17",null,{"name":"Next.MetadataOutlet","children":"$@18"}]}]
+b:["$","$1","h",{"children":[null,["$","$L19",null,{"children":[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]}],["$","div",null,{"hidden":true,"children":["$","$L1a",null,{"children":["$","$17",null,{"name":"Next.Metadata","children":[["$","title","0",{"children":"Autonomous agent QA loop: test, fix, re-test until green — sluglist"}],["$","meta","1",{"name":"description","content":"A QA agent walks the checklist in a real browser and writes evidence-backed verdicts; a fix agent answers them; a re-test round closes the loop — and sluglist status decides when to stop."}],["$","meta","2",{"name":"robots","content":"index, follow, max-image-preview:large"}],["$","meta","3",{"name":"theme-color","content":"#18181b"}],["$","link","4",{"rel":"canonical","href":"https://sluglist.dev/for/agent-loop/"}],["$","meta","5",{"property":"og:title","content":"Autonomous agent QA loop: test, fix, re-test until green — sluglist"}],["$","meta","6",{"property":"og:description","content":"A QA agent walks the checklist in a real browser and writes evidence-backed verdicts; a fix agent answers them; a re-test round closes the loop — and sluglist status decides when to stop."}],["$","meta","7",{"property":"og:url","content":"https://sluglist.dev/for/agent-loop/"}],["$","meta","8",{"property":"og:site_name","content":"sluglist"}],["$","meta","9",{"property":"og:image","content":"https://sluglist.dev/og-image.png"}],["$","meta","10",{"property":"og:image:width","content":"1200"}],["$","meta","11",{"property":"og:image:height","content":"630"}],["$","meta","12",{"property":"og:image:alt","content":"sluglist — a drop-in visual feedback widget whose artifacts a coding agent reads and fixes"}],["$","meta","13",{"property":"og:type","content":"article"}],["$","meta","14",{"name":"twitter:card","content":"summary_large_image"}],["$","meta","15",{"name":"twitter:title","content":"Autonomous agent QA loop: test, fix, re-test until green — sluglist"}],["$","meta","16",{"name":"twitter:description","content":"A QA agent walks the checklist in a real browser and writes evidence-backed verdicts; a fix agent answers them; a re-test round closes the loop — and sluglist status decides when to stop."}],["$","meta","17",{"name":"twitter:image","content":"https://sluglist.dev/og-image.png"}],["$","meta","18",{"name":"twitter:image:alt","content":"sluglist — a drop-in visual feedback widget whose artifacts a coding agent reads and fixes"}],["$","link","19",{"rel":"icon","href":"/favicon.ico","sizes":"32x32"}],["$","link","20",{"rel":"icon","href":"/icon.svg","type":"image/svg+xml"}],["$","link","21",{"rel":"apple-touch-icon","href":"/apple-touch-icon.png"}],["$","$L1b","22",{}]]}]}]}],null]}]
+d:["$","$1","c",{"children":[null,["$","$L1c",null,{"parallelRouterKey":"children","template":["$","$L1d",null,{}]}]]}]
+10:["$","$1","c",{"children":[null,["$","$L1c",null,{"parallelRouterKey":"children","template":["$","$L1d",null,{}]}]]}]
+13:true
+18:null
+a:300
+a:C
+12:0
+c:"$undefined"
+e:"$undefined"
+11:"$undefined"
+9:"$undefined"

@@ -1,6 +1,6 @@
 1:"$Sreact.fragment"
 2:I[38822,["/_next/static/chunks/1b58asu43-lub.js"],""]
-3:T17a0,<p>sluglist is a framework-agnostic, dependency-light widget that lets people leave visual feedback
+3:T1ade,<p>sluglist is a framework-agnostic, dependency-light widget that lets people leave visual feedback
 directly on a running web app: pick an element, grab an area or the full page, annotate the
 screenshot, add a comment — and the widget produces a standard set of artifacts and hands them to
 pluggable <strong>connectors</strong>. The core knows nothing about where feedback is stored; delivery is fully
@@ -29,7 +29,7 @@ need it; none of them is a setup step.</p>
 <p>Ships as ESM and CJS; <code>html-to-image</code> is loaded lazily on the first capture, so it is not part of
 your initial bundle. Undelivered issues are persisted to IndexedDB and retried on the next load, so
 a failed upload or a closed tab does not lose feedback.</p>
-<h2>Three ways sluglist is used</h2>
+<h2>Four ways sluglist is used</h2>
 <h3>1 · Dev loop — you and an agent</h3>
 <p>Click feedback on your own app, have it land in a folder, let Claude Code fix it.</p>
 <pre><code class="language-ts">import { createFeedbackWidget, mountFeedbackWidget, LocalConnector } from &quot;sluglist&quot;;
@@ -40,7 +40,8 @@ mountFeedbackWidget(createFeedbackWidget({ connectors: [new LocalConnector()] })
 </code></pre>
 <p>Gate it behind an env flag so it never initializes in production —
 <code>enabled: process.env.NODE_ENV !== &quot;production&quot;</code>.</p>
-<p>See <a href="/docs/agents/">Agents &amp; CLI</a> for the full loop.</p>
+<p>See <a href="/docs/agents/">Agents &amp; CLI</a> for the full loop, or
+<a href="/for/local-dev/">the dev-loop use case</a> for the setup end to end.</p>
 <h3>2 · Client acceptance — someone signs off a release</h3>
 <p>Put the build on staging with a <strong>checklist</strong> of what shipped. The client walks it, checks items off
 and flags problems; you get a coverage map instead of a chat thread.</p>
@@ -52,7 +53,8 @@ and flags problems; you get a coverage map instead of a chat thread.</p>
   })
 );
 </code></pre>
-<p>See <a href="/docs/checklist/">Checklist mode</a>.</p>
+<p>See <a href="/docs/checklist/">Checklist mode</a> and
+<a href="/for/client-acceptance/">acceptance with your client and team</a>.</p>
 <h3>3 · Beta / Production — real users report problems</h3>
 <p>A &quot;Report a problem&quot; button for people who are not your team: PII masked and scrubbed, a way to
 make the widget go away, and delivery through an endpoint you own.</p>
@@ -65,7 +67,16 @@ make the widget go away, and delivery through an endpoint you own.</p>
   })
 );
 </code></pre>
-<p>See <a href="/docs/production/">Production &amp; privacy</a>.</p>
+<p>See <a href="/docs/production/">Production &amp; privacy</a> and
+<a href="/for/beta-feedback/">the beta &amp; production use case</a>.</p>
+<h3>4 · Agent to agent — the loop runs itself</h3>
+<p>A QA agent walks the checklist in a real browser and writes evidence-backed verdicts; a fix agent
+answers them; a re-test round closes the loop.</p>
+<pre><code class="language-bash">npx sluglist init --agents-md   # the four skills, PROJECT.md, .gitignore rules
+npx sluglist status --json      # green | continue | stalled | blocked
+</code></pre>
+<p>Nothing in your app changes — the QA agent writes the same artifacts through the headless writer,
+<code>sluglist/node</code>. See <a href="/for/agent-loop/">the autonomous QA loop</a>.</p>
 <h2>Attach your user</h2>
 <p>Three ways to know who reported something, and they are not interchangeable — the difference is
 <em>where the value comes from</em>.</p>
@@ -129,7 +140,7 @@ they are in the app, and <code>form</code> when nobody but the person reporting 
 7:X
 c:X
 c:C
-0:{"buildId":"PpNDhC5Jsm0vG7tMzIkBE","data":[{"rsc":["$","$1","c",{"children":[["$","div",null,{"className":"mx-auto max-w-3xl px-6 py-16 md:py-20","children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Docs\",\"item\":\"https://sluglist.dev/docs/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Quick start\",\"item\":\"https://sluglist.dev/docs/quick-start/\"}]}"}}],["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"TechArticle\",\"headline\":\"Quick start\",\"description\":\"Install the sluglist feedback widget and mount it with one line of config: a connector, and nothing else. ESM, CJS or a script tag from a CDN.\",\"url\":\"https://sluglist.dev/docs/quick-start/\",\"author\":{\"@id\":\"https://sluglist.dev/#org\"},\"about\":{\"@id\":\"https://sluglist.dev/#software\"}}"}}],["$","nav",null,{"className":"mb-6 text-[13px] text-[var(--color-muted)]","children":[["$","$L2",null,{"className":"hover:text-[var(--color-ink)]","href":"/docs/","children":"Docs"}]," ","/ ","Quick start"]}],["$","h1",null,{"className":"mb-8 font-bold text-3xl tracking-tight md:text-4xl","children":"Quick start"}],["$","article",null,{"className":"prose prose-site max-w-none","dangerouslySetInnerHTML":{"__html":"$3"}}],"$L4"]}],null,"$L5"]}],"isPartial":"$@6","staleTime":"$7","varyParams":null},{"rsc":"$L8","isPartial":"$@9","staleTime":"$7","varyParams":null},{"rsc":"$La","isPartial":"$@b","staleTime":"$7","varyParams":"$c"},{"rsc":"$Ld","isPartial":"$@e","staleTime":"$7","varyParams":"$c"}],"isUpgradeableISRFallback":false,"a":"$@f","rootVaryParams":null,"needsRuntimeRequest":"$@10"}
+0:{"buildId":"RRgV_udH8wQMoZu1RZ9bX","data":[{"rsc":["$","$1","c",{"children":[["$","div",null,{"className":"mx-auto max-w-3xl px-6 py-16 md:py-20","children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Docs\",\"item\":\"https://sluglist.dev/docs/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Quick start\",\"item\":\"https://sluglist.dev/docs/quick-start/\"}]}"}}],["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"TechArticle\",\"headline\":\"Quick start\",\"description\":\"Install the sluglist feedback widget and mount it with one line of config: a connector, and nothing else. ESM, CJS or a script tag from a CDN.\",\"url\":\"https://sluglist.dev/docs/quick-start/\",\"author\":{\"@id\":\"https://sluglist.dev/#org\"},\"about\":{\"@id\":\"https://sluglist.dev/#software\"}}"}}],["$","nav",null,{"className":"mb-6 text-[13px] text-[var(--color-muted)]","children":[["$","$L2",null,{"className":"hover:text-[var(--color-ink)]","href":"/docs/","children":"Docs"}]," ","/ ","Quick start"]}],["$","h1",null,{"className":"mb-8 font-bold text-3xl tracking-tight md:text-4xl","children":"Quick start"}],["$","article",null,{"className":"prose prose-site max-w-none","dangerouslySetInnerHTML":{"__html":"$3"}}],"$L4"]}],null,"$L5"]}],"isPartial":"$@6","staleTime":"$7","varyParams":null},{"rsc":"$L8","isPartial":"$@9","staleTime":"$7","varyParams":null},{"rsc":"$La","isPartial":"$@b","staleTime":"$7","varyParams":"$c"},{"rsc":"$Ld","isPartial":"$@e","staleTime":"$7","varyParams":"$c"}],"isUpgradeableISRFallback":false,"a":"$@f","rootVaryParams":null,"needsRuntimeRequest":"$@10"}
 11:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"OutletBoundary"]
 12:"$Sreact.suspense"
 14:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"ViewportBoundary"]

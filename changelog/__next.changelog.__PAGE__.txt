@@ -1,5 +1,122 @@
 1:"$Sreact.fragment"
-2:T9ea3,<h1>Changelog</h1>
+2:Tc9db,<h1>Changelog</h1>
+<h2>1.15.0 — <code>sluglist init</code>, project conventions, the loop skill, <code>sluglist status</code>, regression lifecycle</h2>
+<p>Everything here is additive. The widget&#39;s UI, the <code>FeedbackConnector</code> contract and every existing
+command and skill behave exactly as before; the one library change is a new optional field in
+<code>session.yaml</code> (<strong>format 1.7</strong>, below), emitted only on a re-test run. <strong>No new dependencies.</strong> This
+release upstreams the glue that had to be written by hand in every project that adopted the 1.12–1.14
+agent loop, and closes the loop it left open: fix → re-test → <em>decide whether to go again</em>.</p>
+<h3><code>npx sluglist init</code> — one-command project scaffold</h3>
+<p><code>init-skills</code> installed the skills; four more things were identical in every integration and are now
+done for you, idempotently:</p>
+<ul>
+<li><strong><code>.sluglist/checklists/</code></strong> — the committed-checklists convention from 1.13, as a real folder.</li>
+<li><strong><code>.gitignore</code> rules</strong> — <code>.sluglist/*</code>, with <code>!.sluglist/checklists/</code> and
+<code>!.sluglist/PROJECT.md</code> re-included: QA sessions stay local while the checklists (the spec) and the
+project&#39;s conventions are versioned. An existing <code>.gitignore</code> is appended to, never rewritten, and
+the block is not duplicated on a re-run — even if you kept the rules and dropped the comment.</li>
+<li><strong>The skills</strong> — the <code>init-skills</code> step, with identical semantics and identical output.</li>
+<li><strong><code>.sluglist/PROJECT.md</code></strong> — the project-conventions template (below), written only when absent.</li>
+<li><strong>Agent instructions</strong>, behind <code>--agents-md</code>: a short &quot;QA loop (sluglist)&quot; section appended to
+<code>CLAUDE.md</code> and <code>AGENTS.md</code> when those files exist. The CLI never prompts, so this is a flag; a
+second run appends nothing.</li>
+</ul>
+<p><code>--dir &lt;path&gt;</code> retargets the project root, <code>--force</code> passes through to the skills step, and a re-run
+reports what was created versus what was already present. <strong><code>.sluglist/PROJECT.md</code> is never
+overwritten — not even with <code>--force</code></strong>: it holds your answers, not our file. <code>init-skills</code> stays as
+the skills-only command.</p>
+<h3><code>.sluglist/PROJECT.md</code> — project conventions as data, not skill edits</h3>
+<p>The bundled skills invite you to edit them, and an edited skill is never overwritten by <code>init</code> — which
+means it also stops receiving upstream improvements. That tension is now resolved in the file system
+instead of in the prompts: project specifics live in one committed file that every skill reads first.</p>
+<p>It is a short fill-in questionnaire: <strong>base branch</strong> for <code>branch</code>-intent diffs; <strong>how to run the app</strong>
+for QA (command, port, warm-up); <strong>how to sign in</strong> (credentials <em>referenced</em> — env vars, a seed
+script — never written into a committed file); <strong>hard limits</strong>, the actions QA must never complete
+(live payments, real emails, external submissions), pre-filled commented-out; <strong>evidence-mode
+defaults</strong> per intent; and <strong>environment quirks</strong> as free text.</p>
+<p>Each bundled skill gained one short &quot;Project conventions first&quot; instruction — read the file if it
+exists, its answers override the skill&#39;s defaults, and if it is absent fall back and mention that
+<code>npx sluglist init</code> creates it. <code>sluglist-qa</code> also gained a hard prohibition: an action listed under
+the file&#39;s hard limits is never completed, whatever a checklist item appears to ask for — the run
+stops at the last safe step and records <strong>not tested</strong> with the reason.</p>
+<h3><code>sluglist-loop</code> — the bundled orchestrator skill</h3>
+<p>There were three per-stage skills and nothing that owned the cycle. The new fourth skill maps a
+request to an intent (finished branch → <code>branch</code>, &quot;does everything still work&quot; → <code>regression</code>, a
+written brief → <code>scenario</code>, after a fix pass → <code>re-test</code>), then runs the stages in order: checklist →
+QA run → <code>npx sluglist report</code> + a short summary → on request fix → re-test → final report.</p>
+<p>It encodes the cycle-level decisions the stage skills cannot see: the evidence-mode heuristic
+(acceptance and hand-off runs → <code>all</code>, long <code>regression</code>/<code>smoke</code> sweeps → <code>fails</code>, an explicit request
+always wins, <code>PROJECT.md</code> can change the defaults), the round budget, and the post-merge offer to
+update the regression baseline. Stage rules are delegated, not copied — one sentence each on what a
+sub-skill guarantees, and when the two disagree the stage skill wins.</p>
+<p>It has <strong>two modes</strong>. <em>One pass</em> is the default and ends at the report. <em>Until green</em> is opt-in — the
+user asks for it in words, or <code>PROJECT.md</code> says the loop may run unattended — and repeats
+fix → re-test → decide until a stop condition fires: green, <code>stalled</code>, <code>blocked</code>, the round ceiling
+(<strong>default 3 QA rounds</strong>), a hard limit, or an app that stops running. An autonomous loop has an
+obvious cheat available to it, so the prohibitions name it: never edit, narrow or delete a checklist
+item so it stops failing, and never record <code>wontfix</code> to end a round. <code>wontfix</code> and <code>needs_info</code>
+written during an unattended run are proposals surfaced to the owner, not decisions taken on their
+behalf.</p>
+<h3><code>npx sluglist status</code> — is another round worth running?</h3>
+<p>The new command answers the only question a loop has to get right, and answers it from the artifacts
+rather than from an agent&#39;s memory of what it just did:</p>
+<pre><code>release-2026-08 · branch · 3 items
+  1  session-2026-08-15-tw1w  1 pass · 1 fail · 1 not tested  ·  1 fixed
+  2  session-2026-08-15-jtyf  0 pass · 1 fail · 0 not tested  ·  no fix pass yet
+
+  still failing (1)
+    csv-columns — for the next fix pass · failed in 2 rounds · issue 01
+
+verdict: stalled — 1 item failed in 2 or more rounds — a fix pass has already been tried
+</code></pre>
+<p>It reads the sessions on disk, chains them into rounds through <code>checklist.retest_of</code> (falling back to
+the <code>&lt;id&gt;-retest-N</code> naming for pre-1.7 artifacts), and reports one verdict: <strong><code>green</code></strong> (nothing is
+failing), <strong><code>continue</code></strong> (failures a fix pass can still act on), <strong><code>stalled</code></strong> (everything left has
+already survived a fix pass), <strong><code>blocked</code></strong> (everything left is <code>wontfix</code> / <code>needs_info</code>) or
+<strong><code>empty</code></strong>. Per item it gives the state (<code>actionable</code>, <code>awaiting-retest</code>, <code>blocked</code>), how many rounds
+it has failed in, the linked issue and the fix agent&#39;s note.</p>
+<p>Because it is derived, there is no new artifact and no state to keep in sync — deleting <code>.sluglist/</code>
+loses history, not correctness. Chain-level rather than last-round-only: a re-test list carries only
+the items that were fixed, so a coverage gap from round 1 and a failure the fix pass declined to take
+both stay visible instead of quietly reading as green.</p>
+<p><code>--json</code> gives an agent the same result as data, <code>--all</code> includes older chains, and a session folder
+as the argument restricts the report to the chain containing it. It also covers the plain dev loop,
+where the work items are the issues themselves: an issue with no record in <code>fixes.yaml</code> is open.</p>
+<h3>Format 1.7 — <code>checklist.retest_of</code> in <code>session.yaml</code></h3>
+<p>One additive field. The checklist <em>config</em> has carried <code>retest_of</code> since 1.5; it is now written into
+<code>session.yaml</code> alongside <code>intent</code>, so the rounds of one fix→re-test cycle can be chained from the
+session alone. <strong>Absent on a first-pass run</strong>, so sessions that are not re-tests are byte-identical
+apart from the version line, and a 1.x parser is unaffected.</p>
+<h3>Regression as a first-class checklist lifecycle</h3>
+<p><code>smoke</code> produces a broad one-off pass. A standing regression list is the same kind of list with a
+different life: it lives in the repo and is updated after every merge. <code>sluglist-checklist</code> now has a
+documented <code>regression</code> intent with two modes:</p>
+<ul>
+<li><strong>Seeding</strong> (no file yet) — the smoke algorithm (routes + docs, critical paths first, ~30-item cap)
+written to <code>.sluglist/checklists/regression.json</code> with <code>&quot;intent&quot;: &quot;regression&quot;</code>.</li>
+<li><strong>Maintenance</strong> (the file exists) — the new part. Read the existing list <em>and</em> the branch diff, then
+propose <strong>additions</strong> for new user-visible surface (1–2 loud checks per feature, folded into an
+existing section when one fits) and <strong>removals</strong> for surface the diff deleted. Removals are
+<strong>proposed, never silent</strong> — the user confirms. The ~30-item cap is enforced by naming what to cut
+rather than growing the file. <strong>Item ids stay stable</strong> for unchanged items, because verdict history
+in past sessions maps by id and a renamed id orphans it silently. The summary is a diff of the list
+(<code>+ added</code> / <code>- removed</code> / <code>= unchanged</code>), not a new list.</li>
+</ul>
+<p>SPEC.md gains an <code>intent</code> vocabulary table with the lifecycle of each value; <code>regression</code> is
+additive and the field stays an open vocabulary, so no reader needs updating.</p>
+<h3>Docs</h3>
+<ul>
+<li>New page: <strong><a href="https://sluglist.dev/docs/project-conventions/">Project conventions</a></strong> — what goes in
+<code>PROJECT.md</code>, why credentials are referenced rather than stored, and why hard limits are enforced
+rather than advisory.</li>
+<li><strong>Agents &amp; CLI</strong> documents <code>sluglist init</code> and the four-skill table with <code>sluglist-loop</code> first.</li>
+<li><strong>Checklist mode</strong> documents the five intents and the regression lifecycle.</li>
+<li><strong>Agents &amp; CLI</strong> also documents <code>sluglist status</code> and the until-green loop.</li>
+<li>README: the <code>init</code> scaffold table, the project-conventions section, the <code>sluglist status</code> verdict
+table and the regression lifecycle.</li>
+<li>The site gained per-scenario landing pages, a contract diagram and a colour system — see the
+release notes on <a href="https://sluglist.dev/">sluglist.dev</a>.</li>
+</ul>
 <h2>1.14.0 — <code>sluglist init-skills</code>, per-page social metadata</h2>
 <p>A polish release: one new CLI command and a set of site/docs consistency fixes. No library code and
 no artifact-format change — the widget, the writer and the format are untouched.</p>
@@ -537,7 +654,7 @@ extension content script).</li>
 5:X
 a:X
 a:C
-0:{"buildId":"PpNDhC5Jsm0vG7tMzIkBE","data":[{"rsc":["$","$1","c",{"children":[["$","div",null,{"className":"mx-auto max-w-3xl px-6 py-16 md:py-20","children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"WebPage\",\"name\":\"sluglist changelog\",\"url\":\"https://sluglist.dev/changelog/\",\"isPartOf\":{\"@id\":\"https://sluglist.dev/#website\"},\"about\":{\"@id\":\"https://sluglist.dev/#software\"}}"}}],["$","article",null,{"className":"prose prose-site max-w-none","dangerouslySetInnerHTML":{"__html":"$2"}}]]}],null,"$L3"]}],"isPartial":"$@4","staleTime":"$5","varyParams":null},{"rsc":"$L6","isPartial":"$@7","staleTime":"$5","varyParams":null},{"rsc":"$L8","isPartial":"$@9","staleTime":"$5","varyParams":"$a"}],"isUpgradeableISRFallback":false,"a":"$@b","rootVaryParams":null,"needsRuntimeRequest":"$@c"}
+0:{"buildId":"RRgV_udH8wQMoZu1RZ9bX","data":[{"rsc":["$","$1","c",{"children":[["$","div",null,{"className":"mx-auto max-w-3xl px-6 py-16 md:py-20","children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"WebPage\",\"name\":\"sluglist changelog\",\"url\":\"https://sluglist.dev/changelog/\",\"isPartOf\":{\"@id\":\"https://sluglist.dev/#website\"},\"about\":{\"@id\":\"https://sluglist.dev/#software\"}}"}}],["$","article",null,{"className":"prose prose-site max-w-none","dangerouslySetInnerHTML":{"__html":"$2"}}]]}],null,"$L3"]}],"isPartial":"$@4","staleTime":"$5","varyParams":null},{"rsc":"$L6","isPartial":"$@7","staleTime":"$5","varyParams":null},{"rsc":"$L8","isPartial":"$@9","staleTime":"$5","varyParams":"$a"}],"isUpgradeableISRFallback":false,"a":"$@b","rootVaryParams":null,"needsRuntimeRequest":"$@c"}
 d:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"OutletBoundary"]
 e:"$Sreact.suspense"
 10:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"ViewportBoundary"]

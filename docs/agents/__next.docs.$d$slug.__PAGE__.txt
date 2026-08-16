@@ -1,6 +1,6 @@
 1:"$Sreact.fragment"
 2:I[38822,["/_next/static/chunks/1b58asu43-lub.js"],""]
-3:T119f,<p>Test your app locally, click feedback with the widget, and have it land in a <code>.sluglist/</code> folder in
+3:T2845,<p>Test your app locally, click feedback with the widget, and have it land in a <code>.sluglist/</code> folder in
 your project — then let an agent (e.g. Claude Code) read it and fix the issues. Browser JS can&#39;t
 write to disk, so a tiny sidecar process, <code>sluglist dev</code>, sits between the widget and the folder.</p>
 <h2>The local feedback loop</h2>
@@ -23,11 +23,46 @@ to <code>127.0.0.1</code> only and has <strong>no authentication</strong> — it
 forward its port. If it isn&#39;t running, <code>LocalConnector</code> warns once and your other connectors keep
 working (the UI is never blocked).</p>
 <blockquote>
-<p>Add <code>.sluglist/</code> to your project&#39;s <code>.gitignore</code>.</p>
+<p>Add <code>.sluglist/</code> to your project&#39;s <code>.gitignore</code> — or let <code>npx sluglist init</code> do it.</p>
 </blockquote>
+<h2>Set the project up — <code>npx sluglist init</code></h2>
+<p>One idempotent command scaffolds everything the loop needs:</p>
+<pre><code class="language-bash">npx sluglist init --agents-md
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>It creates</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>.sluglist/checklists/</code></td>
+<td>Checklists are the committed spec — they live in the repo.</td>
+</tr>
+<tr>
+<td><code>.gitignore</code> rules</td>
+<td><code>.sluglist/*</code> ignored, with <code>checklists/</code> and <code>PROJECT.md</code> re-included: sessions stay local, the spec and the conventions are versioned.</td>
+</tr>
+<tr>
+<td><code>.claude/skills/*</code></td>
+<td>The four bundled skills (the <code>init-skills</code> step).</td>
+</tr>
+<tr>
+<td><code>.sluglist/PROJECT.md</code></td>
+<td>Your project&#39;s conventions — see <a href="/docs/project-conventions/">Project conventions</a>.</td>
+</tr>
+<tr>
+<td>a &quot;QA loop (sluglist)&quot; section in <code>CLAUDE.md</code> / <code>AGENTS.md</code></td>
+<td>Only with <code>--agents-md</code>, and only if those files exist.</td>
+</tr>
+</tbody></table>
+<p>Re-running reports what was already there and changes nothing. <code>--dir &lt;path&gt;</code> retargets the project
+root. Two things are never overwritten: a skill you have edited (<code>--force</code> overrides), and
+<code>.sluglist/PROJECT.md</code> — that holds your answers, so not even <code>--force</code> touches it.</p>
 <h2>Let an agent fix it (Claude Code skill)</h2>
-<p>The package ships a <code>sluglist-fix</code> skill that reads <code>.sluglist/</code> and fixes the reported issues.
-Install the bundled skills into your project once:</p>
+<p>The package ships a <code>sluglist-fix</code> skill that reads <code>.sluglist/</code> and fixes the reported issues. It
+arrives with <code>npx sluglist init</code> above, or on its own with:</p>
 <pre><code class="language-bash">npx sluglist init-skills
 </code></pre>
 <p>That copies every bundled skill into <code>.claude/skills/</code>. Re-running it is safe: unchanged skills are
@@ -55,8 +90,104 @@ timestamps;</li>
 <h2>Generate a checklist from a branch (the other direction)</h2>
 <p>The second bundled skill, <code>sluglist-checklist</code>, turns a branch diff into a client-facing acceptance
 checklist (user-visible changes only, phrased for a non-developer), written to
-<code>public/checklist.json</code> — which the widget loads with <code>checklist: &quot;/checklist.json&quot;</code>. Ask Claude
-Code to <em>&quot;generate a checklist from this branch&quot;</em>. See <a href="/docs/checklist/">Checklist mode</a>.</p>
+<code>.sluglist/checklists/&lt;name&gt;.json</code> — which the widget loads with
+<code>checklist: &quot;/checklists/&lt;name&gt;.json&quot;</code>. Ask Claude Code to <em>&quot;generate a checklist from this
+branch&quot;</em>. See <a href="/docs/checklist/">Checklist mode</a>.</p>
+<h2>The whole cycle — the <code>sluglist-loop</code> skill</h2>
+<p>Four skills ship in the package: one per stage, plus one that owns the cycle.</p>
+<table>
+<thead>
+<tr>
+<th>Skill</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>sluglist-loop</code></td>
+<td>Picks the intent, runs the stages in order, carries the evidence mode, and keeps fixing and re-testing until green when you ask for it. <strong>Start here.</strong></td>
+</tr>
+<tr>
+<td><code>sluglist-checklist</code></td>
+<td>Generate or maintain a checklist: branch / re-test / smoke / regression / scenario.</td>
+</tr>
+<tr>
+<td><code>sluglist-qa</code></td>
+<td>Browser QA: no fail without a screenshot, no pass without performing the check.</td>
+</tr>
+<tr>
+<td><code>sluglist-fix</code></td>
+<td>Fix what failed, plus <code>fixes.yaml</code> (<code>fixed</code> | <code>wontfix</code> | <code>needs_info</code>).</td>
+</tr>
+</tbody></table>
+<p>Ask for <em>&quot;run the QA loop on this branch&quot;</em> and the orchestrator does the rest: checklist → QA run →
+<code>npx sluglist report</code> → (on request) fix → re-test → final report. Project specifics it needs — base
+branch, how to run and sign in, hard limits, evidence mode, loop limits — come from
+<a href="/docs/project-conventions/"><code>.sluglist/PROJECT.md</code></a>, not from editing the skills.</p>
+<h2>Until green — <code>npx sluglist status</code></h2>
+<p>Ask for the fixes too — <em>&quot;QA this branch and fix everything until it passes&quot;</em> — and the cycle
+repeats: QA finds failures, the fix skill resolves them, a re-test round checks the fixes. What keeps
+that honest is a decision point the agent cannot answer from memory:</p>
+<pre><code class="language-bash">npx sluglist status
+</code></pre>
+<pre><code>.sluglist — 1 chain, 2 sessions
+
+release-2026-08 · branch · 3 items
+  1  session-2026-08-15-tw1w  1 pass · 1 fail · 1 not tested  ·  1 fixed
+  2  session-2026-08-15-jtyf  0 pass · 1 fail · 0 not tested  ·  no fix pass yet
+
+  still failing (1)
+    csv-columns — for the next fix pass · failed in 2 rounds · issue 01
+      &quot;The CSV has every expected column&quot;
+
+  not tested (1) — email-receipt
+
+verdict: stalled — 1 item failed in 2 or more rounds — a fix pass has already been tried
+</code></pre>
+<p>Everything is derived from artifacts already on disk: the verdicts in <code>session.yaml</code>, the resolutions
+in <code>fixes.yaml</code>, and the <code>retest_of</code> chain linking round 2 back to round 1. No new file, no state to
+keep in sync.</p>
+<table>
+<thead>
+<tr>
+<th>Verdict</th>
+<th>Meaning</th>
+<th>What the loop does</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>green</code></td>
+<td>Nothing is failing</td>
+<td>Stop; hand over the report.</td>
+</tr>
+<tr>
+<td><code>continue</code></td>
+<td>Failures a fix pass can still act on</td>
+<td>Another round, if the budget allows.</td>
+</tr>
+<tr>
+<td><code>stalled</code></td>
+<td>Every remaining failure already survived a fix pass</td>
+<td>Stop; hand the list to a human.</td>
+</tr>
+<tr>
+<td><code>blocked</code></td>
+<td>Everything left is <code>wontfix</code> / <code>needs_info</code></td>
+<td>Stop; those are the owner&#39;s calls.</td>
+</tr>
+<tr>
+<td><code>empty</code></td>
+<td>No sessions on disk</td>
+<td>Nothing ran.</td>
+</tr>
+</tbody></table>
+<p><code>--json</code> gives an agent the same result as data; <code>--all</code> includes older chains; a session folder as
+the argument restricts the report to the chain containing it. It works for the plain dev loop too,
+where the work items are the issues themselves rather than checklist verdicts.</p>
+<p>The loop&#39;s ceiling is <strong>3 QA rounds</strong> by default — the first pass plus two fix→re-test rounds — and
+it stops early on <code>stalled</code> or <code>blocked</code> rather than grinding the same item. Both are set in
+<a href="/docs/project-conventions/"><code>PROJECT.md</code></a>. And the rule that makes the whole thing trustworthy: the
+loop may never make a run green by editing a checklist item or recording <code>wontfix</code> to get out — green
+is a fact about the app, not a target.</p>
 <h2>Programmatic capture</h2>
 <p>The UI is optional. Produce and deliver an issue without any chrome:</p>
 <pre><code class="language-ts">await widget.captureIssue({
@@ -68,12 +199,13 @@ Code to <em>&quot;generate a checklist from this branch&quot;</em>. See <a href=
   consoleErrors: [...],       // optional, appended as a &quot;## Console errors&quot; section
 });
 </code></pre>
-<p>See also: <a href="/for/claude-code/">sluglist for Claude Code &amp; coding agents</a> — the full workflow with
-terminal transcripts.</p>
+<p>See also: <a href="/for/agent-loop/">the autonomous QA loop</a> — the whole cycle end to end — and
+<a href="/for/claude-code/">sluglist for Claude Code &amp; coding agents</a> for the workflow with terminal
+transcripts.</p>
 7:X
 c:X
 c:C
-0:{"buildId":"PpNDhC5Jsm0vG7tMzIkBE","data":[{"rsc":["$","$1","c",{"children":[["$","div",null,{"className":"mx-auto max-w-3xl px-6 py-16 md:py-20","children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Docs\",\"item\":\"https://sluglist.dev/docs/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Agents & CLI: the local feedback loop\",\"item\":\"https://sluglist.dev/docs/agents/\"}]}"}}],["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"TechArticle\",\"headline\":\"Agents & CLI: the local feedback loop\",\"description\":\"Run npx sluglist dev, click feedback on your own app, and let Claude Code read the artifacts and fix the code via the bundled sluglist-fix skill.\",\"url\":\"https://sluglist.dev/docs/agents/\",\"author\":{\"@id\":\"https://sluglist.dev/#org\"},\"about\":{\"@id\":\"https://sluglist.dev/#software\"}}"}}],["$","nav",null,{"className":"mb-6 text-[13px] text-[var(--color-muted)]","children":[["$","$L2",null,{"className":"hover:text-[var(--color-ink)]","href":"/docs/","children":"Docs"}]," ","/ ","Agents & CLI"]}],["$","h1",null,{"className":"mb-8 font-bold text-3xl tracking-tight md:text-4xl","children":"Agents & CLI: the local feedback loop"}],["$","article",null,{"className":"prose prose-site max-w-none","dangerouslySetInnerHTML":{"__html":"$3"}}],"$L4"]}],null,"$L5"]}],"isPartial":"$@6","staleTime":"$7","varyParams":null},{"rsc":"$L8","isPartial":"$@9","staleTime":"$7","varyParams":null},{"rsc":"$La","isPartial":"$@b","staleTime":"$7","varyParams":"$c"},{"rsc":"$Ld","isPartial":"$@e","staleTime":"$7","varyParams":"$c"}],"isUpgradeableISRFallback":false,"a":"$@f","rootVaryParams":null,"needsRuntimeRequest":"$@10"}
+0:{"buildId":"RRgV_udH8wQMoZu1RZ9bX","data":[{"rsc":["$","$1","c",{"children":[["$","div",null,{"className":"mx-auto max-w-3xl px-6 py-16 md:py-20","children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Docs\",\"item\":\"https://sluglist.dev/docs/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Agents & CLI: the local feedback loop\",\"item\":\"https://sluglist.dev/docs/agents/\"}]}"}}],["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"TechArticle\",\"headline\":\"Agents & CLI: the local feedback loop\",\"description\":\"Run npx sluglist dev, click feedback on your own app, and let an agent fix it — plus the four bundled skills, sluglist status, and the loop that runs until green.\",\"url\":\"https://sluglist.dev/docs/agents/\",\"author\":{\"@id\":\"https://sluglist.dev/#org\"},\"about\":{\"@id\":\"https://sluglist.dev/#software\"}}"}}],["$","nav",null,{"className":"mb-6 text-[13px] text-[var(--color-muted)]","children":[["$","$L2",null,{"className":"hover:text-[var(--color-ink)]","href":"/docs/","children":"Docs"}]," ","/ ","Agents & CLI"]}],["$","h1",null,{"className":"mb-8 font-bold text-3xl tracking-tight md:text-4xl","children":"Agents & CLI: the local feedback loop"}],["$","article",null,{"className":"prose prose-site max-w-none","dangerouslySetInnerHTML":{"__html":"$3"}}],"$L4"]}],null,"$L5"]}],"isPartial":"$@6","staleTime":"$7","varyParams":null},{"rsc":"$L8","isPartial":"$@9","staleTime":"$7","varyParams":null},{"rsc":"$La","isPartial":"$@b","staleTime":"$7","varyParams":"$c"},{"rsc":"$Ld","isPartial":"$@e","staleTime":"$7","varyParams":"$c"}],"isUpgradeableISRFallback":false,"a":"$@f","rootVaryParams":null,"needsRuntimeRequest":"$@10"}
 11:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"OutletBoundary"]
 12:"$Sreact.suspense"
 14:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"ViewportBoundary"]
@@ -81,9 +213,9 @@ c:C
 16:I[4094,["/_next/static/chunks/1b58asu43-lub.js"],"IconMark"]
 17:I[29713,["/_next/static/chunks/1b58asu43-lub.js"],"default"]
 18:I[59292,["/_next/static/chunks/1b58asu43-lub.js"],"default"]
-4:["$","nav",null,{"className":"mt-12 flex justify-between gap-4 border-[var(--color-line)] border-t pt-6 text-[14px]","children":[["$","$L2",null,{"className":"text-[var(--color-muted)] hover:text-[var(--color-ink)]","href":"/docs/production/","children":["← ","Production"]}],["$","$L2",null,{"className":"text-[var(--color-muted)] hover:text-[var(--color-ink)]","href":"/docs/artifacts/","children":["Artifact format"," →"]}]]}]
+4:["$","nav",null,{"className":"mt-12 flex justify-between gap-4 border-[var(--color-line)] border-t pt-6 text-[14px]","children":[["$","$L2",null,{"className":"text-[var(--color-muted)] hover:text-[var(--color-ink)]","href":"/docs/production/","children":["← ","Production"]}],["$","$L2",null,{"className":"text-[var(--color-muted)] hover:text-[var(--color-ink)]","href":"/docs/project-conventions/","children":["Project conventions"," →"]}]]}]
 5:["$","$L11",null,{"children":["$","$12",null,{"name":"Next.MetadataOutlet","children":"$@13"}]}]
-8:["$","$1","h",{"children":[null,["$","$L14",null,{"children":[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]}],["$","div",null,{"hidden":true,"children":["$","$L15",null,{"children":["$","$12",null,{"name":"Next.Metadata","children":[["$","title","0",{"children":"Agents & CLI: the local feedback loop — sluglist"}],["$","meta","1",{"name":"description","content":"Run npx sluglist dev, click feedback on your own app, and let Claude Code read the artifacts and fix the code via the bundled sluglist-fix skill."}],["$","meta","2",{"name":"robots","content":"index, follow, max-image-preview:large"}],["$","meta","3",{"name":"theme-color","content":"#18181b"}],["$","link","4",{"rel":"canonical","href":"https://sluglist.dev/docs/agents/"}],["$","meta","5",{"property":"og:title","content":"Agents & CLI: the local feedback loop — sluglist"}],["$","meta","6",{"property":"og:description","content":"Run npx sluglist dev, click feedback on your own app, and let Claude Code read the artifacts and fix the code via the bundled sluglist-fix skill."}],["$","meta","7",{"property":"og:url","content":"https://sluglist.dev/docs/agents/"}],["$","meta","8",{"property":"og:site_name","content":"sluglist"}],["$","meta","9",{"property":"og:image","content":"https://sluglist.dev/og-image.png"}],["$","meta","10",{"property":"og:image:width","content":"1200"}],["$","meta","11",{"property":"og:image:height","content":"630"}],["$","meta","12",{"property":"og:image:alt","content":"sluglist — a drop-in visual feedback widget whose artifacts a coding agent reads and fixes"}],["$","meta","13",{"property":"og:type","content":"article"}],["$","meta","14",{"name":"twitter:card","content":"summary_large_image"}],["$","meta","15",{"name":"twitter:title","content":"Agents & CLI: the local feedback loop — sluglist"}],["$","meta","16",{"name":"twitter:description","content":"Run npx sluglist dev, click feedback on your own app, and let Claude Code read the artifacts and fix the code via the bundled sluglist-fix skill."}],["$","meta","17",{"name":"twitter:image","content":"https://sluglist.dev/og-image.png"}],["$","meta","18",{"name":"twitter:image:alt","content":"sluglist — a drop-in visual feedback widget whose artifacts a coding agent reads and fixes"}],["$","link","19",{"rel":"icon","href":"/favicon.ico","sizes":"32x32"}],["$","link","20",{"rel":"icon","href":"/icon.svg","type":"image/svg+xml"}],["$","link","21",{"rel":"apple-touch-icon","href":"/apple-touch-icon.png"}],["$","$L16","22",{}]]}]}]}],null]}]
+8:["$","$1","h",{"children":[null,["$","$L14",null,{"children":[["$","meta","0",{"charSet":"utf-8"}],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"}]]}],["$","div",null,{"hidden":true,"children":["$","$L15",null,{"children":["$","$12",null,{"name":"Next.Metadata","children":[["$","title","0",{"children":"Agents & CLI: the local feedback loop — sluglist"}],["$","meta","1",{"name":"description","content":"Run npx sluglist dev, click feedback on your own app, and let an agent fix it — plus the four bundled skills, sluglist status, and the loop that runs until green."}],["$","meta","2",{"name":"robots","content":"index, follow, max-image-preview:large"}],["$","meta","3",{"name":"theme-color","content":"#18181b"}],["$","link","4",{"rel":"canonical","href":"https://sluglist.dev/docs/agents/"}],["$","meta","5",{"property":"og:title","content":"Agents & CLI: the local feedback loop — sluglist"}],["$","meta","6",{"property":"og:description","content":"Run npx sluglist dev, click feedback on your own app, and let an agent fix it — plus the four bundled skills, sluglist status, and the loop that runs until green."}],["$","meta","7",{"property":"og:url","content":"https://sluglist.dev/docs/agents/"}],["$","meta","8",{"property":"og:site_name","content":"sluglist"}],["$","meta","9",{"property":"og:image","content":"https://sluglist.dev/og-image.png"}],["$","meta","10",{"property":"og:image:width","content":"1200"}],["$","meta","11",{"property":"og:image:height","content":"630"}],["$","meta","12",{"property":"og:image:alt","content":"sluglist — a drop-in visual feedback widget whose artifacts a coding agent reads and fixes"}],["$","meta","13",{"property":"og:type","content":"article"}],["$","meta","14",{"name":"twitter:card","content":"summary_large_image"}],["$","meta","15",{"name":"twitter:title","content":"Agents & CLI: the local feedback loop — sluglist"}],["$","meta","16",{"name":"twitter:description","content":"Run npx sluglist dev, click feedback on your own app, and let an agent fix it — plus the four bundled skills, sluglist status, and the loop that runs until green."}],["$","meta","17",{"name":"twitter:image","content":"https://sluglist.dev/og-image.png"}],["$","meta","18",{"name":"twitter:image:alt","content":"sluglist — a drop-in visual feedback widget whose artifacts a coding agent reads and fixes"}],["$","link","19",{"rel":"icon","href":"/favicon.ico","sizes":"32x32"}],["$","link","20",{"rel":"icon","href":"/icon.svg","type":"image/svg+xml"}],["$","link","21",{"rel":"apple-touch-icon","href":"/apple-touch-icon.png"}],["$","$L16","22",{}]]}]}]}],null]}]
 a:["$","$1","c",{"children":[null,["$","$L17",null,{"parallelRouterKey":"children","template":["$","$L18",null,{}]}]]}]
 d:["$","$1","c",{"children":[null,["$","$L17",null,{"parallelRouterKey":"children","template":["$","$L18",null,{}]}]]}]
 10:true
