@@ -465,7 +465,7 @@ export default function HomePage() {
         id="agents"
       >
         <div className="mx-auto max-w-5xl px-6 py-16 md:py-24">
-          <p className="mb-2 font-mono text-[12px] text-[var(--color-muted)] uppercase tracking-widest">
+          <p className="mb-2 font-mono text-[12px] text-[var(--color-brand)] uppercase tracking-widest">
             Works with Claude Code
           </p>
           <h2 className="max-w-2xl font-semibold text-2xl tracking-tight md:text-3xl">
@@ -554,7 +554,7 @@ export default function HomePage() {
           {/* The report — the artifact a client actually receives. */}
           <div className="mt-12 grid gap-8 md:grid-cols-[1fr_1.1fr] md:items-center [&>*]:min-w-0">
             <div>
-              <p className="mb-2 font-mono text-[12px] text-[var(--color-muted)] uppercase tracking-widest">
+              <p className="mb-2 font-mono text-[12px] text-[var(--color-brand)] uppercase tracking-widest">
                 Single-file HTML proof
               </p>
               <h3 className="font-semibold text-xl tracking-tight md:text-2xl">

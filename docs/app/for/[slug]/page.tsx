@@ -59,7 +59,7 @@ export default async function UseCasePage({
           about: { "@id": `${SITE_URL}/#software` },
         }}
       />
-      <p className="mb-2 font-mono text-[12px] text-[var(--color-muted)] uppercase tracking-widest">
+      <p className="mb-2 font-mono text-[12px] text-[var(--color-brand)] uppercase tracking-widest">
         Use case
       </p>
       <h1 className="mb-4 font-bold text-3xl tracking-tight md:text-4xl">
