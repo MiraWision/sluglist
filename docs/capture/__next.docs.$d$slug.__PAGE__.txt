@@ -1,6 +1,6 @@
 1:"$Sreact.fragment"
 2:I[38822,["/_next/static/chunks/1b58asu43-lub.js"],""]
-3:T2e27,<h2>Capture modes</h2>
+3:T6936,<h2>Capture modes</h2>
 <ul>
 <li><strong>fullpage</strong> — the whole scrollable document</li>
 <li><strong>area</strong> — drag a rectangle and crop to it</li>
@@ -19,23 +19,19 @@ sees a quiet <em>&quot;Screenshot failed — sending without it&quot;</em>, keep
 is delivered comment-only carrying <code>screenshot_failed: true</code> and <code>screenshot_error: &quot;&lt;why&gt;&quot;</code> in its
 frontmatter. In record mode a failed frame is skipped and the recording continues, with the gap
 marked in <code>## Actions</code>. Nothing about a report is ever lost to a picture that would not render.</p>
-<pre><code class="language-ts">createFeedbackWidget({
-  connectors: [/* … */],
-  capture: { timeoutMs: 8000, detectBlank: true },  // defaults; both optional
-});
-</code></pre>
-<p>Raise <code>timeoutMs</code> if you capture very long pages at high DPR.</p>
+<pre class="shiki shiki-themes light-plus dark-plus" style="--shiki-light:#000000;--shiki-dark:#D4D4D4;--shiki-light-bg:#FFFFFF;--shiki-dark-bg:#1E1E1E" tabindex="0"><code><span class="line"><span style="--shiki-light:#795E26;--shiki-dark:#DCDCAA">createFeedbackWidget</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">({</span></span>
+<span class="line"><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">  connectors:</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> [</span><span style="--shiki-light:#008000;--shiki-dark:#6A9955">/* … */</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">],</span></span>
+<span class="line"><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">  capture:</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> { </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">timeoutMs:</span><span style="--shiki-light:#098658;--shiki-dark:#B5CEA8"> 8000</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">, </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">detectBlank:</span><span style="--shiki-light:#0000FF;--shiki-dark:#569CD6"> true</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> },  </span><span style="--shiki-light:#008000;--shiki-dark:#6A9955">// defaults; both optional</span></span>
+<span class="line"><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">});</span></span></code></pre><p>Raise <code>timeoutMs</code> if you capture very long pages at high DPR.</p>
 <h2>Action trail &amp; record mode</h2>
 <p>Some bugs need a sequence, not a single screenshot. sluglist has two layers for that.</p>
 <p><strong>Action trail</strong> (always on) keeps a small ring buffer of recent actions — clicks, SPA navigations,
 submits, typing — and attaches them to every issue as a <code>## Actions</code> section (plus <code>actions_count</code>):</p>
-<pre><code class="language-markdown">## Actions
-- [45s before report] navigate /animals → /animals/128
-- [12s before report] click button[aria-label=&quot;Save&quot;] (&quot;Save&quot;)
-- [11s before report] type (12 chars) input#email
-- [10s before report] submit form[data-testid=&quot;animal-form&quot;]
-</code></pre>
-<p><strong>PII rule (independent of any privacy setting):</strong> the trail records the <em>fact and place</em> of an
+<pre class="shiki shiki-themes light-plus dark-plus" style="--shiki-light:#000000;--shiki-dark:#D4D4D4;--shiki-light-bg:#FFFFFF;--shiki-dark-bg:#1E1E1E" tabindex="0"><code><span class="line"><span style="--shiki-light:#800000;--shiki-light-font-weight:bold;--shiki-dark:#569CD6;--shiki-dark-font-weight:bold">## Actions</span></span>
+<span class="line"><span style="--shiki-light:#0451A5;--shiki-dark:#6796E6">-</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> [45s before report] navigate /animals → /animals/128</span></span>
+<span class="line"><span style="--shiki-light:#0451A5;--shiki-dark:#6796E6">-</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> [12s before report] click button[</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178">aria-label="Save"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">] ("Save")</span></span>
+<span class="line"><span style="--shiki-light:#0451A5;--shiki-dark:#6796E6">-</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> [11s before report] type (12 chars) input#email</span></span>
+<span class="line"><span style="--shiki-light:#0451A5;--shiki-dark:#6796E6">-</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> [10s before report] submit form[</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178">data-testid="animal-form"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">]</span></span></code></pre><p><strong>PII rule (independent of any privacy setting):</strong> the trail records the <em>fact and place</em> of an
 action, never the entered content. <code>type</code> logs only a character count; password fields aren&#39;t
 logged at all by default; navigation paths drop the query string.</p>
 <p><strong>Record mode</strong> turns a sequence into steps-to-reproduce <em>with images</em>. Click <strong>Record steps</strong>, do
@@ -49,14 +45,12 @@ manually.</p>
 <code>+ Add screenshot</code> → <code>Record steps</code>) and it attaches as a <strong>new clip</strong> instead of replacing
 anything. Record twice and you get two independent clips — <code>clip-01/</code>, <code>clip-02/</code> — never one
 merged reel.</p>
-<pre><code class="language-ts">createFeedbackWidget({
-  project: &quot;my-app&quot;,
-  connectors: [/* ... */],
-  actions: { capture: true, bufferSize: 30, capturePasswords: false }, // defaults
-  recording: { enabled: true, maxFrames: 30, frameMinInterval: 650 },  // defaults
-});
-</code></pre>
-<p>Deliberately <strong>not</strong> built: session replay (rrweb), real video (<code>getDisplayMedia</code> /
+<pre class="shiki shiki-themes light-plus dark-plus" style="--shiki-light:#000000;--shiki-dark:#D4D4D4;--shiki-light-bg:#FFFFFF;--shiki-dark-bg:#1E1E1E" tabindex="0"><code><span class="line"><span style="--shiki-light:#795E26;--shiki-dark:#DCDCAA">createFeedbackWidget</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">({</span></span>
+<span class="line"><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">  project:</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> "my-app"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">,</span></span>
+<span class="line"><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">  connectors:</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> [</span><span style="--shiki-light:#008000;--shiki-dark:#6A9955">/* ... */</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">],</span></span>
+<span class="line"><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">  actions:</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> { </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">capture:</span><span style="--shiki-light:#0000FF;--shiki-dark:#569CD6"> true</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">, </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">bufferSize:</span><span style="--shiki-light:#098658;--shiki-dark:#B5CEA8"> 30</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">, </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">capturePasswords:</span><span style="--shiki-light:#0000FF;--shiki-dark:#569CD6"> false</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> }, </span><span style="--shiki-light:#008000;--shiki-dark:#6A9955">// defaults</span></span>
+<span class="line"><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">  recording:</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> { </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">enabled:</span><span style="--shiki-light:#0000FF;--shiki-dark:#569CD6"> true</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">, </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">maxFrames:</span><span style="--shiki-light:#098658;--shiki-dark:#B5CEA8"> 30</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">, </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">frameMinInterval:</span><span style="--shiki-light:#098658;--shiki-dark:#B5CEA8"> 650</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> },  </span><span style="--shiki-light:#008000;--shiki-dark:#6A9955">// defaults</span></span>
+<span class="line"><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">});</span></span></code></pre><p>Deliberately <strong>not</strong> built: session replay (rrweb), real video (<code>getDisplayMedia</code> /
 <code>MediaRecorder</code>), or network capture. The output is artifacts for an agent to read, not a replay a
 human scrubs.</p>
 <h2>Error capture</h2>
@@ -68,21 +62,17 @@ still runs, so nothing is swallowed.</p>
 <p>Network capture wraps <code>fetch</code> and <code>XMLHttpRequest</code> and records <strong>only</strong> requests that finish with a
 status ≥ 400 or a network error — method, path (no query), status and duration, never bodies,
 headers or query strings:</p>
-<pre><code>## Errors
-- [4s before report] network: POST /api/animals → 500 (240ms)
-</code></pre>
-<pre><code class="language-ts">createFeedbackWidget({
-  project: &quot;my-app&quot;,
-  connectors: [/* ... */],
-  errors: {
-    capture: true,          // default; set false to disable entirely
-    bufferSize: 20,         // default
-    captureWarnings: false, // default; true also captures console.warn
-    captureNetwork: true,   // default; wrap fetch/XHR for failed-request facts
-  },
-});
-</code></pre>
-<blockquote>
+<pre class="shiki shiki-themes light-plus dark-plus" style="--shiki-light:#000000;--shiki-dark:#D4D4D4;--shiki-light-bg:#FFFFFF;--shiki-dark-bg:#1E1E1E" tabindex="0"><code><span class="line"><span>## Errors</span></span>
+<span class="line"><span>- [4s before report] network: POST /api/animals → 500 (240ms)</span></span></code></pre><pre class="shiki shiki-themes light-plus dark-plus" style="--shiki-light:#000000;--shiki-dark:#D4D4D4;--shiki-light-bg:#FFFFFF;--shiki-dark-bg:#1E1E1E" tabindex="0"><code><span class="line"><span style="--shiki-light:#795E26;--shiki-dark:#DCDCAA">createFeedbackWidget</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">({</span></span>
+<span class="line"><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">  project:</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> "my-app"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">,</span></span>
+<span class="line"><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">  connectors:</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> [</span><span style="--shiki-light:#008000;--shiki-dark:#6A9955">/* ... */</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">],</span></span>
+<span class="line"><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">  errors:</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> {</span></span>
+<span class="line"><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">    capture:</span><span style="--shiki-light:#0000FF;--shiki-dark:#569CD6"> true</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">,          </span><span style="--shiki-light:#008000;--shiki-dark:#6A9955">// default; set false to disable entirely</span></span>
+<span class="line"><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">    bufferSize:</span><span style="--shiki-light:#098658;--shiki-dark:#B5CEA8"> 20</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">,         </span><span style="--shiki-light:#008000;--shiki-dark:#6A9955">// default</span></span>
+<span class="line"><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">    captureWarnings:</span><span style="--shiki-light:#0000FF;--shiki-dark:#569CD6"> false</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">, </span><span style="--shiki-light:#008000;--shiki-dark:#6A9955">// default; true also captures console.warn</span></span>
+<span class="line"><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">    captureNetwork:</span><span style="--shiki-light:#0000FF;--shiki-dark:#569CD6"> true</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">,   </span><span style="--shiki-light:#008000;--shiki-dark:#6A9955">// default; wrap fetch/XHR for failed-request facts</span></span>
+<span class="line"><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">  },</span></span>
+<span class="line"><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">});</span></span></code></pre><blockquote>
 <p><strong>Note:</strong> error messages and stack traces can contain user data — in beta mode they may include
 PII. Production stack traces are usually minified. Treat captured errors as diagnostic hints, not
 ground truth; sluglist stores them verbatim and does not resolve source maps.</p>
@@ -90,19 +80,17 @@ ground truth; sluglist stores them verbatim and does not resolve source maps.</p
 <h2>Reporter form fields</h2>
 <p>Ask the reporter what only they can tell you. Optional — with no <code>form</code> the panel is exactly what
 it was.</p>
-<pre><code class="language-ts">createFeedbackWidget({
-  connectors: [/* … */],
-  form: [
-    // Asked once, on the first issue of the session → session.yaml
-    { id: &quot;email&quot;, label: &quot;Your email&quot;, type: &quot;email&quot;, scope: &quot;session&quot; },
-    { id: &quot;environment&quot;, label: &quot;Device / browser&quot;, type: &quot;text&quot;, scope: &quot;session&quot; },
-    // Asked on every issue → that issue&#39;s frontmatter
-    { id: &quot;severity&quot;, label: &quot;How bad is it?&quot;, type: &quot;select&quot;,
-      options: [&quot;blocking&quot;, &quot;annoying&quot;, &quot;cosmetic&quot;], required: true, scope: &quot;issue&quot; },
-  ],
-});
-</code></pre>
-<p><code>type</code> is <code>text | email | select | checkbox</code>. <code>required</code> blocks sending and highlights the row;
+<pre class="shiki shiki-themes light-plus dark-plus" style="--shiki-light:#000000;--shiki-dark:#D4D4D4;--shiki-light-bg:#FFFFFF;--shiki-dark-bg:#1E1E1E" tabindex="0"><code><span class="line"><span style="--shiki-light:#795E26;--shiki-dark:#DCDCAA">createFeedbackWidget</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">({</span></span>
+<span class="line"><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">  connectors:</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> [</span><span style="--shiki-light:#008000;--shiki-dark:#6A9955">/* … */</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">],</span></span>
+<span class="line"><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">  form:</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> [</span></span>
+<span class="line"><span style="--shiki-light:#008000;--shiki-dark:#6A9955">    // Asked once, on the first issue of the session → session.yaml</span></span>
+<span class="line"><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">    { </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">id:</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> "email"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">, </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">label:</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> "Your email"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">, </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">type:</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> "email"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">, </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">scope:</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> "session"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> },</span></span>
+<span class="line"><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">    { </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">id:</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> "environment"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">, </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">label:</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> "Device / browser"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">, </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">type:</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> "text"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">, </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">scope:</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> "session"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> },</span></span>
+<span class="line"><span style="--shiki-light:#008000;--shiki-dark:#6A9955">    // Asked on every issue → that issue's frontmatter</span></span>
+<span class="line"><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">    { </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">id:</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> "severity"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">, </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">label:</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> "How bad is it?"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">, </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">type:</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> "select"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">,</span></span>
+<span class="line"><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">      options:</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> [</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178">"blocking"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">, </span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178">"annoying"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">, </span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178">"cosmetic"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">], </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">required:</span><span style="--shiki-light:#0000FF;--shiki-dark:#569CD6"> true</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">, </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">scope:</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> "issue"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> },</span></span>
+<span class="line"><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">  ],</span></span>
+<span class="line"><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">});</span></span></code></pre><p><code>type</code> is <code>text | email | select | checkbox</code>. <code>required</code> blocks sending and highlights the row;
 <code>email</code> is pattern-checked; values are capped at 500 characters; at most 8 fields (invalid ones are
 dropped with a warning, never breaking the widget).</p>
 <p><strong>Form values are never scrubbed</strong>, even under the production preset. A reporter who types their
@@ -119,30 +107,26 @@ usually arrives in their clipboard from a phone or an email.</li>
 </ol>
 <p>Attached <strong>images join the thumbnail row and annotate like any capture</strong> — you can put arrows on
 their screenshot. Everything else becomes a tile with its type, name and size, removable with the ✕.</p>
-<pre><code class="language-ts">createFeedbackWidget({
-  connectors: [/* … */],
-  attachments: {
-    enabled: true,            // default true — but FALSE under preset: &quot;production&quot;
-    maxFileSize: 10 * 1024 * 1024,
-    maxFiles: 5,
-    accept: [&quot;.log&quot;, &quot;image/*&quot;],   // optional: replaces the built-in whitelist
-  },
-});
-</code></pre>
-<p>Accepted by default: images (png, jpeg, webp, gif, heic), video (mp4, webm, mov), pdf, text (txt,
+<pre class="shiki shiki-themes light-plus dark-plus" style="--shiki-light:#000000;--shiki-dark:#D4D4D4;--shiki-light-bg:#FFFFFF;--shiki-dark-bg:#1E1E1E" tabindex="0"><code><span class="line"><span style="--shiki-light:#795E26;--shiki-dark:#DCDCAA">createFeedbackWidget</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">({</span></span>
+<span class="line"><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">  connectors:</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> [</span><span style="--shiki-light:#008000;--shiki-dark:#6A9955">/* … */</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">],</span></span>
+<span class="line"><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">  attachments:</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> {</span></span>
+<span class="line"><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">    enabled:</span><span style="--shiki-light:#0000FF;--shiki-dark:#569CD6"> true</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">,            </span><span style="--shiki-light:#008000;--shiki-dark:#6A9955">// default true — but FALSE under preset: "production"</span></span>
+<span class="line"><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">    maxFileSize:</span><span style="--shiki-light:#098658;--shiki-dark:#B5CEA8"> 10</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> * </span><span style="--shiki-light:#098658;--shiki-dark:#B5CEA8">1024</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> * </span><span style="--shiki-light:#098658;--shiki-dark:#B5CEA8">1024</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">,</span></span>
+<span class="line"><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">    maxFiles:</span><span style="--shiki-light:#098658;--shiki-dark:#B5CEA8"> 5</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">,</span></span>
+<span class="line"><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">    accept:</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> [</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178">".log"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">, </span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178">"image/*"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">],   </span><span style="--shiki-light:#008000;--shiki-dark:#6A9955">// optional: replaces the built-in whitelist</span></span>
+<span class="line"><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">  },</span></span>
+<span class="line"><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">});</span></span></code></pre><p>Accepted by default: images (png, jpeg, webp, gif, heic), video (mp4, webm, mov), pdf, text (txt,
 csv, json, md) and office (xlsx, docx). Checked on <strong>both</strong> the extension and the reported mime, so
 a renamed binary is refused. <strong>Executables and archives are never accepted</strong> — not even through
 <code>accept</code>. Over the size or count limit, the reporter gets a message naming the file and the actual
 limit; nothing is compressed or transcoded on the client.</p>
 <p>Files land next to the issue and are listed in its frontmatter. The reporter&#39;s own file name is
 never used as a path — it is kept as data:</p>
-<pre><code class="language-yaml">attachments:
-  - file: 03-checkout-att-01.png
-    mime: image/png
-    size: 482112
-    original_name: &quot;IMG_4021.png&quot;
-</code></pre>
-<blockquote>
+<pre class="shiki shiki-themes light-plus dark-plus" style="--shiki-light:#000000;--shiki-dark:#D4D4D4;--shiki-light-bg:#FFFFFF;--shiki-dark-bg:#1E1E1E" tabindex="0"><code><span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">attachments</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">:</span></span>
+<span class="line"><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">  - </span><span style="--shiki-light:#800000;--shiki-dark:#569CD6">file</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#0000FF;--shiki-dark:#CE9178">03-checkout-att-01.png</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">    mime</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#0000FF;--shiki-dark:#CE9178">image/png</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">    size</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#098658;--shiki-dark:#B5CEA8">482112</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">    original_name</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178">"IMG_4021.png"</span></span></code></pre><blockquote>
 <p><strong>Attachments default to OFF under <code>preset: &quot;production&quot;</code>.</strong> Accepting uploads from anonymous
 users is a decision, not a default. Turn it on when you have decided your endpoint can take it —
 and validate server-side regardless (see <a href="/docs/production/">Production</a>).</p>
@@ -181,7 +165,7 @@ the page still captures.</li>
 7:X
 c:X
 c:C
-0:{"buildId":"RRgV_udH8wQMoZu1RZ9bX","data":[{"rsc":["$","$1","c",{"children":[["$","div",null,{"className":"mx-auto max-w-3xl px-6 py-16 md:py-20","children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Docs\",\"item\":\"https://sluglist.dev/docs/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Capture modes, annotation & attachments\",\"item\":\"https://sluglist.dev/docs/capture/\"}]}"}}],["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"TechArticle\",\"headline\":\"Capture modes, annotation & attachments\",\"description\":\"Full page, area, element and record-steps capture; annotation with arrow, box and text; error capture, the action trail, reporter form fields and attachments.\",\"url\":\"https://sluglist.dev/docs/capture/\",\"author\":{\"@id\":\"https://sluglist.dev/#org\"},\"about\":{\"@id\":\"https://sluglist.dev/#software\"}}"}}],["$","nav",null,{"className":"mb-6 text-[13px] text-[var(--color-muted)]","children":[["$","$L2",null,{"className":"hover:text-[var(--color-ink)]","href":"/docs/","children":"Docs"}]," ","/ ","Capture"]}],["$","h1",null,{"className":"mb-8 font-bold text-3xl tracking-tight md:text-4xl","children":"Capture modes, annotation & attachments"}],["$","article",null,{"className":"prose prose-site max-w-none","dangerouslySetInnerHTML":{"__html":"$3"}}],"$L4"]}],null,"$L5"]}],"isPartial":"$@6","staleTime":"$7","varyParams":null},{"rsc":"$L8","isPartial":"$@9","staleTime":"$7","varyParams":null},{"rsc":"$La","isPartial":"$@b","staleTime":"$7","varyParams":"$c"},{"rsc":"$Ld","isPartial":"$@e","staleTime":"$7","varyParams":"$c"}],"isUpgradeableISRFallback":false,"a":"$@f","rootVaryParams":null,"needsRuntimeRequest":"$@10"}
+0:{"buildId":"amMl4mFhNueXdQIeIUUPH","data":[{"rsc":["$","$1","c",{"children":[["$","div",null,{"className":"mx-auto max-w-3xl px-6 py-16 md:py-20","children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Docs\",\"item\":\"https://sluglist.dev/docs/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Capture modes, annotation & attachments\",\"item\":\"https://sluglist.dev/docs/capture/\"}]}"}}],["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"TechArticle\",\"headline\":\"Capture modes, annotation & attachments\",\"description\":\"Full page, area, element and record-steps capture; annotation with arrow, box and text; error capture, the action trail, reporter form fields and attachments.\",\"url\":\"https://sluglist.dev/docs/capture/\",\"author\":{\"@id\":\"https://sluglist.dev/#org\"},\"about\":{\"@id\":\"https://sluglist.dev/#software\"}}"}}],["$","nav",null,{"className":"mb-6 text-[13px] text-[var(--color-muted)]","children":[["$","$L2",null,{"className":"hover:text-[var(--color-ink)]","href":"/docs/","children":"Docs"}]," ","/ ","Capture"]}],["$","h1",null,{"className":"mb-8 font-bold text-3xl tracking-tight md:text-4xl","children":"Capture modes, annotation & attachments"}],["$","article",null,{"className":"prose prose-site max-w-none","dangerouslySetInnerHTML":{"__html":"$3"}}],"$L4"]}],null,"$L5"]}],"isPartial":"$@6","staleTime":"$7","varyParams":null},{"rsc":"$L8","isPartial":"$@9","staleTime":"$7","varyParams":null},{"rsc":"$La","isPartial":"$@b","staleTime":"$7","varyParams":"$c"},{"rsc":"$Ld","isPartial":"$@e","staleTime":"$7","varyParams":"$c"}],"isUpgradeableISRFallback":false,"a":"$@f","rootVaryParams":null,"needsRuntimeRequest":"$@10"}
 11:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"OutletBoundary"]
 12:"$Sreact.suspense"
 14:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"ViewportBoundary"]

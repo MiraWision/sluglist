@@ -1,5 +1,5 @@
 1:"$Sreact.fragment"
-2:Tc9db,<h1>Changelog</h1>
+2:Tcbb2,<h1>Changelog</h1>
 <h2>1.15.0 — <code>sluglist init</code>, project conventions, the loop skill, <code>sluglist status</code>, regression lifecycle</h2>
 <p>Everything here is additive. The widget&#39;s UI, the <code>FeedbackConnector</code> contract and every existing
 command and skill behave exactly as before; the one library change is a new optional field in
@@ -60,16 +60,14 @@ behalf.</p>
 <h3><code>npx sluglist status</code> — is another round worth running?</h3>
 <p>The new command answers the only question a loop has to get right, and answers it from the artifacts
 rather than from an agent&#39;s memory of what it just did:</p>
-<pre><code>release-2026-08 · branch · 3 items
-  1  session-2026-08-15-tw1w  1 pass · 1 fail · 1 not tested  ·  1 fixed
-  2  session-2026-08-15-jtyf  0 pass · 1 fail · 0 not tested  ·  no fix pass yet
-
-  still failing (1)
-    csv-columns — for the next fix pass · failed in 2 rounds · issue 01
-
-verdict: stalled — 1 item failed in 2 or more rounds — a fix pass has already been tried
-</code></pre>
-<p>It reads the sessions on disk, chains them into rounds through <code>checklist.retest_of</code> (falling back to
+<pre class="shiki shiki-themes light-plus dark-plus" style="--shiki-light:#000000;--shiki-dark:#D4D4D4;--shiki-light-bg:#FFFFFF;--shiki-dark-bg:#1E1E1E" tabindex="0"><code><span class="line"><span>release-2026-08 · branch · 3 items</span></span>
+<span class="line"><span>  1  session-2026-08-15-tw1w  1 pass · 1 fail · 1 not tested  ·  1 fixed</span></span>
+<span class="line"><span>  2  session-2026-08-15-jtyf  0 pass · 1 fail · 0 not tested  ·  no fix pass yet</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>  still failing (1)</span></span>
+<span class="line"><span>    csv-columns — for the next fix pass · failed in 2 rounds · issue 01</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>verdict: stalled — 1 item failed in 2 or more rounds — a fix pass has already been tried</span></span></code></pre><p>It reads the sessions on disk, chains them into rounds through <code>checklist.retest_of</code> (falling back to
 the <code>&lt;id&gt;-retest-N</code> naming for pre-1.7 artifacts), and reports one verdict: <strong><code>green</code></strong> (nothing is
 failing), <strong><code>continue</code></strong> (failures a fix pass can still act on), <strong><code>stalled</code></strong> (everything left has
 already survived a fix pass), <strong><code>blocked</code></strong> (everything left is <code>wontfix</code> / <code>needs_info</code>) or
@@ -654,7 +652,7 @@ extension content script).</li>
 5:X
 a:X
 a:C
-0:{"buildId":"RRgV_udH8wQMoZu1RZ9bX","data":[{"rsc":["$","$1","c",{"children":[["$","div",null,{"className":"mx-auto max-w-3xl px-6 py-16 md:py-20","children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"WebPage\",\"name\":\"sluglist changelog\",\"url\":\"https://sluglist.dev/changelog/\",\"isPartOf\":{\"@id\":\"https://sluglist.dev/#website\"},\"about\":{\"@id\":\"https://sluglist.dev/#software\"}}"}}],["$","article",null,{"className":"prose prose-site max-w-none","dangerouslySetInnerHTML":{"__html":"$2"}}]]}],null,"$L3"]}],"isPartial":"$@4","staleTime":"$5","varyParams":null},{"rsc":"$L6","isPartial":"$@7","staleTime":"$5","varyParams":null},{"rsc":"$L8","isPartial":"$@9","staleTime":"$5","varyParams":"$a"}],"isUpgradeableISRFallback":false,"a":"$@b","rootVaryParams":null,"needsRuntimeRequest":"$@c"}
+0:{"buildId":"amMl4mFhNueXdQIeIUUPH","data":[{"rsc":["$","$1","c",{"children":[["$","div",null,{"className":"mx-auto max-w-3xl px-6 py-16 md:py-20","children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"WebPage\",\"name\":\"sluglist changelog\",\"url\":\"https://sluglist.dev/changelog/\",\"isPartOf\":{\"@id\":\"https://sluglist.dev/#website\"},\"about\":{\"@id\":\"https://sluglist.dev/#software\"}}"}}],["$","article",null,{"className":"prose prose-site max-w-none","dangerouslySetInnerHTML":{"__html":"$2"}}]]}],null,"$L3"]}],"isPartial":"$@4","staleTime":"$5","varyParams":null},{"rsc":"$L6","isPartial":"$@7","staleTime":"$5","varyParams":null},{"rsc":"$L8","isPartial":"$@9","staleTime":"$5","varyParams":"$a"}],"isUpgradeableISRFallback":false,"a":"$@b","rootVaryParams":null,"needsRuntimeRequest":"$@c"}
 d:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"OutletBoundary"]
 e:"$Sreact.suspense"
 10:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"ViewportBoundary"]

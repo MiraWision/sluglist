@@ -1,14 +1,12 @@
 1:"$Sreact.fragment"
 2:I[38822,["/_next/static/chunks/1b58asu43-lub.js"],""]
-3:T104d,<p>The bundled skills ship with sensible defaults — base branch <code>main</code>, ask before running the app,
+3:T1428,<p>The bundled skills ship with sensible defaults — base branch <code>main</code>, ask before running the app,
 evidence only on failures. Every real project disagrees with some of them, and the obvious move is to
 edit the skill. Don&#39;t: <code>npx sluglist init</code> <strong>never overwrites a skill you have edited</strong>, so an edited
 skill stops receiving upstream improvements. That is the right safety rule and the wrong place to put
 project knowledge.</p>
 <p>So project specifics go in one committed file that every skill reads first:</p>
-<pre><code>.sluglist/PROJECT.md
-</code></pre>
-<p><code>npx sluglist init</code> writes the template; you fill it in and commit it. It is <strong>never overwritten</strong> —
+<pre class="shiki shiki-themes light-plus dark-plus" style="--shiki-light:#000000;--shiki-dark:#D4D4D4;--shiki-light-bg:#FFFFFF;--shiki-dark-bg:#1E1E1E" tabindex="0"><code><span class="line"><span>.sluglist/PROJECT.md</span></span></code></pre><p><code>npx sluglist init</code> writes the template; you fill it in and commit it. It is <strong>never overwritten</strong> —
 not on re-runs, not with <code>--force</code> — because it holds your answers, not ours.</p>
 <h2>What goes in it</h2>
 <table>
@@ -58,27 +56,21 @@ not on re-runs, not with <code>--force</code> — because it holds your answers,
 <h2>Credentials are referenced, never stored</h2>
 <p>The file is committed, so it names <strong>where</strong> the credentials live — an env var, a seed script, a
 password-manager entry — and never the values:</p>
-<pre><code>Env vars: QA_TEST_EMAIL / QA_TEST_PASSWORD (see .env.example)
-Sign-in page: /login
-</code></pre>
-<h2>Hard limits are enforced, not advisory</h2>
+<pre class="shiki shiki-themes light-plus dark-plus" style="--shiki-light:#000000;--shiki-dark:#D4D4D4;--shiki-light-bg:#FFFFFF;--shiki-dark-bg:#1E1E1E" tabindex="0"><code><span class="line"><span>Env vars: QA_TEST_EMAIL / QA_TEST_PASSWORD (see .env.example)</span></span>
+<span class="line"><span>Sign-in page: /login</span></span></code></pre><h2>Hard limits are enforced, not advisory</h2>
 <p>The limits section is the one that changes agent behaviour most sharply. Listed actions are never
 completed, whatever a checklist item appears to ask for — the agent goes to the last safe step,
 records the item as <strong>not tested</strong> with the reason, and moves on:</p>
-<pre><code>- Never complete a live payment. Fill the card form, stop before Pay.
-- Never send email to a real address. Use the catch-all inbox only.
-- Never submit to an external/partner API from QA (orders, filings, webhooks).
-</code></pre>
-<p>A &quot;not tested — stopped before Pay per PROJECT.md hard limits&quot; is a correct outcome. A pass on a live
+<pre class="shiki shiki-themes light-plus dark-plus" style="--shiki-light:#000000;--shiki-dark:#D4D4D4;--shiki-light-bg:#FFFFFF;--shiki-dark-bg:#1E1E1E" tabindex="0"><code><span class="line"><span>- Never complete a live payment. Fill the card form, stop before Pay.</span></span>
+<span class="line"><span>- Never send email to a real address. Use the catch-all inbox only.</span></span>
+<span class="line"><span>- Never submit to an external/partner API from QA (orders, filings, webhooks).</span></span></code></pre><p>A &quot;not tested — stopped before Pay per PROJECT.md hard limits&quot; is a correct outcome. A pass on a live
 charge is not.</p>
 <h2>Loop limits bound the autonomous run</h2>
 <p>When the loop is asked to fix and re-test until green, this section is what says how far it may go
 without checking back:</p>
-<pre><code>max rounds: 3
-fix without asking: no
-commits: leave the changes uncommitted, one summary at the end
-</code></pre>
-<p><code>npx sluglist status</code> still decides <em>between</em> rounds — the loop stops on <code>stalled</code> or <code>blocked</code>
+<pre class="shiki shiki-themes light-plus dark-plus" style="--shiki-light:#000000;--shiki-dark:#D4D4D4;--shiki-light-bg:#FFFFFF;--shiki-dark-bg:#1E1E1E" tabindex="0"><code><span class="line"><span>max rounds: 3</span></span>
+<span class="line"><span>fix without asking: no</span></span>
+<span class="line"><span>commits: leave the changes uncommitted, one summary at the end</span></span></code></pre><p><code>npx sluglist status</code> still decides <em>between</em> rounds — the loop stops on <code>stalled</code> or <code>blocked</code>
 whatever the ceiling says, because an item that has already survived a fix pass belongs to a human.
 See <a href="/docs/agents/">Agents &amp; CLI</a>.</p>
 <h2>When it is missing</h2>
@@ -90,7 +82,7 @@ blocks a run. Ask for <code>npx sluglist init</code> and the answers move into t
 7:X
 c:X
 c:C
-0:{"buildId":"RRgV_udH8wQMoZu1RZ9bX","data":[{"rsc":["$","$1","c",{"children":[["$","div",null,{"className":"mx-auto max-w-3xl px-6 py-16 md:py-20","children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Docs\",\"item\":\"https://sluglist.dev/docs/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Project conventions: .sluglist/PROJECT.md\",\"item\":\"https://sluglist.dev/docs/project-conventions/\"}]}"}}],["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"TechArticle\",\"headline\":\"Project conventions: .sluglist/PROJECT.md\",\"description\":\"One committed file holds your base branch, how to run and sign in, the hard limits QA must never complete, and evidence defaults — so the bundled skills stay upgradeable.\",\"url\":\"https://sluglist.dev/docs/project-conventions/\",\"author\":{\"@id\":\"https://sluglist.dev/#org\"},\"about\":{\"@id\":\"https://sluglist.dev/#software\"}}"}}],["$","nav",null,{"className":"mb-6 text-[13px] text-[var(--color-muted)]","children":[["$","$L2",null,{"className":"hover:text-[var(--color-ink)]","href":"/docs/","children":"Docs"}]," ","/ ","Project conventions"]}],["$","h1",null,{"className":"mb-8 font-bold text-3xl tracking-tight md:text-4xl","children":"Project conventions: .sluglist/PROJECT.md"}],["$","article",null,{"className":"prose prose-site max-w-none","dangerouslySetInnerHTML":{"__html":"$3"}}],"$L4"]}],null,"$L5"]}],"isPartial":"$@6","staleTime":"$7","varyParams":null},{"rsc":"$L8","isPartial":"$@9","staleTime":"$7","varyParams":null},{"rsc":"$La","isPartial":"$@b","staleTime":"$7","varyParams":"$c"},{"rsc":"$Ld","isPartial":"$@e","staleTime":"$7","varyParams":"$c"}],"isUpgradeableISRFallback":false,"a":"$@f","rootVaryParams":null,"needsRuntimeRequest":"$@10"}
+0:{"buildId":"amMl4mFhNueXdQIeIUUPH","data":[{"rsc":["$","$1","c",{"children":[["$","div",null,{"className":"mx-auto max-w-3xl px-6 py-16 md:py-20","children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Docs\",\"item\":\"https://sluglist.dev/docs/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Project conventions: .sluglist/PROJECT.md\",\"item\":\"https://sluglist.dev/docs/project-conventions/\"}]}"}}],["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"TechArticle\",\"headline\":\"Project conventions: .sluglist/PROJECT.md\",\"description\":\"One committed file holds your base branch, how to run and sign in, the hard limits QA must never complete, and evidence defaults — so the bundled skills stay upgradeable.\",\"url\":\"https://sluglist.dev/docs/project-conventions/\",\"author\":{\"@id\":\"https://sluglist.dev/#org\"},\"about\":{\"@id\":\"https://sluglist.dev/#software\"}}"}}],["$","nav",null,{"className":"mb-6 text-[13px] text-[var(--color-muted)]","children":[["$","$L2",null,{"className":"hover:text-[var(--color-ink)]","href":"/docs/","children":"Docs"}]," ","/ ","Project conventions"]}],["$","h1",null,{"className":"mb-8 font-bold text-3xl tracking-tight md:text-4xl","children":"Project conventions: .sluglist/PROJECT.md"}],["$","article",null,{"className":"prose prose-site max-w-none","dangerouslySetInnerHTML":{"__html":"$3"}}],"$L4"]}],null,"$L5"]}],"isPartial":"$@6","staleTime":"$7","varyParams":null},{"rsc":"$L8","isPartial":"$@9","staleTime":"$7","varyParams":null},{"rsc":"$La","isPartial":"$@b","staleTime":"$7","varyParams":"$c"},{"rsc":"$Ld","isPartial":"$@e","staleTime":"$7","varyParams":"$c"}],"isUpgradeableISRFallback":false,"a":"$@f","rootVaryParams":null,"needsRuntimeRequest":"$@10"}
 11:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"OutletBoundary"]
 12:"$Sreact.suspense"
 14:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"ViewportBoundary"]

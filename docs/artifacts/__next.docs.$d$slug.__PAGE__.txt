@@ -1,15 +1,13 @@
 1:"$Sreact.fragment"
 2:I[38822,["/_next/static/chunks/1b58asu43-lub.js"],""]
-3:T1380,<p>Delivered per session under <code>{project}/session-{YYYY-MM-DD}-{shortid}/</code>:</p>
-<pre><code>session.yaml            # upserted on every issue, always consistent
-01-{slug}.md            # one markdown file per issue, YAML frontmatter + body
-01-{slug}.png           # optional screenshot(s)
-01-{slug}-frames/       # record-mode clips
-  clip-01/01.png …
-02-{slug}.md
-...
-</code></pre>
-<p><code>session.yaml</code> carries the environment (browser, OS, viewport, screen, DPR, language(s), timezone,
+3:T3246,<p>Delivered per session under <code>{project}/session-{YYYY-MM-DD}-{shortid}/</code>:</p>
+<pre class="shiki shiki-themes light-plus dark-plus" style="--shiki-light:#000000;--shiki-dark:#D4D4D4;--shiki-light-bg:#FFFFFF;--shiki-dark-bg:#1E1E1E" tabindex="0"><code><span class="line"><span>session.yaml            # upserted on every issue, always consistent</span></span>
+<span class="line"><span>01-{slug}.md            # one markdown file per issue, YAML frontmatter + body</span></span>
+<span class="line"><span>01-{slug}.png           # optional screenshot(s)</span></span>
+<span class="line"><span>01-{slug}-frames/       # record-mode clips</span></span>
+<span class="line"><span>  clip-01/01.png …</span></span>
+<span class="line"><span>02-{slug}.md</span></span>
+<span class="line"><span>...</span></span></code></pre><p><code>session.yaml</code> carries the environment (browser, OS, viewport, screen, DPR, language(s), timezone,
 color scheme, reduced-motion) plus an index of issues. Each <code>NN-{slug}.md</code> repeats the per-issue
 metadata in frontmatter followed by the free-text comment.</p>
 <p><strong>The structure and frontmatter are a stable contract</strong> intended as input for downstream parsers
@@ -20,48 +18,46 @@ versioning policy live in
 <a href="https://github.com/MiraWision/sluglist/blob/main/SPEC.md">SPEC.md</a> — safe to build parsers
 against.</p>
 <h2>An issue file, annotated</h2>
-<pre><code class="language-markdown">---
-id: &quot;01&quot;
-url: /dashboard/animals
-selector: &#39;button[aria-label=&quot;Save&quot;]&#39;
-selector_strategy: aria          # how the selector was derived
-selector_unique: true            # it matches exactly one element
-mode: element                    # element | area | fullpage | comment
-category: bug
-element_text: &quot;Save&quot;
-dom_path: &quot;body &gt; main &gt; form &gt; button&quot;
-component: AnimalForm            # React component hint (element mode, best-effort)
-screen: dashboard
-viewport: 1512x982
-screenshot: 01-save-does-nothing.png
-masked: true                     # inputs were masked in the render
-errors_count: 1
-actions_count: 4
-recording: true
-frames_count: 3
-frames_dir: 01-save-does-nothing-frames
-created_at: 2026-07-23T14:05:10Z
-reporter:                        # present only when identity is configured
-  user_id: u_18293
-  email: &quot;anna@acme.io&quot;
-  name: Anna K.
----
-
-The Save button does nothing after I edit an animal — the form
-just sits there, no toast, no error I can see.
-
-## Errors
-- [3s before report] console: PATCH /api/animals/128 500 (Internal Server Error)
-- [2s before report] exception: Uncaught TypeError: Cannot read properties of undefined (reading &#39;id&#39;)
-    at save (/assets/animals-4f2a.js:210:19)
-
-## Actions
-- [22s before report] navigate /dashboard → /dashboard/animals
-- [12s before report] click #edit-128 (&quot;Edit&quot;) — frame 02
-- [5s before report] type (11 chars) input#name
-- [1s before report] click button[aria-label=&quot;Save&quot;] (&quot;Save&quot;) — frame 03
-</code></pre>
-<h2>Sections an issue can carry</h2>
+<pre class="shiki shiki-themes light-plus dark-plus" style="--shiki-light:#000000;--shiki-dark:#D4D4D4;--shiki-light-bg:#FFFFFF;--shiki-dark-bg:#1E1E1E" tabindex="0"><code><span class="line"><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">---</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">id</span><span style="--shiki-light:#000000FF;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178">"01"</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">url</span><span style="--shiki-light:#000000FF;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#0000FF;--shiki-dark:#CE9178">/dashboard/animals</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">selector</span><span style="--shiki-light:#000000FF;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#0000FF;--shiki-dark:#CE9178">'button[aria-label="Save"]'</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">selector_strategy</span><span style="--shiki-light:#000000FF;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#0000FF;--shiki-dark:#CE9178">aria</span><span style="--shiki-light:#008000;--shiki-dark:#6A9955">          # how the selector was derived</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">selector_unique</span><span style="--shiki-light:#000000FF;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#0000FF;--shiki-dark:#569CD6">true</span><span style="--shiki-light:#008000;--shiki-dark:#6A9955">            # it matches exactly one element</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">mode</span><span style="--shiki-light:#000000FF;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#0000FF;--shiki-dark:#CE9178">element</span><span style="--shiki-light:#008000;--shiki-dark:#6A9955">                    # element | area | fullpage | comment</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">category</span><span style="--shiki-light:#000000FF;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#0000FF;--shiki-dark:#CE9178">bug</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">element_text</span><span style="--shiki-light:#000000FF;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178">"Save"</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">dom_path</span><span style="--shiki-light:#000000FF;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178">"body > main > form > button"</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">component</span><span style="--shiki-light:#000000FF;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#0000FF;--shiki-dark:#CE9178">AnimalForm</span><span style="--shiki-light:#008000;--shiki-dark:#6A9955">            # React component hint (element mode, best-effort)</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">screen</span><span style="--shiki-light:#000000FF;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#0000FF;--shiki-dark:#CE9178">dashboard</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">viewport</span><span style="--shiki-light:#000000FF;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#0000FF;--shiki-dark:#CE9178">1512x982</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">screenshot</span><span style="--shiki-light:#000000FF;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#0000FF;--shiki-dark:#CE9178">01-save-does-nothing.png</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">masked</span><span style="--shiki-light:#000000FF;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#0000FF;--shiki-dark:#569CD6">true</span><span style="--shiki-light:#008000;--shiki-dark:#6A9955">                     # inputs were masked in the render</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">errors_count</span><span style="--shiki-light:#000000FF;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#098658;--shiki-dark:#B5CEA8">1</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">actions_count</span><span style="--shiki-light:#000000FF;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#098658;--shiki-dark:#B5CEA8">4</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">recording</span><span style="--shiki-light:#000000FF;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#0000FF;--shiki-dark:#569CD6">true</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">frames_count</span><span style="--shiki-light:#000000FF;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#098658;--shiki-dark:#B5CEA8">3</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">frames_dir</span><span style="--shiki-light:#000000FF;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#0000FF;--shiki-dark:#CE9178">01-save-does-nothing-frames</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">created_at</span><span style="--shiki-light:#000000FF;--shiki-dark:#D4D4D4">: 2026-07-23T14:05:10Z</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">reporter</span><span style="--shiki-light:#000000FF;--shiki-dark:#D4D4D4">:                        </span><span style="--shiki-light:#008000;--shiki-dark:#6A9955"># present only when identity is configured</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">  user_id</span><span style="--shiki-light:#000000FF;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#0000FF;--shiki-dark:#CE9178">u_18293</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">  email</span><span style="--shiki-light:#000000FF;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178">"anna@acme.io"</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">  name</span><span style="--shiki-light:#000000FF;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#0000FF;--shiki-dark:#CE9178">Anna K.</span></span>
+<span class="line"><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">---</span></span>
+<span class="line"></span>
+<span class="line"><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">The Save button does nothing after I edit an animal — the form</span></span>
+<span class="line"><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">just sits there, no toast, no error I can see.</span></span>
+<span class="line"></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-light-font-weight:bold;--shiki-dark:#569CD6;--shiki-dark-font-weight:bold">## Errors</span></span>
+<span class="line"><span style="--shiki-light:#0451A5;--shiki-dark:#6796E6">-</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> [3s before report] console: PATCH /api/animals/128 500 (Internal Server Error)</span></span>
+<span class="line"><span style="--shiki-light:#0451A5;--shiki-dark:#6796E6">-</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> [2s before report] exception: Uncaught TypeError: Cannot read properties of undefined (reading 'id')</span></span>
+<span class="line"><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">    at save (/assets/animals-4f2a.js:210:19)</span></span>
+<span class="line"></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-light-font-weight:bold;--shiki-dark:#569CD6;--shiki-dark-font-weight:bold">## Actions</span></span>
+<span class="line"><span style="--shiki-light:#0451A5;--shiki-dark:#6796E6">-</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> [22s before report] navigate /dashboard → /dashboard/animals</span></span>
+<span class="line"><span style="--shiki-light:#0451A5;--shiki-dark:#6796E6">-</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> [12s before report] click #edit-128 ("Edit") — frame 02</span></span>
+<span class="line"><span style="--shiki-light:#0451A5;--shiki-dark:#6796E6">-</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> [5s before report] type (11 chars) input#name</span></span>
+<span class="line"><span style="--shiki-light:#0451A5;--shiki-dark:#6796E6">-</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> [1s before report] click button[</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178">aria-label="Save"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">] ("Save") — frame 03</span></span></code></pre><h2>Sections an issue can carry</h2>
 <ul>
 <li><code>## Errors</code> — recent console errors, uncaught exceptions, promise rejections and failed network
 calls, each with a relative timestamp. See <a href="/docs/capture/">error capture</a>.</li>
@@ -92,7 +88,7 @@ says whether it matches exactly one element — an agent can trust the selector 
 7:X
 c:X
 c:C
-0:{"buildId":"RRgV_udH8wQMoZu1RZ9bX","data":[{"rsc":["$","$1","c",{"children":[["$","div",null,{"className":"mx-auto max-w-3xl px-6 py-16 md:py-20","children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Docs\",\"item\":\"https://sluglist.dev/docs/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Artifact format (contract)\",\"item\":\"https://sluglist.dev/docs/artifacts/\"}]}"}}],["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"TechArticle\",\"headline\":\"Artifact format (contract)\",\"description\":\"Every session is a folder: session.yaml plus one markdown file per issue with YAML frontmatter. A stable, additively-versioned contract for downstream parsers and agents.\",\"url\":\"https://sluglist.dev/docs/artifacts/\",\"author\":{\"@id\":\"https://sluglist.dev/#org\"},\"about\":{\"@id\":\"https://sluglist.dev/#software\"}}"}}],["$","nav",null,{"className":"mb-6 text-[13px] text-[var(--color-muted)]","children":[["$","$L2",null,{"className":"hover:text-[var(--color-ink)]","href":"/docs/","children":"Docs"}]," ","/ ","Artifact format"]}],["$","h1",null,{"className":"mb-8 font-bold text-3xl tracking-tight md:text-4xl","children":"Artifact format (contract)"}],["$","article",null,{"className":"prose prose-site max-w-none","dangerouslySetInnerHTML":{"__html":"$3"}}],"$L4"]}],null,"$L5"]}],"isPartial":"$@6","staleTime":"$7","varyParams":null},{"rsc":"$L8","isPartial":"$@9","staleTime":"$7","varyParams":null},{"rsc":"$La","isPartial":"$@b","staleTime":"$7","varyParams":"$c"},{"rsc":"$Ld","isPartial":"$@e","staleTime":"$7","varyParams":"$c"}],"isUpgradeableISRFallback":false,"a":"$@f","rootVaryParams":null,"needsRuntimeRequest":"$@10"}
+0:{"buildId":"amMl4mFhNueXdQIeIUUPH","data":[{"rsc":["$","$1","c",{"children":[["$","div",null,{"className":"mx-auto max-w-3xl px-6 py-16 md:py-20","children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Docs\",\"item\":\"https://sluglist.dev/docs/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Artifact format (contract)\",\"item\":\"https://sluglist.dev/docs/artifacts/\"}]}"}}],["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"TechArticle\",\"headline\":\"Artifact format (contract)\",\"description\":\"Every session is a folder: session.yaml plus one markdown file per issue with YAML frontmatter. A stable, additively-versioned contract for downstream parsers and agents.\",\"url\":\"https://sluglist.dev/docs/artifacts/\",\"author\":{\"@id\":\"https://sluglist.dev/#org\"},\"about\":{\"@id\":\"https://sluglist.dev/#software\"}}"}}],["$","nav",null,{"className":"mb-6 text-[13px] text-[var(--color-muted)]","children":[["$","$L2",null,{"className":"hover:text-[var(--color-ink)]","href":"/docs/","children":"Docs"}]," ","/ ","Artifact format"]}],["$","h1",null,{"className":"mb-8 font-bold text-3xl tracking-tight md:text-4xl","children":"Artifact format (contract)"}],["$","article",null,{"className":"prose prose-site max-w-none","dangerouslySetInnerHTML":{"__html":"$3"}}],"$L4"]}],null,"$L5"]}],"isPartial":"$@6","staleTime":"$7","varyParams":null},{"rsc":"$L8","isPartial":"$@9","staleTime":"$7","varyParams":null},{"rsc":"$La","isPartial":"$@b","staleTime":"$7","varyParams":"$c"},{"rsc":"$Ld","isPartial":"$@e","staleTime":"$7","varyParams":"$c"}],"isUpgradeableISRFallback":false,"a":"$@f","rootVaryParams":null,"needsRuntimeRequest":"$@10"}
 11:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"OutletBoundary"]
 12:"$Sreact.suspense"
 14:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"ViewportBoundary"]

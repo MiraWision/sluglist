@@ -1,6 +1,6 @@
 1:"$Sreact.fragment"
 2:I[38822,["/_next/static/chunks/1b58asu43-lub.js"],""]
-3:T1a60,<p>Feedback normally fills a session <strong>from the bottom</strong> — the client freely creates issues. A
+3:T44de,<p>Feedback normally fills a session <strong>from the bottom</strong> — the client freely creates issues. A
 <strong>checklist</strong> fills it <strong>from the top</strong>: the developer pre-seeds a list of &quot;what shipped and what
 to verify&quot;, and the client walks it with one natural motion — <strong>click a row to check it off; click
 the slug button on a row to flag a problem</strong> (that opens the normal issue flow, linked back to the
@@ -12,30 +12,28 @@ result is a <strong>coverage map</strong> in <code>session.yaml</code>: what&#39
 the issues), and what was never checked.</p>
 <p>It&#39;s entirely opt-in: a second circle appears above the feedback button <strong>only</strong> when a checklist
 is configured. Without one, the widget looks and works exactly as before.</p>
-<pre><code class="language-ts">const widget = createFeedbackWidget({
-  project: &quot;acme&quot;,
-  connectors: [/* ... */],
-  checklist: {
-    id: &quot;export-release-2026-07&quot;,
-    title: &quot;Export + notifications release&quot;,
-    description: &quot;Walk each item and check it off. Flag anything that looks wrong.&quot;,
-    sections: [
-      {
-        title: &quot;Export&quot;,
-        items: [
-          { id: &quot;export-button&quot;, title: &quot;On Reports, the Export button downloads a CSV&quot;, url: &quot;/reports&quot; },
-          { id: &quot;csv-columns&quot;, title: &quot;The CSV has all the expected columns&quot;, hint: &quot;Open it in a spreadsheet&quot; },
-          // Dynamic route: no fabricated id — a human hint + a wildcard match.
-          { id: &quot;assessment-header&quot;, title: &quot;Opening any assessment shows the new header&quot;,
-            hint: &quot;Open the dashboard and pick any assessment&quot;, url: &quot;/dashboard&quot;, url_match: &quot;/assessments/*&quot; },
-        ],
-      },
-      { title: &quot;Notifications&quot;, items: [{ id: &quot;email-sent&quot;, title: &quot;An email arrives after an export&quot; }] },
-    ],
-  },
-});
-</code></pre>
-<h2>Smart links</h2>
+<pre class="shiki shiki-themes light-plus dark-plus" style="--shiki-light:#000000;--shiki-dark:#D4D4D4;--shiki-light-bg:#FFFFFF;--shiki-dark-bg:#1E1E1E" tabindex="0"><code><span class="line"><span style="--shiki-light:#0000FF;--shiki-dark:#569CD6">const</span><span style="--shiki-light:#0070C1;--shiki-dark:#4FC1FF"> widget</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> = </span><span style="--shiki-light:#795E26;--shiki-dark:#DCDCAA">createFeedbackWidget</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">({</span></span>
+<span class="line"><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">  project:</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> "acme"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">,</span></span>
+<span class="line"><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">  connectors:</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> [</span><span style="--shiki-light:#008000;--shiki-dark:#6A9955">/* ... */</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">],</span></span>
+<span class="line"><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">  checklist:</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> {</span></span>
+<span class="line"><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">    id:</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> "export-release-2026-07"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">,</span></span>
+<span class="line"><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">    title:</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> "Export + notifications release"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">,</span></span>
+<span class="line"><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">    description:</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> "Walk each item and check it off. Flag anything that looks wrong."</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">,</span></span>
+<span class="line"><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">    sections:</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> [</span></span>
+<span class="line"><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">      {</span></span>
+<span class="line"><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">        title:</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> "Export"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">,</span></span>
+<span class="line"><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">        items:</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> [</span></span>
+<span class="line"><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">          { </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">id:</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> "export-button"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">, </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">title:</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> "On Reports, the Export button downloads a CSV"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">, </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">url:</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> "/reports"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> },</span></span>
+<span class="line"><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">          { </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">id:</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> "csv-columns"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">, </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">title:</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> "The CSV has all the expected columns"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">, </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">hint:</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> "Open it in a spreadsheet"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> },</span></span>
+<span class="line"><span style="--shiki-light:#008000;--shiki-dark:#6A9955">          // Dynamic route: no fabricated id — a human hint + a wildcard match.</span></span>
+<span class="line"><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">          { </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">id:</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> "assessment-header"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">, </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">title:</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> "Opening any assessment shows the new header"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">,</span></span>
+<span class="line"><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">            hint:</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> "Open the dashboard and pick any assessment"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">, </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">url:</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> "/dashboard"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">, </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">url_match:</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> "/assessments/*"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> },</span></span>
+<span class="line"><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">        ],</span></span>
+<span class="line"><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">      },</span></span>
+<span class="line"><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">      { </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">title:</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> "Notifications"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">, </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">items:</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> [{ </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">id:</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> "email-sent"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">, </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">title:</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> "An email arrives after an export"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> }] },</span></span>
+<span class="line"><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">    ],</span></span>
+<span class="line"><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">  },</span></span>
+<span class="line"><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">});</span></span></code></pre><h2>Smart links</h2>
 <p><code>url</code> must be a <strong>static</strong> route — it renders as an &quot;Open ↗&quot; chip that navigates there. For a
 <strong>dynamic</strong> route (an id/uuid in the path) don&#39;t guess an id: give a human <code>hint</code> and a wildcard
 <code>url_match</code> (<code>&quot;/assessments/*&quot;</code>). It never navigates — it just lights the item up with a &quot;You&#39;re
@@ -46,30 +44,28 @@ shape) — handy when a skill generates it: <code>checklist: &quot;/checklist.js
 checklist warns and is skipped; capture still works.</p>
 <h2>Verdicts: the coverage map</h2>
 <p>Verdicts land in <code>session.yaml</code> (put-per-verdict, upserted on every click):</p>
-<pre><code class="language-yaml">checklist:
-  id: export-release-2026-07
-  title: &quot;Export + notifications release&quot;
-  items:
-    - id: export-button
-      section: &quot;Export&quot;
-      title: &quot;On Reports, the Export button downloads a CSV&quot;
-      verdict: pass
-      issue: null
-      ts: 2026-07-24T14:05:10Z
-    - id: csv-columns
-      section: &quot;Export&quot;
-      title: &quot;The CSV has all the expected columns&quot;
-      verdict: fail
-      issue: &quot;03&quot;          # the issue that documents the failure
-      ts: 2026-07-24T14:06:00Z
-    - id: email-sent
-      section: &quot;Notifications&quot;
-      title: &quot;An email arrives after an export&quot;
-      verdict: null        # not checked
-      issue: null
-      ts: null
-</code></pre>
-<h2>Generate a checklist from a branch</h2>
+<pre class="shiki shiki-themes light-plus dark-plus" style="--shiki-light:#000000;--shiki-dark:#D4D4D4;--shiki-light-bg:#FFFFFF;--shiki-dark-bg:#1E1E1E" tabindex="0"><code><span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">checklist</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">:</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">  id</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#0000FF;--shiki-dark:#CE9178">export-release-2026-07</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">  title</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178">"Export + notifications release"</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">  items</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">:</span></span>
+<span class="line"><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">    - </span><span style="--shiki-light:#800000;--shiki-dark:#569CD6">id</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#0000FF;--shiki-dark:#CE9178">export-button</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">      section</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178">"Export"</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">      title</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178">"On Reports, the Export button downloads a CSV"</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">      verdict</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#0000FF;--shiki-dark:#CE9178">pass</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">      issue</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#0000FF;--shiki-dark:#569CD6">null</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">      ts</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">: 2026-07-24T14:05:10Z</span></span>
+<span class="line"><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">    - </span><span style="--shiki-light:#800000;--shiki-dark:#569CD6">id</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#0000FF;--shiki-dark:#CE9178">csv-columns</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">      section</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178">"Export"</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">      title</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178">"The CSV has all the expected columns"</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">      verdict</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#0000FF;--shiki-dark:#CE9178">fail</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">      issue</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178">"03"</span><span style="--shiki-light:#008000;--shiki-dark:#6A9955">          # the issue that documents the failure</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">      ts</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">: 2026-07-24T14:06:00Z</span></span>
+<span class="line"><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">    - </span><span style="--shiki-light:#800000;--shiki-dark:#569CD6">id</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#0000FF;--shiki-dark:#CE9178">email-sent</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">      section</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178">"Notifications"</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">      title</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178">"An email arrives after an export"</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">      verdict</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#0000FF;--shiki-dark:#569CD6">null</span><span style="--shiki-light:#008000;--shiki-dark:#6A9955">        # not checked</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">      issue</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#0000FF;--shiki-dark:#569CD6">null</span></span>
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">      ts</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#0000FF;--shiki-dark:#569CD6">null</span></span></code></pre><h2>Generate a checklist from a branch</h2>
 <p>The package ships a <code>sluglist-checklist</code> skill: point Claude Code at a branch and it builds a
 client-facing checklist from the diff (user-visible pages/components/text only — refactors, tests
 and config are excluded), grouped by feature and phrased for a non-developer, written to
@@ -103,7 +99,7 @@ tracker.</p>
 7:X
 c:X
 c:C
-0:{"buildId":"RRgV_udH8wQMoZu1RZ9bX","data":[{"rsc":["$","$1","c",{"children":[["$","div",null,{"className":"mx-auto max-w-3xl px-6 py-16 md:py-20","children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Docs\",\"item\":\"https://sluglist.dev/docs/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Checklist mode: structured acceptance\",\"item\":\"https://sluglist.dev/docs/checklist/\"}]}"}}],["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"TechArticle\",\"headline\":\"Checklist mode: structured acceptance\",\"description\":\"Pre-seed an acceptance checklist the client walks and checks off. Verdicts land in session.yaml as a coverage map — and an agent can generate the list from a branch diff.\",\"url\":\"https://sluglist.dev/docs/checklist/\",\"author\":{\"@id\":\"https://sluglist.dev/#org\"},\"about\":{\"@id\":\"https://sluglist.dev/#software\"}}"}}],["$","nav",null,{"className":"mb-6 text-[13px] text-[var(--color-muted)]","children":[["$","$L2",null,{"className":"hover:text-[var(--color-ink)]","href":"/docs/","children":"Docs"}]," ","/ ","Checklist mode"]}],["$","h1",null,{"className":"mb-8 font-bold text-3xl tracking-tight md:text-4xl","children":"Checklist mode: structured acceptance"}],["$","article",null,{"className":"prose prose-site max-w-none","dangerouslySetInnerHTML":{"__html":"$3"}}],"$L4"]}],null,"$L5"]}],"isPartial":"$@6","staleTime":"$7","varyParams":null},{"rsc":"$L8","isPartial":"$@9","staleTime":"$7","varyParams":null},{"rsc":"$La","isPartial":"$@b","staleTime":"$7","varyParams":"$c"},{"rsc":"$Ld","isPartial":"$@e","staleTime":"$7","varyParams":"$c"}],"isUpgradeableISRFallback":false,"a":"$@f","rootVaryParams":null,"needsRuntimeRequest":"$@10"}
+0:{"buildId":"amMl4mFhNueXdQIeIUUPH","data":[{"rsc":["$","$1","c",{"children":[["$","div",null,{"className":"mx-auto max-w-3xl px-6 py-16 md:py-20","children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Docs\",\"item\":\"https://sluglist.dev/docs/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Checklist mode: structured acceptance\",\"item\":\"https://sluglist.dev/docs/checklist/\"}]}"}}],["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"TechArticle\",\"headline\":\"Checklist mode: structured acceptance\",\"description\":\"Pre-seed an acceptance checklist the client walks and checks off. Verdicts land in session.yaml as a coverage map — and an agent can generate the list from a branch diff.\",\"url\":\"https://sluglist.dev/docs/checklist/\",\"author\":{\"@id\":\"https://sluglist.dev/#org\"},\"about\":{\"@id\":\"https://sluglist.dev/#software\"}}"}}],["$","nav",null,{"className":"mb-6 text-[13px] text-[var(--color-muted)]","children":[["$","$L2",null,{"className":"hover:text-[var(--color-ink)]","href":"/docs/","children":"Docs"}]," ","/ ","Checklist mode"]}],["$","h1",null,{"className":"mb-8 font-bold text-3xl tracking-tight md:text-4xl","children":"Checklist mode: structured acceptance"}],["$","article",null,{"className":"prose prose-site max-w-none","dangerouslySetInnerHTML":{"__html":"$3"}}],"$L4"]}],null,"$L5"]}],"isPartial":"$@6","staleTime":"$7","varyParams":null},{"rsc":"$L8","isPartial":"$@9","staleTime":"$7","varyParams":null},{"rsc":"$La","isPartial":"$@b","staleTime":"$7","varyParams":"$c"},{"rsc":"$Ld","isPartial":"$@e","staleTime":"$7","varyParams":"$c"}],"isUpgradeableISRFallback":false,"a":"$@f","rootVaryParams":null,"needsRuntimeRequest":"$@10"}
 11:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"OutletBoundary"]
 12:"$Sreact.suspense"
 14:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"ViewportBoundary"]
