@@ -150,3 +150,41 @@ body {
   background: color-mix(in oklab, var(--color-brand) 7%, var(--color-surface));
   border-color: color-mix(in oklab, var(--color-brand) 28%, transparent);
 }
+
+/* Shiki output (build-time syntax highlighting).
+   `defaultColor: false` means each token carries only `--shiki-light` and
+   `--shiki-dark`, so the palette follows the system theme with no reload, no
+   flash and no client JavaScript. The background stays ours — VS Code's own
+   editor background would fight the page. */
+.shiki {
+  background: transparent !important;
+  margin: 0;
+  color: var(--shiki-light);
+}
+
+.shiki span {
+  color: var(--shiki-light);
+}
+
+@media (prefers-color-scheme: dark) {
+  .shiki,
+  .shiki span {
+    color: var(--shiki-dark);
+  }
+}
+
+/* Inside a CodeBlock the wrapper already scrolls, pads and sets the type. */
+.code-shiki .shiki {
+  padding: 0;
+  font: inherit;
+}
+
+/* In prose, Shiki replaces the whole <pre><code> pair, so the panel styling
+   that used to sit on `.prose-site pre` applies to its own <pre>. */
+.prose-site .shiki {
+  border: 1px solid var(--color-line);
+  border-radius: 0.75rem;
+  background: var(--color-surface) !important;
+  overflow-x: auto;
+  padding: 0.9rem 1rem;
+}

@@ -33,7 +33,7 @@ export default async function UseCasePage({
   const { slug } = await params;
   const uc = getUseCase(slug);
   if (!uc) notFound();
-  const html = renderMarkdown(uc.body);
+  const html = await renderMarkdown(uc.body);
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-16 md:py-20">

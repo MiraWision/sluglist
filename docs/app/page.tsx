@@ -113,6 +113,8 @@ const SCENARIOS: {
   title: string;
   body: string;
   code: string;
+  /** Grammar for the snippet; the label under it says so too. */
+  lang?: string;
   href: string;
 }[] = [
   {
@@ -161,6 +163,7 @@ mountFeedbackWidget(
 # then, to your coding agent:
 #   "QA this branch and fix everything until it passes"
 npx sluglist status --json`,
+    lang: "bash",
     href: "/for/agent-loop/",
   },
 ];
@@ -445,7 +448,7 @@ export default function HomePage() {
                 {s.body}
               </p>
               <div className="mt-auto">
-                <CodeBlock code={s.code} />
+                <CodeBlock code={s.code} lang={s.lang} />
               </div>
             </div>
           ))}
