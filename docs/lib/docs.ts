@@ -48,7 +48,14 @@ export const DOC_PAGES: DocPage[] = [
     title: "Agents & CLI: the local feedback loop",
     label: "Agents & CLI",
     description:
-      "Run npx sluglist dev, click feedback on your own app, and let Claude Code read the artifacts and fix the code via the bundled sluglist-fix skill.",
+      "Run npx sluglist dev, click feedback on your own app, and let an agent fix it — plus the four bundled skills, sluglist status, and the loop that runs until green.",
+  },
+  {
+    slug: "project-conventions",
+    title: "Project conventions: .sluglist/PROJECT.md",
+    label: "Project conventions",
+    description:
+      "One committed file holds your base branch, how to run and sign in, the hard limits QA must never complete, and evidence defaults — so the bundled skills stay upgradeable.",
   },
   {
     slug: "artifacts",

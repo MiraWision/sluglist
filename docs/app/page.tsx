@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CodeBlock } from "@/components/CodeBlock";
 import { DemoLazy } from "@/components/DemoLazy";
+import { ContractDiagram, LoopDiagram } from "@/components/Diagrams";
 import { JsonLd } from "@/components/JsonLd";
 import { Mono, Section, Terminal } from "@/components/Section";
 import { REPO, SITE_DESCRIPTION, SITE_TITLE, SITE_URL } from "@/lib/site";
@@ -28,6 +29,18 @@ const AGENT_TERMINAL = `$ claude
   frames 02→03: save clicked, no response · PATCH 500 in ## Errors
 ● Fixed src/api/animals.ts + AnimalForm.tsx
 ● Wrote …/session-2026-07-23-a1b2/.done`;
+
+// Real output — `sluglist status` after a fix pass and a re-test round.
+const STATUS_TERMINAL = `$ npx sluglist status
+
+release-2026-08 · branch · 12 items
+  1  session-2026-08-16-a1b2  9 pass · 3 fail · 0 not tested  ·  2 fixed, 1 wontfix
+  2  session-2026-08-16-c3d4  2 pass · 1 fail · 0 not tested  ·  no fix pass yet
+
+  still failing (1)
+    csv-columns — for the next fix pass · failed in 2 rounds · issue 02
+
+verdict: stalled — 1 item failed in 2 or more rounds`;
 
 // Real output — `sluglist report` with no arguments takes the newest session.
 const REPORT_TERMINAL = `$ npx sluglist report
@@ -80,44 +93,6 @@ const AGENT_STEPS: { n: string; title: string; body: React.ReactNode }[] = [
       </>
     ),
   },
-  {
-    n: "+",
-    title: "Or hand it a checklist",
-    body: (
-      <>
-        Going the other way, ask the agent to{" "}
-        <em>&ldquo;generate a checklist from this branch.&rdquo;</em> It turns
-        the diff into a client-facing acceptance list; the client clicks each row
-        to check it off (or flags a problem), and every verdict lands in{" "}
-        <Mono>session.yaml</Mono>.
-      </>
-    ),
-  },
-  {
-    n: "⟳",
-    title: "Or close the loop agent-to-agent",
-    body: (
-      <>
-        The tester can be an agent too: a QA agent with a browser walks the
-        checklist through the headless writer (<Mono>sluglist/node</Mono>) — no
-        fail without a screenshot — a fix agent answers with{" "}
-        <Mono>fixes.yaml</Mono>, and a re-test checklist closes the loop. See
-        the README&rsquo;s <em>For agents</em> section.
-      </>
-    ),
-  },
-  {
-    n: "✓",
-    title: "Then send the proof",
-    body: (
-      <>
-        <Mono>npx sluglist report</Mono> turns the session into one
-        self-contained HTML file — verdicts, the observed facts behind them, and
-        every screenshot inlined. It opens offline and forwards as a single
-        attachment.
-      </>
-    ),
-  },
 ];
 
 const QUICK_START = `import {
@@ -132,7 +107,7 @@ mountFeedbackWidget(
   })
 );`;
 
-/** The three ways sluglist is actually used — same framing as the README. */
+/** The four entry points — the same four the /for/ index routes between. */
 const SCENARIOS: {
   n: string;
   title: string;
@@ -141,9 +116,9 @@ const SCENARIOS: {
   href: string;
 }[] = [
   {
-    n: "1",
-    title: "Dev loop",
-    body: "Click feedback on your own app, have it land in a folder, let an agent fix it.",
+    n: "01",
+    title: "Your own dev loop",
+    body: "Click the bug on localhost, have it land in a folder, let your agent fix it.",
     code: `import { LocalConnector } from "sluglist";
 
 mountFeedbackWidget(
@@ -152,12 +127,12 @@ mountFeedbackWidget(
   })
 );
 // then: npx sluglist dev`,
-    href: "/for/claude-code/",
+    href: "/for/local-dev/",
   },
   {
-    n: "2",
-    title: "Client acceptance",
-    body: "Staging plus a checklist of what shipped. The client walks it and flags problems; you get a coverage map.",
+    n: "02",
+    title: "Your team & client",
+    body: "Staging plus a checklist of what shipped. They walk it and flag problems; you get a coverage map.",
     code: `createFeedbackWidget({
   project: "acme",
   connectors: [new HttpConnector(url, token)],
@@ -166,9 +141,9 @@ mountFeedbackWidget(
     href: "/for/client-acceptance/",
   },
   {
-    n: "3",
-    title: "Beta / Production",
-    body: "A \"Report a problem\" button for real users: PII masked and scrubbed, delivery through an endpoint you own.",
+    n: "03",
+    title: "Real users",
+    body: "A \"Report a problem\" button for production: PII masked and scrubbed, delivery through an endpoint you own.",
     code: `createFeedbackWidget({
   project: "acme",
   preset: "production",
@@ -176,6 +151,17 @@ mountFeedbackWidget(
   identity: { userId: user.id, email: user.email },
 });`,
     href: "/for/beta-feedback/",
+  },
+  {
+    n: "04",
+    title: "Agent-to-agent QA",
+    body: "A QA agent walks the checklist in a browser, a fix agent answers it, and the loop runs until green.",
+    code: `npx sluglist init --agents-md
+
+# then, to your coding agent:
+#   "QA this branch and fix everything until it passes"
+npx sluglist status --json`,
+    href: "/for/agent-loop/",
   },
 ];
 
@@ -350,7 +336,7 @@ const SOFTWARE_JSONLD = {
   url: `${SITE_URL}/`,
   applicationCategory: "DeveloperApplication",
   operatingSystem: "Web browser",
-  softwareVersion: "1.11.0",
+  softwareVersion: "1.15.0",
   license: "https://opensource.org/license/mit",
   isAccessibleForFree: true,
   offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
@@ -392,7 +378,7 @@ export default function HomePage() {
             </div>
             <div className="flex gap-3">
               <Link
-                className="rounded-xl bg-[var(--color-accent)] px-5 py-2.5 font-medium text-[14px] text-[var(--color-canvas)] transition hover:opacity-90"
+                className="rounded-xl bg-[var(--color-brand)] px-5 py-2.5 font-medium text-[14px] text-[var(--color-brand-ink)] transition hover:opacity-90"
                 href="/docs/quick-start/"
               >
                 Get started
@@ -407,6 +393,71 @@ export default function HomePage() {
           </div>
         </div>
       </div>
+
+
+      {/* The idea the rest of the page is an implementation of. */}
+      <Section
+        eyebrow="The standard"
+        id="contract"
+        title="One contract, humans and agents on both ends"
+      >
+        <p className="mb-8 max-w-2xl text-[15px] text-[var(--color-ink-2)] leading-relaxed md:text-[16px]">
+          Feedback travels from whoever found the problem to whoever fixes it.
+          sluglist fixes the shape of what travels — a folder of plain files,
+          versioned and documented — so the two ends can be a client and a
+          developer, a customer and an agent, or two agents, without anything in
+          between having to change.
+        </p>
+        <ContractDiagram />
+      </Section>
+
+      {/* The four scenarios — the same four the /for/ index routes between, so
+          a reader who arrives from either side sees one product. */}
+      <Section
+        eyebrow="Scenarios"
+        id="scenarios"
+        title="Pick the one that matches you"
+      >
+        {/* Two columns, not four: each card carries a code block, and four
+            across squeezes every snippet into a horizontal scroller. */}
+        <div className="grid gap-5 sm:grid-cols-2 [&>*]:min-w-0">
+          {/* The card is a div, not an anchor: CodeBlock contains a Copy
+              button, and an interactive control inside a link is both invalid
+              markup and a trap — copying would navigate away. The heading is
+              the link instead. */}
+          {SCENARIOS.map((s) => (
+            <div
+              className="flex flex-col gap-3 rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] p-5"
+              key={s.n}
+            >
+              <div className="flex items-baseline gap-2">
+                <span className="font-mono text-[13px] text-[var(--color-ink-2)]">
+                  {s.n}
+                </span>
+                <Link
+                  className="font-semibold text-[15px] hover:underline"
+                  href={s.href}
+                >
+                  {s.title}
+                </Link>
+              </div>
+              <p className="text-[14px] text-[var(--color-ink-2)] leading-relaxed">
+                {s.body}
+              </p>
+              <div className="mt-auto">
+                <CodeBlock code={s.code} />
+              </div>
+            </div>
+          ))}
+        </div>
+        <p className="mt-6 text-[14px] text-[var(--color-ink-2)]">
+          Each one, with the benefits and the exact setup:{" "}
+          <Link className="text-[var(--color-brand)] hover:underline" href="/for/">
+            the four use cases
+          </Link>
+          .
+        </p>
+      </Section>
 
       {/* Agent story — the differentiator, first section after the hero */}
       <section
@@ -454,6 +505,50 @@ export default function HomePage() {
               …/.done — the agent&rsquo;s report
             </p>
             <CodeBlock code={DONE_REPORT} lang="markdown" />
+          </div>
+
+          {/* The cycle — including the part that decides whether to go again. */}
+          <div className="mt-14 border-[var(--color-line)] border-t pt-12">
+            <p className="mb-2 font-mono text-[12px] text-[var(--color-brand)] uppercase tracking-widest">
+              Agent to agent
+            </p>
+            <h3 className="max-w-2xl font-semibold text-xl tracking-tight md:text-2xl">
+              Or hand over the whole cycle — until it&rsquo;s green
+            </h3>
+            <p className="mt-3 max-w-2xl text-[15px] text-[var(--color-ink-2)] leading-relaxed">
+              The tester can be an agent too. One walks the checklist in a real
+              browser and writes down what it saw; another reads those artifacts
+              and fixes the code; a re-test round checks the fixes. Neither is
+              trusted: every verdict carries evidence, and a third command
+              decides whether another round is worth running.
+            </p>
+
+            <div className="mt-8 grid gap-6 md:grid-cols-[1.15fr_1fr] md:items-start [&>*]:min-w-0">
+              <LoopDiagram />
+              <div className="space-y-4">
+                <Terminal code={STATUS_TERMINAL} title="your project" />
+                <p className="text-[14px] text-[var(--color-ink-2)] leading-relaxed">
+                  <Mono>npx sluglist status</Mono> is derived entirely from the
+                  artifacts on disk — the verdicts, the fix records, and the
+                  chain linking round 2 back to round 1. It answers the one
+                  question an agent should never answer from memory:{" "}
+                  <em>is my own work done?</em>
+                </p>
+                <p className="text-[14px] text-[var(--color-muted)] leading-relaxed">
+                  An item that already survived a fix pass goes to a human
+                  instead of being ground on for another round — and the loop is
+                  forbidden to reach green by editing a check or writing it off.
+                  Full protocol:{" "}
+                  <Link
+                    className="text-[var(--color-brand)] hover:underline"
+                    href="/for/agent-loop/"
+                  >
+                    the autonomous QA loop
+                  </Link>
+                  .
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* The report — the artifact a client actually receives. */}
@@ -559,44 +654,6 @@ export default function HomePage() {
         </div>
       </Section>
 
-      {/* The three scenarios — the same framing as the README, so a reader who
-          arrives from either side sees one product, not two descriptions. */}
-      <Section
-        eyebrow="Scenarios"
-        id="scenarios"
-        title="Pick the one that matches you"
-      >
-        <div className="grid gap-5 md:grid-cols-3 [&>*]:min-w-0">
-          {/* The card is a div, not an anchor: CodeBlock contains a Copy
-              button, and an interactive control inside a link is both invalid
-              markup and a trap — copying would navigate away. The heading is
-              the link instead. */}
-          {SCENARIOS.map((s) => (
-            <div
-              className="flex flex-col gap-3 rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] p-5"
-              key={s.n}
-            >
-              <div className="flex items-baseline gap-2">
-                <span className="font-mono text-[13px] text-[var(--color-ink-2)]">
-                  {s.n}
-                </span>
-                <Link
-                  className="font-semibold text-[15px] hover:underline"
-                  href={s.href}
-                >
-                  {s.title}
-                </Link>
-              </div>
-              <p className="text-[14px] text-[var(--color-ink-2)] leading-relaxed">
-                {s.body}
-              </p>
-              <div className="mt-auto">
-                <CodeBlock code={s.code} />
-              </div>
-            </div>
-          ))}
-        </div>
-      </Section>
 
       <Section eyebrow="Capture" id="modes" title="Five ways to report">
         <div className="grid gap-4 sm:grid-cols-2 [&>*]:min-w-0">

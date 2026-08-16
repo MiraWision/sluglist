@@ -17,6 +17,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "monthly" as const,
       priority: 0.7,
     })),
+    { url: `${SITE_URL}/for/`, lastModified, changeFrequency: "monthly", priority: 0.8 },
     ...USE_CASES.map((c) => ({
       url: `${SITE_URL}/for/${c.slug}/`,
       lastModified,

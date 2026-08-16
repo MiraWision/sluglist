@@ -22,6 +22,9 @@ export function SiteHeader() {
           <Link className="hover:text-[var(--color-ink)]" href="/docs/">
             Docs
           </Link>
+          <Link className="hover:text-[var(--color-ink)]" href="/for/">
+            Use cases
+          </Link>
           <Link
             className="hidden hover:text-[var(--color-ink)] sm:inline"
             href="/#demo"
@@ -34,7 +37,12 @@ export function SiteHeader() {
           >
             Changelog
           </Link>
-          <a className="hover:text-[var(--color-ink)]" href={NPM}>
+          {/* Below `sm` the bar has room for three links; use cases earns its
+              place there more than the npm shortcut does. */}
+          <a
+            className="hidden hover:text-[var(--color-ink)] sm:inline"
+            href={NPM}
+          >
             npm
           </a>
           <a
@@ -59,14 +67,18 @@ const FOOTER_COLS: { title: string; links: { label: string; href: string }[] }[]
       { label: "Production", href: "/docs/production/" },
       { label: "Artifact format", href: "/docs/artifacts/" },
       { label: "Agents & CLI", href: "/docs/agents/" },
+      { label: "Project conventions", href: "/docs/project-conventions/" },
     ],
   },
   {
     title: "Use cases",
     links: [
-      { label: "Claude Code & agents", href: "/for/claude-code/" },
-      { label: "Client acceptance", href: "/for/client-acceptance/" },
-      { label: "Beta & production", href: "/for/beta-feedback/" },
+      { label: "All four", href: "/for/" },
+      { label: "Your own dev loop", href: "/for/local-dev/" },
+      { label: "Your team & client", href: "/for/client-acceptance/" },
+      { label: "Real users", href: "/for/beta-feedback/" },
+      { label: "Agent-to-agent QA", href: "/for/agent-loop/" },
+      { label: "Claude Code", href: "/for/claude-code/" },
     ],
   },
   {
