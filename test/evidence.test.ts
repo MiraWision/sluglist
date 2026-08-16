@@ -301,9 +301,45 @@ describe("format 1.6 — checklist intent", () => {
   });
 });
 
-describe("format 1.6 — backward compatibility", () => {
-  it("declares 1.6", () => {
-    expect(FORMAT_VERSION).toBe("1.6");
+describe("format 1.7 — checklist retest_of", () => {
+  it("carries the re-tested checklist id into session.yaml", async () => {
+    const memory = new MemoryConnector();
+    const session = await createSession({
+      connectors: [memory],
+      checklist: {
+        ...CHECKLIST,
+        id: "release-1-retest-1",
+        intent: "re-test",
+        retest_of: "release-1",
+      },
+    });
+    await session.setVerdict("header-visible", "pass");
+
+    const yaml = parse(
+      await textOf(memory.getFile(session.sessionId, "session.yaml"))
+    );
+    // The chain `sluglist status` walks: this round, and the one it answers.
+    expect(yaml.checklist.id).toBe("release-1-retest-1");
+    expect(yaml.checklist.retest_of).toBe("release-1");
+    expect(yaml.checklist.intent).toBe("re-test");
+  });
+
+  it("omits retest_of on a first-pass run", async () => {
+    const memory = new MemoryConnector();
+    const session = await createSession({
+      connectors: [memory],
+      checklist: CHECKLIST,
+    });
+    await session.setVerdict("header-visible", "pass");
+
+    const raw = await textOf(memory.getFile(session.sessionId, "session.yaml"));
+    expect(raw).not.toContain("retest_of");
+  });
+});
+
+describe("format 1.7 — backward compatibility", () => {
+  it("declares 1.7", () => {
+    expect(FORMAT_VERSION).toBe("1.7");
   });
 
   it("a session with neither evidence nor intent is byte-identical to 1.5", async () => {
@@ -317,7 +353,7 @@ describe("format 1.6 — backward compatibility", () => {
     const raw = await textOf(memory.getFile(session.sessionId, "session.yaml"));
     // Only the version line may differ from what 1.5 would have produced.
     const downgraded = raw.replace(
-      'format_version: "1.6"',
+      'format_version: "1.7"',
       'format_version: "1.5"'
     );
     expect(downgraded).not.toContain("evidence");

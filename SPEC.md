@@ -1,4 +1,4 @@
-# sluglist artifact format — v1.6
+# sluglist artifact format — v1.7
 
 This is the on-disk contract sluglist produces for each feedback session. It is stable and safe to
 build parsers against: **within a major version the format only ever changes additively** (new optional
@@ -9,7 +9,7 @@ Source of truth: `src/artifacts.ts` (`buildSessionYaml`, `buildIssueMarkdown`, `
 
 ## Versioning
 
-- `session.yaml` starts with `format_version: "1.6"` (a quoted string, always the first line).
+- `session.yaml` starts with `format_version: "1.7"` (a quoted string, always the first line).
 - **Missing `format_version` ⇒ treat as `"1.0"`** (artifacts written before versioning was added).
 - **1.1** added the additive `checklist:` block (acceptance checklist verdicts) and the
   `checklist_item` issue field; everything from 1.0 is unchanged.
@@ -38,6 +38,11 @@ Source of truth: `src/artifacts.ts` (`buildSessionYaml`, `buildIssueMarkdown`, `
     reporter recorded a bare verdict**, which stays valid and is still the default.
   - `checklist.intent` (session.yaml) and `intent` in the checklist *config* — why the checklist
     exists (`branch` | `re-test` | `smoke` | `scenario`, open-ended). Absent when undeclared.
+- **1.7** added, all additive:
+  - `checklist.retest_of` (session.yaml) — the id of the checklist this run re-tests, carried
+    through from the checklist config (where `retest_of` has existed since 1.5). It makes the rounds
+    of one fix→re-test cycle chainable from `session.yaml` alone, which is what `sluglist status`
+    reads to decide whether a loop has converged. **Absent ⇒ a first-pass run.**
 - The number is `MAJOR.MINOR`:
   - **MINOR** bumps for additive changes (a new optional field/section). Parsers must ignore unknown
     fields and keep working.
@@ -77,7 +82,7 @@ are zero-padded and monotonic within a session.
 
 | Field | Type | Required | Since | Notes |
 |---|---|---|---|---|
-| `format_version` | string | yes | 1.0 | Always `"1.0"`; first line. |
+| `format_version` | string | yes | 1.0 | The format version this session was written with (currently `"1.7"`); always the first line. |
 | `project` | string | yes | 1.0 | Project slug. |
 | `session_id` | string | yes | 1.0 | `session-YYYY-MM-DD-xxxx`. |
 | `created_at` | string (ISO 8601) | yes | 1.0 | Session start. |
@@ -106,8 +111,22 @@ map — a coverage snapshot of *this* run, not a durable status.
 |---|---|---|---|---|
 | `id` | string | yes | 1.1 | Checklist id. |
 | `title` | string | yes | 1.1 | Human title. |
-| `intent` | string | optional | 1.6 | Why this checklist exists: `branch` \| `re-test` \| `smoke` \| `scenario`. Open vocabulary — readers must tolerate an unknown value. Absent when the config declared none. |
+| `intent` | string | optional | 1.6 | Why this checklist exists — see the vocabulary below. Open vocabulary: readers must tolerate an unknown value. Absent when the config declared none. |
+| `retest_of` | string | optional | 1.7 | Id of the checklist this run re-tests, carried from the config. Present only on a re-test round; it chains the rounds of one fix→re-test cycle. |
 | `items` | list | yes | 1.1 | One entry per checklist item (below). |
+
+#### `intent` vocabulary (1.6)
+
+Provenance only — no consumer behaviour depends on the value, and an unknown one must be carried
+through untouched.
+
+| Value | The checklist is built from | Lifecycle |
+|---|---|---|
+| `branch` | `git diff <base>...HEAD` | One release/PR hand-off; discarded after the run. |
+| `re-test` | a session's `fixes.yaml` | One follow-up run; carries `retest_of` back to the original. |
+| `smoke` | the app's routes + docs | One broad pass; regenerated freely, not kept. |
+| `regression` | the app's routes + docs initially, then the branch diff | **Maintained**: committed at `.sluglist/checklists/regression.json` and updated incrementally after each merge — additions and removals proposed to the user, item ids kept stable so verdicts in past sessions still map. Never regenerated in place. |
+| `scenario` | a written brief from the owner | One focused run; kept only if the flow is re-tested often. |
 
 Each `items[]` entry:
 
@@ -269,7 +288,7 @@ has not been fixed yet. Upserted **by `issue` id** as fixing progresses — re-f
 its record; the file never accumulates duplicates.
 
 ```yaml
-format_version: "1.5"
+format_version: "1.7"
 fixed_by:
   name: fix-agent
   kind: agent
@@ -316,8 +335,8 @@ interface Checklist {
   retest_of?: string;            // 1.5, additive: id of the checklist this one re-tests (provenance;
                                  //   set by the generator's re-test mode, ignored by the widget)
   intent?: string;               // 1.6, additive: why this checklist exists — "branch" | "re-test" |
-                                 //   "smoke" | "scenario". Open vocabulary; carried into session.yaml
-                                 //   as `checklist.intent`. Ignored by the widget.
+                                 //   "smoke" | "regression" | "scenario". Open vocabulary; carried into
+                                 //   session.yaml as `checklist.intent`. Ignored by the widget.
   sections: { title: string; items: ChecklistItem[] }[];
 }
 interface ChecklistItem {

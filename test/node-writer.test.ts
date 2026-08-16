@@ -189,7 +189,7 @@ describe("node writer", () => {
     const fixes = parse(
       await textOf(memory.getFile(issue.sessionId, "fixes.yaml"))
     );
-    expect(fixes.format_version).toBe("1.6");
+    expect(fixes.format_version).toBe("1.7");
     expect(fixes.fixed_by).toEqual({ name: "fix-agent", kind: "agent" });
     expect(fixes.items).toHaveLength(1);
     expect(fixes.items[0]).toMatchObject({

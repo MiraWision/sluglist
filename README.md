@@ -47,7 +47,7 @@ upload or a closed tab does not lose feedback.
 
 ## Pick your scenario
 
-Three ways sluglist is actually used. Start from the one that matches you; each is a few lines, and the
+Four ways sluglist is actually used. Start from the one that matches you; each is a few lines, and the
 details are one click away.
 
 ### 1 · Dev loop — you and an agent
@@ -89,7 +89,7 @@ mountFeedbackWidget(
 When it's signed off, `npx sluglist report` turns the session into one self-contained HTML file you
 can send back as proof — verdicts, notes and screenshots in a single attachment that opens offline.
 
-→ [Checklist mode](#checklist-mode) · [generating one](#generate-a-checklist--four-intents) ·
+→ [Checklist mode](#checklist-mode) · [generating one](#generate-a-checklist--five-intents) ·
 [reports](#reports) · [connectors](#connectors) · [attachments](#attachments) ·
 [localization](#localization)
 
@@ -112,6 +112,21 @@ mountFeedbackWidget(
 → [Production](#production) · [beta mode](#beta-feedback-mode) ·
 [**production checklist**](docs/production-checklist.md) · [the endpoint](examples/feedback-route.ts) ·
 [localization](#localization) · [mobile](#mobile-graceful-mode) · [attachments](#attachments)
+
+### 4 · Agent to agent — the loop runs itself
+
+A QA agent walks the checklist in a real browser and writes evidence-backed verdicts; a fix agent
+answers them; a re-test round closes the loop. `sluglist status` decides whether another round is
+worth running, so it stops on a genuine stall instead of grinding.
+
+```bash
+npx sluglist init --agents-md          # skills + PROJECT.md + .gitignore rules
+# then, to your coding agent: "QA this branch and fix everything until it passes"
+npx sluglist status --json             # green | continue | stalled | blocked
+```
+
+→ [For agents](#for-agents) · [until green](#until-green--npx-sluglist-status) ·
+[project conventions](#project-conventions--sluglistprojectmd) · [the skills](skills/)
 
 ## Attach your user
 
@@ -606,7 +621,7 @@ checklist:
       ts: null
 ```
 
-### Generate a checklist — four intents
+### Generate a checklist — five intents
 
 The package ships a `sluglist-checklist` skill. Point Claude Code at a source and it writes a
 client-facing checklist (user-visible pages/components/text only — refactors, tests and config are
@@ -617,7 +632,14 @@ excluded), grouped by feature and phrased for a non-developer:
 | `branch` | the branch diff vs its base | "generate a checklist from this branch" |
 | `re-test` | a fixed session's `fixes.yaml` | "generate the re-test checklist" |
 | `smoke` | the app's routes + docs | "generate a smoke checklist" |
+| `regression` | the committed `regression.json`, updated from the branch diff | "update the regression checklist from this branch" |
 | `scenario` | a written brief you give it | "checklist for the whole card-payment flow, including error cases" |
+
+`regression` is the one with a **lifecycle**: it is a committed baseline at
+`.sluglist/checklists/regression.json`, seeded once with the smoke algorithm and then updated
+incrementally after each merge. Updates are a diff, not a regeneration — additions and removals are
+proposed for you to confirm, the ~30-item cap is enforced by suggesting cuts rather than growing the
+file, and unchanged item ids stay stable so verdicts recorded in past sessions still map to them.
 
 By convention checklists live in **`.sluglist/checklists/<name>.json`** (`smoke.json`,
 `regression.json`, `feature-export.json`…), and the intent is recorded in the checklist's `intent`
@@ -707,19 +729,22 @@ Click feedback → the full artifact set appears under `.sluglist/session-*/`. T
 its port. If it isn't running, `LocalConnector` warns once and your other connectors keep working (the
 UI is never blocked).
 
-> Add `.sluglist/` to your project's `.gitignore`.
+> Add `.sluglist/` to your project's `.gitignore` — or let [`npx sluglist init`](#set-the-project-up--npx-sluglist-init) do it.
 
 ### Let an agent fix it (Claude Code skill)
 
-The package ships a `sluglist-fix` skill that reads `.sluglist/` and fixes the reported issues. Install
-the bundled skills into your project once:
+The package ships a `sluglist-fix` skill that reads `.sluglist/` and fixes the reported issues. Set the
+project up once:
 
 ```bash
-npx sluglist init-skills
+npx sluglist init
 ```
 
-That copies every bundled skill into `.claude/skills/`. Re-running it is safe: unchanged skills are
-refreshed silently, and any you have edited are reported and left alone (`--force` replaces them).
+That does the whole scaffold: `.sluglist/checklists/`, the `.gitignore` rules, every bundled skill in
+`.claude/skills/`, and a `.sluglist/PROJECT.md` to fill in — see
+[Set the project up](#set-the-project-up--npx-sluglist-init). Re-running it is safe: unchanged skills
+are refreshed silently, and any you have edited are reported and left alone (`--force` replaces them).
+`npx sluglist init-skills` installs only the skills.
 
 <details>
 <summary>or copy manually</summary>
@@ -733,6 +758,9 @@ mkdir -p .claude/skills && cp -r node_modules/sluglist/skills/sluglist-fix .clau
 Then, after clicking feedback, ask Claude Code to "fix feedback": it reads each issue (comment,
 selector, `element_text`, screenshot, `## Errors`), localizes and fixes the code, and writes a
 `.done` report into the session folder. See [`skills/sluglist-fix/SKILL.md`](skills/sluglist-fix/SKILL.md).
+
+`npx sluglist status` lists what is still open across the folder — issues with no record in
+`fixes.yaml`, and anything a pass left as `wontfix` or `needs_info`.
 
 ## Programmatic capture
 
@@ -763,19 +791,111 @@ dev agent ──sluglist-checklist──▶ checklist.json
                                        │
 QA agent (browser) ──sluglist-qa──▶ session/: session.yaml (verdicts) + NN-issue.md + NN-issue.png
                                        │
+`npx sluglist status` ──▶ green | continue | stalled | blocked   ← the loop's decision point
+                                       │  (continue)
 fix agent ──sluglist-fix──▶ code commits + fixes.yaml (fixed | wontfix | needs_info)
                                        │
 generator re-test mode ──▶ checklist.retest.json (only the fixed items, retest_of provenance)
                                        │
-QA agent again ──▶ green session (or honest fails — also a valid outcome)
+QA agent again ──▶ round 2 ──┐
+                             └──▶ back to `sluglist status` until green, stalled or blocked
                                        │
 `npx sluglist report` ──▶ report.html — one offline file for the human who paid for the work
 ```
 
-The three skills ship in the package: [`skills/sluglist-checklist`](skills/sluglist-checklist/SKILL.md)
-(generate: branch / re-test / smoke / scenario), [`skills/sluglist-qa`](skills/sluglist-qa/SKILL.md)
-(browser QA; no fail without a screenshot, no pass without performing the check), and
-[`skills/sluglist-fix`](skills/sluglist-fix/SKILL.md) (fix + `fixes.yaml`).
+Four skills ship in the package — one per stage, plus one that owns the cycle:
+
+| Skill | Role |
+|---|---|
+| [`sluglist-loop`](skills/sluglist-loop/SKILL.md) | The orchestrator: picks the intent, runs the stages in order, carries the evidence mode, and — when you ask for it — keeps fixing and re-testing until green or genuinely stuck. Start here. |
+| [`sluglist-checklist`](skills/sluglist-checklist/SKILL.md) | Generate or maintain a checklist: branch / re-test / smoke / regression / scenario. |
+| [`sluglist-qa`](skills/sluglist-qa/SKILL.md) | Browser QA: no fail without a screenshot, no pass without performing the check. |
+| [`sluglist-fix`](skills/sluglist-fix/SKILL.md) | Fix what failed + `fixes.yaml` (`fixed` \| `wontfix` \| `needs_info`). |
+
+### Set the project up — `npx sluglist init`
+
+One command, everything a project needs for the loop, idempotent:
+
+```bash
+npx sluglist init --agents-md
+```
+
+| It creates | Why |
+|---|---|
+| `.sluglist/checklists/` | Checklists are the committed spec — they live in the repo. |
+| `.gitignore` rules | `.sluglist/*` ignored, with `checklists/` and `PROJECT.md` re-included: sessions stay local, the spec and the conventions are versioned. |
+| `.claude/skills/*` | The four bundled skills (the `init-skills` step). |
+| `.sluglist/PROJECT.md` | Your project's conventions — see below. |
+| a "QA loop (sluglist)" section in `CLAUDE.md` / `AGENTS.md` | Only with `--agents-md`, and only if those files exist. |
+
+Re-running reports what was already there and changes nothing. `--dir <path>` retargets the project
+root. Two things are never overwritten: a skill you have edited (`--force` overrides), and
+`.sluglist/PROJECT.md` — that one holds your answers, so **not even `--force` touches it**.
+
+### Until green — `npx sluglist status`
+
+Ask for a fix pass and the cycle repeats: QA finds failures, a fix agent resolves them, a re-test
+round checks the fixes. The question that keeps the loop honest is *"is another round worth
+running?"* — and an agent's own memory of what it just fixed is the wrong place to look it up.
+
+```bash
+npx sluglist status
+```
+
+```
+.sluglist — 1 chain, 2 sessions
+
+release-2026-08 · branch · 3 items
+  1  session-2026-08-15-tw1w  1 pass · 1 fail · 1 not tested  ·  1 fixed
+  2  session-2026-08-15-jtyf  0 pass · 1 fail · 0 not tested  ·  no fix pass yet
+
+  still failing (1)
+    csv-columns — for the next fix pass · failed in 2 rounds · issue 01
+      "The CSV has every expected column"
+
+  not tested (1) — email-receipt
+
+verdict: stalled — 1 item failed in 2 or more rounds — a fix pass has already been tried
+```
+
+Everything is derived from the artifacts already on disk — the verdicts in `session.yaml`, the
+resolutions in `fixes.yaml`, and the `retest_of` chain that links round 2 back to round 1. No new
+file, no state to keep in sync.
+
+| Verdict | Meaning | What the loop does |
+|---|---|---|
+| `green` | Nothing is failing | Stop; hand over the report. |
+| `continue` | Failures a fix pass can still act on | Run another round, if the round budget allows. |
+| `stalled` | Every remaining failure already survived a fix pass | Stop; hand the list to a human. |
+| `blocked` | Everything left is `wontfix` / `needs_info` | Stop; those are the owner's calls. |
+| `empty` | No sessions on disk | Nothing ran. |
+
+`--json` gives an agent the same result as data (per-round counts, per-item `state`, `failed_rounds`,
+the fix note); `--all` includes older chains instead of just the current one; a session folder as the
+argument restricts the report to the chain containing it. It also works for the plain dev loop, where
+the work items are the issues themselves rather than checklist verdicts.
+
+The `sluglist-loop` skill reads this between rounds, and stops on `stalled` or `blocked` rather than
+grinding the same item. **Its default ceiling is 3 QA rounds** — the first pass plus two fix→re-test
+rounds — and `PROJECT.md` can change it.
+
+### Project conventions — `.sluglist/PROJECT.md`
+
+The skills ship with defaults, and editing a skill to fit your project stops it receiving upstream
+improvements (`init` never overwrites an edited skill). So project specifics go in one committed file
+instead, which every skill reads first:
+
+- the **base branch** a `branch` diff runs against (`main` by default);
+- **how to run the app** for QA — command, port, warm-up;
+- **how to sign in** — referenced by env var or seed script, *never literal credentials*;
+- **hard limits** — actions QA must never complete (live payments, real emails, external submissions);
+- **evidence-mode defaults** per intent;
+- **loop limits** — how many rounds the until-green loop may run, whether it may fix without asking,
+  and what it does about commits;
+- **environment quirks** — the flaky embed, the slow first paint, the route that 404s until a seed runs.
+
+`npx sluglist init` writes the template; you fill it in. When it is absent the skills fall back to
+their own defaults and say so once.
 
 ### Evidence-backed passes
 
@@ -866,7 +986,7 @@ per-issue metadata in frontmatter followed by the free-text comment. The structu
 are a stable contract intended as input for downstream parsers; **it only changes additively**.
 
 The full field dictionary, section rules and versioning policy live in **[SPEC.md](SPEC.md)** — safe
-to build parsers against. `session.yaml` starts with `format_version: "1.6"`; a missing version means
+to build parsers against. `session.yaml` starts with `format_version: "1.7"`; a missing version means
 `"1.0"`. Within a major version, new fields are only ever added, never removed or repurposed.
 
 ## Metadata collected

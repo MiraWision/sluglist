@@ -29,12 +29,32 @@ to `127.0.0.1` only and has **no authentication** — it is local-only by design
 forward its port. If it isn't running, `LocalConnector` warns once and your other connectors keep
 working (the UI is never blocked).
 
-> Add `.sluglist/` to your project's `.gitignore`.
+> Add `.sluglist/` to your project's `.gitignore` — or let `npx sluglist init` do it.
+
+## Set the project up — `npx sluglist init`
+
+One idempotent command scaffolds everything the loop needs:
+
+```bash
+npx sluglist init --agents-md
+```
+
+| It creates | Why |
+|---|---|
+| `.sluglist/checklists/` | Checklists are the committed spec — they live in the repo. |
+| `.gitignore` rules | `.sluglist/*` ignored, with `checklists/` and `PROJECT.md` re-included: sessions stay local, the spec and the conventions are versioned. |
+| `.claude/skills/*` | The four bundled skills (the `init-skills` step). |
+| `.sluglist/PROJECT.md` | Your project's conventions — see [Project conventions](/docs/project-conventions/). |
+| a "QA loop (sluglist)" section in `CLAUDE.md` / `AGENTS.md` | Only with `--agents-md`, and only if those files exist. |
+
+Re-running reports what was already there and changes nothing. `--dir <path>` retargets the project
+root. Two things are never overwritten: a skill you have edited (`--force` overrides), and
+`.sluglist/PROJECT.md` — that holds your answers, so not even `--force` touches it.
 
 ## Let an agent fix it (Claude Code skill)
 
-The package ships a `sluglist-fix` skill that reads `.sluglist/` and fixes the reported issues.
-Install the bundled skills into your project once:
+The package ships a `sluglist-fix` skill that reads `.sluglist/` and fixes the reported issues. It
+arrives with `npx sluglist init` above, or on its own with:
 
 ```bash
 npx sluglist init-skills
@@ -71,8 +91,73 @@ Works with any agent that can read files — the skill is a convenience, not a d
 
 The second bundled skill, `sluglist-checklist`, turns a branch diff into a client-facing acceptance
 checklist (user-visible changes only, phrased for a non-developer), written to
-`public/checklist.json` — which the widget loads with `checklist: "/checklist.json"`. Ask Claude
-Code to *"generate a checklist from this branch"*. See [Checklist mode](/docs/checklist/).
+`.sluglist/checklists/<name>.json` — which the widget loads with
+`checklist: "/checklists/<name>.json"`. Ask Claude Code to *"generate a checklist from this
+branch"*. See [Checklist mode](/docs/checklist/).
+
+## The whole cycle — the `sluglist-loop` skill
+
+Four skills ship in the package: one per stage, plus one that owns the cycle.
+
+| Skill | Role |
+|---|---|
+| `sluglist-loop` | Picks the intent, runs the stages in order, carries the evidence mode, and keeps fixing and re-testing until green when you ask for it. **Start here.** |
+| `sluglist-checklist` | Generate or maintain a checklist: branch / re-test / smoke / regression / scenario. |
+| `sluglist-qa` | Browser QA: no fail without a screenshot, no pass without performing the check. |
+| `sluglist-fix` | Fix what failed, plus `fixes.yaml` (`fixed` \| `wontfix` \| `needs_info`). |
+
+Ask for *"run the QA loop on this branch"* and the orchestrator does the rest: checklist → QA run →
+`npx sluglist report` → (on request) fix → re-test → final report. Project specifics it needs — base
+branch, how to run and sign in, hard limits, evidence mode, loop limits — come from
+[`.sluglist/PROJECT.md`](/docs/project-conventions/), not from editing the skills.
+
+## Until green — `npx sluglist status`
+
+Ask for the fixes too — *"QA this branch and fix everything until it passes"* — and the cycle
+repeats: QA finds failures, the fix skill resolves them, a re-test round checks the fixes. What keeps
+that honest is a decision point the agent cannot answer from memory:
+
+```bash
+npx sluglist status
+```
+
+```
+.sluglist — 1 chain, 2 sessions
+
+release-2026-08 · branch · 3 items
+  1  session-2026-08-15-tw1w  1 pass · 1 fail · 1 not tested  ·  1 fixed
+  2  session-2026-08-15-jtyf  0 pass · 1 fail · 0 not tested  ·  no fix pass yet
+
+  still failing (1)
+    csv-columns — for the next fix pass · failed in 2 rounds · issue 01
+      "The CSV has every expected column"
+
+  not tested (1) — email-receipt
+
+verdict: stalled — 1 item failed in 2 or more rounds — a fix pass has already been tried
+```
+
+Everything is derived from artifacts already on disk: the verdicts in `session.yaml`, the resolutions
+in `fixes.yaml`, and the `retest_of` chain linking round 2 back to round 1. No new file, no state to
+keep in sync.
+
+| Verdict | Meaning | What the loop does |
+|---|---|---|
+| `green` | Nothing is failing | Stop; hand over the report. |
+| `continue` | Failures a fix pass can still act on | Another round, if the budget allows. |
+| `stalled` | Every remaining failure already survived a fix pass | Stop; hand the list to a human. |
+| `blocked` | Everything left is `wontfix` / `needs_info` | Stop; those are the owner's calls. |
+| `empty` | No sessions on disk | Nothing ran. |
+
+`--json` gives an agent the same result as data; `--all` includes older chains; a session folder as
+the argument restricts the report to the chain containing it. It works for the plain dev loop too,
+where the work items are the issues themselves rather than checklist verdicts.
+
+The loop's ceiling is **3 QA rounds** by default — the first pass plus two fix→re-test rounds — and
+it stops early on `stalled` or `blocked` rather than grinding the same item. Both are set in
+[`PROJECT.md`](/docs/project-conventions/). And the rule that makes the whole thing trustworthy: the
+loop may never make a run green by editing a checklist item or recording `wontfix` to get out — green
+is a fact about the app, not a target.
 
 ## Programmatic capture
 
@@ -89,5 +174,6 @@ await widget.captureIssue({
 });
 ```
 
-See also: [sluglist for Claude Code & coding agents](/for/claude-code/) — the full workflow with
-terminal transcripts.
+See also: [the autonomous QA loop](/for/agent-loop/) — the whole cycle end to end — and
+[sluglist for Claude Code & coding agents](/for/claude-code/) for the workflow with terminal
+transcripts.
