@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { IconBadge } from "@/components/Icons";
 import { DOC_PAGES } from "@/lib/docs";
 import { pageMetadata } from "@/lib/site";
 
@@ -35,6 +36,7 @@ export default function DocsIndexPage() {
             href={`/docs/${d.slug}/`}
             key={d.slug}
           >
+            <IconBadge name={d.icon} />
             <h2 className="mb-2 font-semibold text-[15px]">{d.title}</h2>
             <p className="text-[14px] text-[var(--color-ink-2)] leading-relaxed">
               {d.description}

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ContractDiagram } from "@/components/Diagrams";
+import { Icon } from "@/components/Icons";
 import { JsonLd } from "@/components/JsonLd";
 import { pageMetadata, SITE_URL } from "@/lib/site";
 import { SCENARIOS, USE_CASES } from "@/lib/use-cases";
@@ -49,7 +50,10 @@ export default function UseCasesIndexPage() {
             className="flex flex-col rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] p-5"
             key={c.slug}
           >
-            <div className="mb-2 flex items-baseline gap-2">
+            <div className="mb-2 flex items-center gap-2">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg border tint-brand">
+                <Icon name={c.icon} />
+              </span>
               <span className="font-mono text-[12px] text-[var(--color-brand)]">
                 {String(i + 1).padStart(2, "0")}
               </span>

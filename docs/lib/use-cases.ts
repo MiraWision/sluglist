@@ -1,3 +1,5 @@
+import type { IconName } from "@/components/Icons";
+
 export interface UseCase {
   slug: string;
   /** H1 on the page. */
@@ -16,6 +18,8 @@ export interface UseCase {
   group: "scenario" | "tool";
   /** One line naming the reader. The index shows it under the label. */
   who: string;
+  /** Marker for the hub cards and the page header. */
+  icon: IconName;
   /** What this scenario is worth, concretely. Three per page. */
   benefits: { title: string; body: string }[];
   intro: string;
@@ -27,6 +31,7 @@ export interface UseCase {
 export const USE_CASES: UseCase[] = [
   {
     slug: "local-dev",
+    icon: "laptop",
     label: "Your own dev loop",
     group: "scenario",
     title: "Catch it while you build — feedback from yourself",
@@ -134,6 +139,7 @@ artifact format, so nothing downstream changes. And the whole cycle can run
   },
   {
     slug: "client-acceptance",
+    icon: "team",
     label: "Your team & client",
     group: "scenario",
     title: "Acceptance testing with your client, PM and testers",
@@ -251,6 +257,7 @@ a pass before the client sees it — the artifacts are identical either way.`,
   },
   {
     slug: "beta-feedback",
+    icon: "globe",
     label: "Real users",
     group: "scenario",
     title: "A “Report a problem” button for beta & production",
@@ -355,6 +362,7 @@ validation, retention, and a privacy-policy paragraph to adapt.`,
   },
   {
     slug: "agent-loop",
+    icon: "robot",
     label: "Agent-to-agent QA",
     group: "scenario",
     title: "An autonomous QA loop: test, fix, re-test, until green",
@@ -378,7 +386,13 @@ validation, retention, and a privacy-policy paragraph to adapt.`,
     ],
     intro:
       "Both ends of the loop can be agents: one walks the app in a browser and writes down what it saw, another reads those artifacts and fixes the code. What makes it more than a demo is that neither of them is trusted — every verdict carries evidence, and a third command decides whether another round is worth running.",
-    body: `## Set the project up
+    body: `![Terminal recording of the loop: after round one sluglist status says continue with two fixed items to re-test, after the re-test round it says green, and sluglist report renders the session to a single HTML file](/loop-demo.svg)
+
+*The recording above is the real CLI on a real session pair — round 1 with two evidence-backed
+fails and a fix pass, the re-test round, and the verdict flipping to green. The rendered result:
+[the live example report](/example-report.html).*
+
+## Set the project up
 
 \`\`\`bash
 npx sluglist init --agents-md
@@ -410,6 +424,11 @@ The \`sluglist-loop\` skill takes it from there:
 5. **Fix** — the failing issues are patched; each outcome is recorded in \`fixes.yaml\`.
 6. **Re-test** — a checklist of only the fixed items, ids preserved and provenance attached, then
    back to step 4.
+
+**See the output for yourself:** [a live example report](/example-report.html) — one
+self-contained HTML file from a real QA round on a demo app: evidence-backed passes with the
+observed facts, a fail linked to its issue, an item honestly reported as *not tested*, and the fix
+pass answering in \`fixes.yaml\`.
 
 ## The decision point
 
@@ -497,6 +516,7 @@ Any language that can write files can produce the same artifacts:
   },
   {
     slug: "claude-code",
+    icon: "terminal",
     label: "Claude Code",
     group: "tool",
     title: "Visual feedback for Claude Code & coding agents",

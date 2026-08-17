@@ -3,6 +3,7 @@ import Link from "next/link";
 import { CodeBlock } from "@/components/CodeBlock";
 import { DemoLazy } from "@/components/DemoLazy";
 import { ContractDiagram, LoopDiagram } from "@/components/Diagrams";
+import { Icon, IconBadge, type IconName } from "@/components/Icons";
 import { JsonLd } from "@/components/JsonLd";
 import { Mono, Section, Terminal } from "@/components/Section";
 import { DEPENDENCY_COUNT, LICENSE, VERSION } from "@/lib/pkg";
@@ -117,10 +118,12 @@ const SCENARIOS: {
   /** Grammar for the snippet; the label under it says so too. */
   lang?: string;
   href: string;
+  icon: IconName;
 }[] = [
   {
     n: "01",
     title: "Your own dev loop",
+    icon: "laptop",
     body: "Click the bug on localhost, have it land in a folder, let your agent fix it.",
     code: `import { LocalConnector } from "sluglist";
 
@@ -135,6 +138,7 @@ mountFeedbackWidget(
   {
     n: "02",
     title: "Your team & client",
+    icon: "team",
     body: "Staging plus a checklist of what shipped. They walk it and flag problems; you get a coverage map.",
     code: `createFeedbackWidget({
   project: "acme",
@@ -146,6 +150,7 @@ mountFeedbackWidget(
   {
     n: "03",
     title: "Real users",
+    icon: "globe",
     body: "A \"Report a problem\" button for production: PII masked and scrubbed, delivery through an endpoint you own.",
     code: `createFeedbackWidget({
   project: "acme",
@@ -158,6 +163,7 @@ mountFeedbackWidget(
   {
     n: "04",
     title: "Agent-to-agent QA",
+    icon: "robot",
     body: "A QA agent walks the checklist in a browser, a fix agent answers it, and the loop runs until green.",
     code: `npx sluglist init --agents-md
 
@@ -176,64 +182,81 @@ npx sluglist status --json`,
  * the argument, the docs pages carry the reference — and stop competing with
  * this one for the same searches.
  */
-const IN_THE_BOX: { title: string; body: string; href: string }[] = [
+const IN_THE_BOX: {
+  title: string;
+  body: string;
+  href: string;
+  icon: IconName;
+}[] = [
   {
     title: "Four capture modes",
+    icon: "crosshair",
     body: "Pick an element, drag an area, grab the whole scrollable page, or record a flow as numbered frames.",
     href: "/docs/capture/",
   },
   {
     title: "Annotation",
+    icon: "pen",
     body: "Arrow, box and text over the screenshot, with colour, undo and keyboard shortcuts — flattened at full resolution.",
     href: "/docs/capture/",
   },
   {
     title: "Smart selectors",
+    icon: "crosshair",
     body: "data-testid → id → aria → landmark path, plus a React component hint. Never a Tailwind utility or a hashed class.",
     href: "/docs/artifacts/",
   },
   {
     title: "Errors and an action trail",
+    icon: "alert",
     body: "Recent console errors, exceptions and failed requests, plus what the reporter did before the click — never what they typed.",
     href: "/docs/capture/",
   },
   {
     title: "Checklist mode",
+    icon: "checklist",
     body: "Pre-seed an acceptance list; every verdict lands in session.yaml as a coverage map — pass, fail, or never checked.",
     href: "/docs/checklist/",
   },
   {
     title: "Pluggable connectors",
+    icon: "plug",
     body: "The core never knows about storage. Deliver anywhere through a two-method interface; fan out to several at once.",
     href: "/docs/connectors/",
   },
   {
     title: "PII masking and scrubbing",
+    icon: "eye-off",
     body: "Inputs redacted in the screenshot; emails, long digit runs and tokens scrubbed out of every text surface.",
     href: "/docs/production/",
   },
   {
     title: "A production preset",
+    icon: "shield",
     body: "One line turns on masking, screenshot consent, text scrubbing and a dismiss ✕ for real users.",
     href: "/docs/production/",
   },
   {
     title: "A stable artifact format",
+    icon: "folder",
     body: "A folder per session: session.yaml plus one markdown file per issue. Versioned, and only ever extended.",
     href: "/docs/artifacts/",
   },
   {
     title: "Agent skills and a CLI",
+    icon: "terminal",
     body: "dev, report, status, init — and four Claude Code skills that run the loop from checklist to green.",
     href: "/docs/agents/",
   },
   {
     title: "Project conventions",
+    icon: "settings-doc",
     body: "One committed file holds your base branch, how to run and sign in, hard limits and loop budget.",
     href: "/docs/project-conventions/",
   },
   {
     title: "Framework-agnostic",
+    icon: "layers",
     body: "Zero UI framework, style-isolated in a shadow DOM, an offline outbox, and it never breaks the page it is on.",
     href: "/docs/quick-start/",
   },
@@ -398,8 +421,11 @@ export default function HomePage() {
               className="flex flex-col gap-3 rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] p-5"
               key={s.n}
             >
-              <div className="flex items-baseline gap-2">
-                <span className="font-mono text-[13px] text-[var(--color-ink-2)]">
+              <div className="flex items-center gap-2">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg border tint-brand">
+                  <Icon name={s.icon} />
+                </span>
+                <span className="font-mono text-[13px] text-[var(--color-muted)]">
                   {s.n}
                 </span>
                 <Link
@@ -616,6 +642,7 @@ export default function HomePage() {
               href={f.href}
               key={f.title}
             >
+              <IconBadge name={f.icon} />
               <h3 className="mb-2 font-semibold text-[15px]">{f.title}</h3>
               <p className="text-[14px] text-[var(--color-ink-2)] leading-relaxed">
                 {f.body}

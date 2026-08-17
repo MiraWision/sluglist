@@ -1,3 +1,5 @@
+import type { IconName } from "@/components/Icons";
+
 export interface DocPage {
   slug: string;
   title: string;
@@ -5,11 +7,14 @@ export interface DocPage {
   description: string;
   /** Short label for indexes and prev/next navigation. */
   label: string;
+  /** Marker for the docs index and the home page's "in the box" grid. */
+  icon: IconName;
 }
 
 export const DOC_PAGES: DocPage[] = [
   {
     slug: "quick-start",
+    icon: "bolt",
     title: "Quick start",
     label: "Quick start",
     description:
@@ -17,6 +22,7 @@ export const DOC_PAGES: DocPage[] = [
   },
   {
     slug: "capture",
+    icon: "crosshair",
     title: "Capture modes, annotation & attachments",
     label: "Capture",
     description:
@@ -24,6 +30,7 @@ export const DOC_PAGES: DocPage[] = [
   },
   {
     slug: "connectors",
+    icon: "plug",
     title: "Connectors: deliver feedback anywhere",
     label: "Connectors",
     description:
@@ -31,6 +38,7 @@ export const DOC_PAGES: DocPage[] = [
   },
   {
     slug: "checklist",
+    icon: "checklist",
     title: "Checklist mode: structured acceptance",
     label: "Checklist mode",
     description:
@@ -38,6 +46,7 @@ export const DOC_PAGES: DocPage[] = [
   },
   {
     slug: "production",
+    icon: "shield",
     title: "Production & beta: presets, privacy, PII scrubbing",
     label: "Production",
     description:
@@ -45,6 +54,7 @@ export const DOC_PAGES: DocPage[] = [
   },
   {
     slug: "agents",
+    icon: "terminal",
     title: "Agents & CLI: the local feedback loop",
     label: "Agents & CLI",
     description:
@@ -52,6 +62,7 @@ export const DOC_PAGES: DocPage[] = [
   },
   {
     slug: "project-conventions",
+    icon: "settings-doc",
     title: "Project conventions: .sluglist/PROJECT.md",
     label: "Project conventions",
     description:
@@ -59,6 +70,7 @@ export const DOC_PAGES: DocPage[] = [
   },
   {
     slug: "artifacts",
+    icon: "folder",
     title: "Artifact format (contract)",
     label: "Artifact format",
     description:

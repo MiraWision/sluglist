@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Icon } from "@/components/Icons";
 import { JsonLd } from "@/components/JsonLd";
 import { renderMarkdown } from "@/lib/markdown";
 import { pageMetadata, SITE_URL } from "@/lib/site";
@@ -71,11 +72,16 @@ export default async function UseCasePage({
 
       {/* Who it is for, then what it is worth — the two questions a landing
           page has to answer before anyone reads an install command. */}
-      <p className="mb-8 rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] px-4 py-3 text-[14px] text-[var(--color-ink-2)]">
-        <span className="font-mono text-[11px] text-[var(--color-brand)] uppercase tracking-wider">
-          For
+      <p className="mb-8 flex items-center gap-3 rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] px-4 py-3 text-[14px] text-[var(--color-ink-2)]">
+        <span className="flex h-8 w-8 flex-none items-center justify-center rounded-lg border tint-brand">
+          <Icon name={uc.icon} />
         </span>
-        <span className="ml-2">{uc.who}</span>
+        <span>
+          <span className="font-mono text-[11px] text-[var(--color-brand)] uppercase tracking-wider">
+            For
+          </span>
+          <span className="ml-2">{uc.who}</span>
+        </span>
       </p>
 
       <div className="mb-12 grid gap-4 sm:grid-cols-3 [&>*]:min-w-0">
