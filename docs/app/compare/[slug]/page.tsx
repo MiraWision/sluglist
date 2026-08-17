@@ -57,7 +57,7 @@ export default async function ComparePageRoute({
           about: { "@id": `${SITE_URL}/#software` },
         }}
       />
-      <p className="mb-2 font-mono text-[12px] text-[var(--color-muted)] uppercase tracking-widest">
+      <p className="mb-2 font-mono text-[12px] text-[var(--color-brand)] uppercase tracking-widest">
         Comparison
       </p>
       <h1 className="mb-4 font-bold text-3xl tracking-tight md:text-4xl">
@@ -133,6 +133,34 @@ export default async function ComparePageRoute({
         </div>
       </div>
 
+      {/* The difference that has no equivalent column in the table above: a
+          hosted tool ends at the report, and this is what happens after it. */}
+      <section className="mb-10 rounded-xl border panel-brand p-5">
+        <h2 className="mb-2 font-semibold text-[15px]">
+          The part a hosted dashboard has no answer for
+        </h2>
+        <p className="text-[14px] text-[var(--color-ink-2)] leading-relaxed">
+          Every tool in this category ends at a good report. sluglist keeps
+          going: a QA agent walks an acceptance checklist in a real browser and
+          records verdicts with evidence — no <em>fail</em> without a
+          screenshot, no <em>pass</em> without performing the check — a fix
+          agent answers them in <code className="font-mono text-[13px]">fixes.yaml</code>, and{" "}
+          <code className="font-mono text-[13px]">npx sluglist status</code>{" "}
+          reads the artifacts to decide whether another round is worth running.
+          The loop ends on green, or stops and says which item has failed twice
+          and needs a human.
+        </p>
+        <p className="mt-3 text-[14px]">
+          <Link
+            className="text-[var(--color-brand)] hover:underline"
+            data-umami-event={`compare-loop-${cp.slug}`}
+            href="/for/agent-loop/"
+          >
+            How the autonomous QA loop works →
+          </Link>
+        </p>
+      </section>
+
       <section className="border-[var(--color-line)] border-t pt-8">
         <h2 className="mb-5 font-semibold text-xl tracking-tight">
           Frequently asked questions
@@ -151,7 +179,8 @@ export default async function ComparePageRoute({
 
       <div className="mt-12 flex flex-wrap gap-3">
         <Link
-          className="rounded-xl bg-[var(--color-accent)] px-5 py-2.5 font-medium text-[14px] text-[var(--color-canvas)] transition hover:opacity-90"
+          className="rounded-xl bg-[var(--color-brand)] px-5 py-2.5 font-medium text-[14px] text-[var(--color-brand-ink)] transition hover:opacity-90"
+          data-umami-event={`compare-start-${cp.slug}`}
           href="/docs/quick-start/"
         >
           Get started with sluglist
