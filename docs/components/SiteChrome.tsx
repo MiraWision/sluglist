@@ -14,11 +14,13 @@ export function Logo() {
 export function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 border-[var(--color-line)] border-b bg-[color-mix(in_oklab,var(--color-canvas)_85%,transparent)] backdrop-blur">
-      <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
+      {/* One line at every width: `nowrap` plus tighter spacing on a phone. At
+          320px the nav used to wrap and push the bar to two rows. */}
+      <div className="mx-auto flex max-w-5xl flex-nowrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
         <Link className="hover:opacity-80" href="/">
           <Logo />
         </Link>
-        <nav className="flex items-center gap-5 text-[14px] text-[var(--color-muted)]">
+        <nav className="flex flex-nowrap items-center gap-4 whitespace-nowrap text-[14px] text-[var(--color-muted)] sm:gap-5">
           <Link
             className="hover:text-[var(--color-ink)]"
             data-umami-event="nav-docs"
@@ -54,7 +56,7 @@ export function SiteHeader() {
             npm
           </a>
           <a
-            className="rounded-lg border border-[var(--color-line)] px-3 py-1.5 text-[var(--color-ink)] transition hover:bg-[var(--color-surface)]"
+            className="text-[var(--color-ink)] transition sm:rounded-lg sm:border sm:border-[var(--color-line)] sm:px-3 sm:py-1.5 sm:hover:bg-[var(--color-surface)]"
             data-umami-event="nav-github"
             href={REPO}
           >
