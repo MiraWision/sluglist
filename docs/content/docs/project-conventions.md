@@ -27,6 +27,9 @@ not on re-runs, not with `--force` — because it holds your answers, not ours.
 
 ## Credentials are referenced, never stored
 
+> [!CAUTION]
+> `PROJECT.md` is committed. Never write a password, token or API key into it.
+
 The file is committed, so it names **where** the credentials live — an env var, a seed script, a
 password-manager entry — and never the values:
 

@@ -20,6 +20,11 @@ Real targets (blob storage, an API route, a tracker) are your own connector. `co
 array, so one issue can fan out to several destinations at once; a failing connector never blocks
 the others or the UI, and delivery retries with backoff.
 
+> [!CAUTION]
+> Never ship storage write-keys to the browser. A connector that holds a bucket credential puts it in
+> your bundle for anyone to read — put a thin endpoint of your own in front and keep the key
+> server-side.
+
 ## The recommended shape: a thin API route
 
 Because the browser should never hold storage credentials, the recommended shape is a **thin API

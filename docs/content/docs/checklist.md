@@ -50,6 +50,11 @@ Pass a **URL string** instead of an object to fetch the checklist at init (`GET`
 shape) — handy when a skill generates it: `checklist: "/checklist.json"`. An unreachable or invalid
 checklist warns and is skipped; capture still works.
 
+> [!NOTE]
+> A checklist is a session **input** and verdicts are its **output** — nothing carries over. Every
+> session runs the list from scratch, which is why a run is evidence of one moment rather than a
+> status board.
+
 ## Verdicts: the coverage map
 
 Verdicts land in `session.yaml` (put-per-verdict, upserted on every click):

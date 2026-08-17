@@ -4,6 +4,7 @@ import { CodeBlock } from "@/components/CodeBlock";
 import { DemoLazy } from "@/components/DemoLazy";
 import { ContractDiagram, LoopDiagram } from "@/components/Diagrams";
 import { Icon, IconBadge, type IconName } from "@/components/Icons";
+import { TryItButton } from "@/components/TryItButton";
 import { JsonLd } from "@/components/JsonLd";
 import { Mono, Section, Terminal } from "@/components/Section";
 import { DEPENDENCY_COUNT, LICENSE, VERSION } from "@/lib/pkg";
@@ -340,13 +341,7 @@ export default function HomePage() {
               >
                 Get started
               </Link>
-              <a
-                className="rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] px-5 py-2.5 font-medium text-[14px] transition hover:bg-[var(--color-canvas)]"
-                data-umami-event="hero-try-demo"
-                href="#demo"
-              >
-                Try it on this page ↓
-              </a>
+              <TryItButton />
             </div>
           </div>
 

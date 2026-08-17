@@ -352,7 +352,7 @@ validation, retention, and a privacy-policy paragraph to adapt.`,
       },
       {
         q: "Can users turn the widget off?",
-        a: "Yes — the production preset adds a ✕ on the launcher that hides the widget and remembers the choice (7 days by default). ui.show() wired to a footer link is the rescue path back.",
+        a: "Yes — the production preset adds a ✕ on the launcher that hides the widget and remembers the choice (7 days by default). ui.show() wired to a footer link is the rescue path back, and ui.open() starts the reporting flow from your own menu item without the launcher at all.",
       },
       {
         q: "Is there an inbox or ticketing built in?",

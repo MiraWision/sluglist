@@ -29,7 +29,13 @@ to `127.0.0.1` only and has **no authentication** — it is local-only by design
 forward its port. If it isn't running, `LocalConnector` warns once and your other connectors keep
 working (the UI is never blocked).
 
-> Add `.sluglist/` to your project's `.gitignore` — or let `npx sluglist init` do it.
+> [!WARNING]
+> The dev sidecar binds `127.0.0.1` and has **no authentication** — it is local-only by design.
+> Don't expose it or forward its port.
+
+> [!TIP]
+> Add `.sluglist/` to your project's `.gitignore` — or let `npx sluglist init` do it, which also
+> keeps the checklists and `PROJECT.md` tracked.
 
 ## Set the project up — `npx sluglist init`
 

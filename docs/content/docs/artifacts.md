@@ -22,6 +22,11 @@ versioning policy live in
 [SPEC.md](https://github.com/MiraWision/sluglist/blob/main/SPEC.md) — safe to build parsers
 against.
 
+> [!NOTE]
+> Within a major version the format only ever changes **additively** — new optional fields. A parser
+> written for 1.x keeps working as 1.x grows, so ignore fields you do not know rather than failing on
+> them.
+
 ## An issue file, annotated
 
 ```markdown

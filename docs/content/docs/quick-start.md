@@ -57,8 +57,10 @@ mountFeedbackWidget(createFeedbackWidget({ connectors: [new LocalConnector()] })
 npx sluglist dev        # sidecar that writes to ./.sluglist
 ```
 
-Gate it behind an env flag so it never initializes in production —
-`enabled: process.env.NODE_ENV !== "production"`.
+> [!IMPORTANT]
+> Gate the widget behind an env flag so it never initializes in production —
+> `enabled: process.env.NODE_ENV !== "production"`. For real users, use
+> [`preset: "production"`](/docs/production/) deliberately instead.
 
 See [Agents & CLI](/docs/agents/) for the full loop, or
 [the dev-loop use case](/for/local-dev/) for the setup end to end.
