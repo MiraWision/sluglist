@@ -19,10 +19,18 @@ export function SiteHeader() {
           <Logo />
         </Link>
         <nav className="flex items-center gap-5 text-[14px] text-[var(--color-muted)]">
-          <Link className="hover:text-[var(--color-ink)]" href="/docs/">
+          <Link
+            className="hover:text-[var(--color-ink)]"
+            data-umami-event="nav-docs"
+            href="/docs/"
+          >
             Docs
           </Link>
-          <Link className="hover:text-[var(--color-ink)]" href="/for/">
+          <Link
+            className="hover:text-[var(--color-ink)]"
+            data-umami-event="nav-use-cases"
+            href="/for/"
+          >
             Use cases
           </Link>
           <Link
@@ -47,6 +55,7 @@ export function SiteHeader() {
           </a>
           <a
             className="rounded-lg border border-[var(--color-line)] px-3 py-1.5 text-[var(--color-ink)] transition hover:bg-[var(--color-surface)]"
+            data-umami-event="nav-github"
             href={REPO}
           >
             GitHub

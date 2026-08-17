@@ -15,7 +15,7 @@ export default function NotFound() {
       </p>
       <div className="flex gap-3">
         <Link
-          className="rounded-xl bg-[var(--color-accent)] px-5 py-2.5 font-medium text-[14px] text-[var(--color-canvas)] transition hover:opacity-90"
+          className="rounded-xl bg-[var(--color-brand)] px-5 py-2.5 font-medium text-[14px] text-[var(--color-brand-ink)] transition hover:opacity-90"
           href="/"
         >
           Homepage

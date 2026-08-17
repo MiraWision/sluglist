@@ -143,6 +143,7 @@ export default async function UseCasePage({
       <div className="mt-12 flex flex-wrap gap-3">
         <Link
           className="rounded-xl bg-[var(--color-brand)] px-5 py-2.5 font-medium text-[14px] text-[var(--color-brand-ink)] transition hover:opacity-90"
+          data-umami-event={`usecase-start-${uc.slug}`}
           href="/docs/quick-start/"
         >
           Get started

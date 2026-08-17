@@ -5,6 +5,7 @@ import { DemoLazy } from "@/components/DemoLazy";
 import { ContractDiagram, LoopDiagram } from "@/components/Diagrams";
 import { JsonLd } from "@/components/JsonLd";
 import { Mono, Section, Terminal } from "@/components/Section";
+import { DEPENDENCY_COUNT, LICENSE, VERSION } from "@/lib/pkg";
 import { REPO, SITE_DESCRIPTION, SITE_TITLE, SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -168,148 +169,74 @@ npx sluglist status --json`,
   },
 ];
 
-const CONNECTOR_CODE = `interface ArtifactFile {
-  path: string;   // "01-broken-header.png"
-  blob: Blob;
-  mime: string;   // text/yaml | text/markdown | image/png
-}
-
-interface FeedbackConnector {
-  id: string;
-  put(sessionId: string, file: ArtifactFile): Promise<void>;
-}
-
-// Deliver to your own storage / API / tracker:
-class MyConnector implements FeedbackConnector {
-  id = "my-storage";
-  async put(sessionId, file) {
-    await fetch("/api/feedback", {
-      method: "POST",
-      body: file.blob,
-      headers: { "x-path": \`\${sessionId}/\${file.path}\` },
-    });
-  }
-}`;
-
-const ARTIFACTS = `my-app/session-2026-07-23-a1b2/
-  session.yaml                     # upserted on every issue
-  01-save-does-nothing.md          # frontmatter + comment
-  01-save-does-nothing.png         # the screenshot
-  01-save-does-nothing-frames/     # record-mode steps
-    01.png  02.png  03.png
-  02-logo-overlap.md
-  02-logo-overlap.png`;
-
-const FRONTMATTER = `---
-id: "01"
-url: /dashboard/animals
-selector: 'button[aria-label="Save"]'
-selector_strategy: aria
-selector_unique: true
-mode: element
-category: bug
-element_text: "Save"
-dom_path: "body > main > form > button"
-screen: dashboard
-viewport: 1512x982
-screenshot: 01-save-does-nothing.png
-masked: true
-errors_count: 1
-actions_count: 4
-recording: true
-frames_count: 3
-frames_dir: 01-save-does-nothing-frames
-created_at: 2026-07-23T14:05:10Z
-reporter:
-  user_id: u_18293
-  email: "anna@acme.io"
-  name: Anna K.
----
-
-The Save button does nothing after I edit an animal — the form
-just sits there, no toast, no error I can see.
-
-## Errors
-- [3s before report] console: PATCH /api/animals/128 500 (Internal Server Error)
-- [2s before report] exception: Uncaught TypeError: Cannot read properties of undefined (reading 'id')
-    at save (/assets/animals-4f2a.js:210:19)
-
-## Actions
-- [22s before report] navigate /dashboard → /dashboard/animals
-- [12s before report] click #edit-128 ("Edit") — frame 02
-- [5s before report] type (11 chars) input#name
-- [1s before report] click button[aria-label="Save"] ("Save") — frame 03`;
-
-const BETA_CODE = `const widget = createFeedbackWidget({
-  project: "acme",
-  preset: "production",        // beta + text scrub + dismiss ✕
-  connectors: [new HttpConnector("/api/feedback")],
-  identity: { userId, email, name },   // → reporter in artifacts
-  custom: { plan: "pro", appVersion },  // → custom block per issue
-});
-
-const ui = mountFeedbackWidget(widget);
-// The rescue path for anyone who dismissed the launcher.
-footerLink.onclick = () => ui.show();`;
-
-const SCRUB_BEFORE = `element_text: "Notify anna.smirnova@acme.io at +1 555 010 4477"
-url: "/account/settings?token=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI0MiJ9"
-
-## Errors
-- [2s before report] console: card 4111 1111 1111 1111 declined`;
-
-const SCRUB_AFTER = `element_text: "Notify [email] at +[digits]"
-url: "/account/settings?[token]"
-scrubbed: true
-
-## Errors
-- [2s before report] console: card [digits] declined`;
-
-const FEATURES = [
+/**
+ * What is in the box, and where the detail lives.
+ *
+ * Each card links to the docs page that owns its subject: the home page makes
+ * the argument, the docs pages carry the reference — and stop competing with
+ * this one for the same searches.
+ */
+const IN_THE_BOX: { title: string; body: string; href: string }[] = [
   {
-    title: "Flexible capture",
-    body: "Pick an element (with a smart CSS selector), drag an area, grab the full scrollable page, or record a flow.",
+    title: "Four capture modes",
+    body: "Pick an element, drag an area, grab the whole scrollable page, or record a flow as numbered frames.",
+    href: "/docs/capture/",
   },
   {
-    title: "Built-in annotation",
-    body: "Arrow, box and text over the screenshot, with color, undo and keyboard shortcuts — flattened at full resolution.",
+    title: "Annotation",
+    body: "Arrow, box and text over the screenshot, with colour, undo and keyboard shortcuts — flattened at full resolution.",
+    href: "/docs/capture/",
   },
   {
     title: "Smart selectors",
-    body: "data-testid → id → aria → landmark path. Never emits Tailwind utility or hashed CSS-Modules classes.",
+    body: "data-testid → id → aria → landmark path, plus a React component hint. Never a Tailwind utility or a hashed class.",
+    href: "/docs/artifacts/",
   },
   {
-    title: "Error capture",
-    body: "A ring buffer of recent console errors, uncaught exceptions and promise rejections attaches to each issue as a ## Errors section, with a relative timestamp per entry.",
-  },
-  {
-    title: "Action trail & record mode",
-    body: "Every issue carries a ## Actions trail — recent clicks, navigations and typing (never the content). Record mode adds a screenshot frame per step.",
+    title: "Errors and an action trail",
+    body: "Recent console errors, exceptions and failed requests, plus what the reporter did before the click — never what they typed.",
+    href: "/docs/capture/",
   },
   {
     title: "Checklist mode",
-    body: "Pre-seed an acceptance checklist; the client clicks each row to check it off, or flags a problem to open the normal issue flow, linked. Smart links point them at the right page. Get a coverage map in session.yaml — and generate the checklist from a branch diff, a smoke pass over your routes, or a scenario you describe in words.",
+    body: "Pre-seed an acceptance list; every verdict lands in session.yaml as a coverage map — pass, fail, or never checked.",
+    href: "/docs/checklist/",
   },
   {
     title: "Pluggable connectors",
-    body: "The core never knows about storage. Deliver artifacts anywhere via a tiny put() interface — fan out to several at once.",
+    body: "The core never knows about storage. Deliver anywhere through a two-method interface; fan out to several at once.",
+    href: "/docs/connectors/",
   },
   {
-    title: "Offline outbox",
-    body: "Undelivered issues are persisted to IndexedDB and retried on the next load. A failed upload never loses feedback.",
+    title: "PII masking and scrubbing",
+    body: "Inputs redacted in the screenshot; emails, long digit runs and tokens scrubbed out of every text surface.",
+    href: "/docs/production/",
+  },
+  {
+    title: "A production preset",
+    body: "One line turns on masking, screenshot consent, text scrubbing and a dismiss ✕ for real users.",
+    href: "/docs/production/",
+  },
+  {
+    title: "A stable artifact format",
+    body: "A folder per session: session.yaml plus one markdown file per issue. Versioned, and only ever extended.",
+    href: "/docs/artifacts/",
+  },
+  {
+    title: "Agent skills and a CLI",
+    body: "dev, report, status, init — and four Claude Code skills that run the loop from checklist to green.",
+    href: "/docs/agents/",
+  },
+  {
+    title: "Project conventions",
+    body: "One committed file holds your base branch, how to run and sign in, hard limits and loop budget.",
+    href: "/docs/project-conventions/",
   },
   {
     title: "Framework-agnostic",
-    body: "Zero UI framework. Style-isolated in a shadow DOM, mountable anywhere — even a Chrome extension content script.",
+    body: "Zero UI framework, style-isolated in a shadow DOM, an offline outbox, and it never breaks the page it is on.",
+    href: "/docs/quick-start/",
   },
-];
-
-const MODES = [
-  { name: "Element", desc: "Hover to highlight, click to capture; records a descriptive CSS selector + text + DOM path." },
-  { name: "Area", desc: "Drag a rectangle and crop the page to it." },
-  { name: "Full page", desc: "The entire scrollable document, top to bottom." },
-  { name: "Record steps", desc: "Capture a frame on each click, navigation and submit — automatic steps-to-reproduce as numbered screenshots." },
-  { name: "Comment only", desc: "No screenshot — just a note with all the page metadata." },
 ];
 
 const CONFIG = [
@@ -339,7 +266,7 @@ const SOFTWARE_JSONLD = {
   url: `${SITE_URL}/`,
   applicationCategory: "DeveloperApplication",
   operatingSystem: "Web browser",
-  softwareVersion: "1.15.0",
+  softwareVersion: VERSION,
   license: "https://opensource.org/license/mit",
   isAccessibleForFree: true,
   offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
@@ -355,22 +282,25 @@ export default function HomePage() {
     <>
       <JsonLd data={SOFTWARE_JSONLD} />
 
-      {/* Hero */}
+      {/* Hero. The headline promises the loop rather than the widget: a visual
+          feedback widget is a crowded category, and what is actually different
+          here is that the report ends in a diff. */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 grid-bg" />
-        <div className="relative mx-auto max-w-5xl px-6 pt-20 pb-16 text-center md:pt-28">
-          <span className="inline-flex items-center gap-2 rounded-full border border-[var(--color-line)] bg-[var(--color-surface)] px-3 py-1 text-[12px] text-[var(--color-muted)]">
-            MIT · zero-config · ESM + CJS
+        <div className="relative mx-auto max-w-5xl px-6 pt-20 pb-14 text-center md:pt-28">
+          <span className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[12px] tint-brand">
+            Feedback → artifacts → fix → re-test → green
           </span>
           <h1 className="mx-auto mt-6 max-w-3xl font-bold text-4xl tracking-tight md:text-6xl">
-            Visual feedback,
+            Feedback that ends
             <br />
-            one line in.
+            in a diff.
           </h1>
-          <p className="mx-auto mt-5 max-w-xl text-[17px] text-[var(--color-ink-2)] md:text-lg">
-            A drop-in widget for dev and staging sites. Pick an element,
-            screenshot, annotate, and deliver clean artifacts through your own
-            connectors — or let Claude Code read the feedback and fix it.
+          <p className="mx-auto mt-5 max-w-2xl text-[17px] text-[var(--color-ink-2)] md:text-lg">
+            Anyone reports a bug on the running app — a client, a tester, a
+            customer, or a QA agent driving a browser. It lands as a folder of
+            plain files. Your coding agent reads it, fixes the code, and
+            re-tests until the checklist is green.
           </p>
           <div className="mx-auto mt-8 flex max-w-md flex-col items-center gap-3">
             <div className="flex w-full items-center justify-between gap-3 rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] px-4 py-2.5 font-mono text-[14px]">
@@ -382,21 +312,56 @@ export default function HomePage() {
             <div className="flex gap-3">
               <Link
                 className="rounded-xl bg-[var(--color-brand)] px-5 py-2.5 font-medium text-[14px] text-[var(--color-brand-ink)] transition hover:opacity-90"
+                data-umami-event="hero-get-started"
                 href="/docs/quick-start/"
               >
                 Get started
               </Link>
               <a
                 className="rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] px-5 py-2.5 font-medium text-[14px] transition hover:bg-[var(--color-canvas)]"
+                data-umami-event="hero-try-demo"
                 href="#demo"
               >
-                Try the demo
+                Try it on this page ↓
               </a>
             </div>
           </div>
+
+          {/* Facts, not adjectives — and read from the library's own
+              package.json, so the version and the dependency count cannot
+              drift from what was published. */}
+          <ul className="mx-auto mt-10 flex max-w-3xl flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[13px] text-[var(--color-muted)]">
+            {[
+              `v${VERSION}`,
+              `${LICENSE} licence`,
+              `${DEPENDENCY_COUNT} dependencies`,
+              "no account, no server",
+              "4 Claude Code skills",
+            ].map((fact) => (
+              <li className="flex items-center gap-2" key={fact}>
+                <span aria-hidden="true" className="text-[var(--color-pass)]">
+                  ✓
+                </span>
+                {fact}
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
 
+
+      {/* The demo comes first, before any explanation: this page is running the
+          real widget, and touching it is more convincing than a paragraph
+          about it. It also produces the artifacts the next section explains. */}
+      <Section eyebrow="Live" id="demo" title="Try it on this page">
+        <p className="mb-8 max-w-2xl text-[15px] text-[var(--color-ink-2)] leading-relaxed md:text-[16px]">
+          The widget is already mounted here. Report something — the launcher is
+          in the bottom-right corner, or press{" "}
+          <Mono>Shift+F</Mono> — and the artifacts it produces appear below,
+          exactly as they would land in your project&rsquo;s folder.
+        </p>
+        <DemoLazy />
+      </Section>
 
       {/* The idea the rest of the page is an implementation of. */}
       <Section
@@ -439,6 +404,7 @@ export default function HomePage() {
                 </span>
                 <Link
                   className="font-semibold text-[15px] hover:underline"
+                  data-umami-event={`scenario-${s.href.replace(/^\/for\/|\/$/g, "")}`}
                   href={s.href}
                 >
                   {s.title}
@@ -455,7 +421,11 @@ export default function HomePage() {
         </div>
         <p className="mt-6 text-[14px] text-[var(--color-ink-2)]">
           Each one, with the benefits and the exact setup:{" "}
-          <Link className="text-[var(--color-brand)] hover:underline" href="/for/">
+          <Link
+            className="text-[var(--color-brand)] hover:underline"
+            data-umami-event="scenarios-see-all"
+            href="/for/"
+          >
             the four use cases
           </Link>
           .
@@ -610,26 +580,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      <Section eyebrow="Live" id="demo" title="Try it on this page">
-        <DemoLazy />
-      </Section>
-
-      <Section eyebrow="Why" id="features" title="Everything a feedback loop needs">
-        <div className="grid gap-4 md:grid-cols-3 [&>*]:min-w-0">
-          {FEATURES.map((f) => (
-            <div
-              className="rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] p-5"
-              key={f.title}
-            >
-              <h3 className="mb-2 font-semibold text-[15px]">{f.title}</h3>
-              <p className="text-[14px] text-[var(--color-ink-2)] leading-relaxed">
-                {f.body}
-              </p>
-            </div>
-          ))}
-        </div>
-      </Section>
-
       <Section eyebrow="Install" id="start" title="Quick start">
         <div className="grid gap-6 md:grid-cols-2 md:items-start [&>*]:min-w-0">
           <CodeBlock code={QUICK_START} />
@@ -658,150 +608,20 @@ export default function HomePage() {
       </Section>
 
 
-      <Section eyebrow="Capture" id="modes" title="Five ways to report">
-        <div className="grid gap-4 sm:grid-cols-2 [&>*]:min-w-0">
-          {MODES.map((m) => (
-            <div
-              className="flex gap-4 rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] p-5"
-              key={m.name}
+      <Section eyebrow="In the box" id="features" title="Everything else, one click away">
+        <div className="grid gap-4 md:grid-cols-3 [&>*]:min-w-0">
+          {IN_THE_BOX.map((f) => (
+            <Link
+              className="rounded-xl border border-[var(--color-line)] bg-[var(--color-surface)] p-5 transition hover:bg-[var(--color-canvas)]"
+              href={f.href}
+              key={f.title}
             >
-              <div className="font-semibold text-[15px]">{m.name}</div>
-              <div className="text-[14px] text-[var(--color-ink-2)] leading-relaxed">
-                {m.desc}
-              </div>
-            </div>
-          ))}
-        </div>
-      </Section>
-
-      <Section eyebrow="Delivery" id="connectors" title="Connectors own the storage">
-        <div className="grid gap-6 md:grid-cols-2 md:items-start [&>*]:min-w-0">
-          <p className="text-[15px] text-[var(--color-ink-2)] leading-relaxed">
-            The core produces artifacts and hands them to your connectors. All
-            auth, credentials and knowledge of where things go live in the
-            connector — never in the widget. Built-ins:{" "}
-            <code className="font-mono text-[13px]">MemoryConnector</code> and{" "}
-            <code className="font-mono text-[13px]">DownloadConnector</code> (zips
-            a session). Failures retry with backoff and never block the UI.
-            Recipes for Vercel Blob, S3/R2 and Supabase:{" "}
-            <Link className="underline underline-offset-2" href="/docs/connectors/">
-              the connectors guide
+              <h3 className="mb-2 font-semibold text-[15px]">{f.title}</h3>
+              <p className="text-[14px] text-[var(--color-ink-2)] leading-relaxed">
+                {f.body}
+              </p>
             </Link>
-            .
-          </p>
-          <CodeBlock code={CONNECTOR_CODE} />
-        </div>
-      </Section>
-
-      <Section
-        eyebrow="Production"
-        id="beta"
-        title="A &ldquo;Report a problem&rdquo; button for real users"
-      >
-        <div className="grid gap-6 md:grid-cols-2 md:items-start [&>*]:min-w-0">
-          <div>
-            <p className="mb-4 text-[15px] text-[var(--color-ink-2)] leading-relaxed">
-              The <code className="font-mono text-[13px]">production</code> preset
-              turns sluglist into a feedback button for paying customers. It masks
-              form inputs and anything marked{" "}
-              <code className="font-mono text-[13px]">data-private</code> in the
-              screenshot, adds a screenshot-consent checkbox, scrubs PII out of the
-              text it collects, and gives the reporter a ✕ to make it go away —
-              with <code className="font-mono text-[13px]">ui.show()</code> as the
-              rescue path.
-            </p>
-            <p className="mb-4 text-[14px] text-[var(--color-muted)] leading-relaxed">
-              Nothing sluglist wraps can break your page:{" "}
-              <code className="font-mono text-[13px]">fetch</code>,{" "}
-              <code className="font-mono text-[13px]">console.error</code> and{" "}
-              <code className="font-mono text-[13px]">history</code> always call
-              the original, and after repeated internal failures the widget
-              uninstalls itself and gets out of the way.
-            </p>
-            <p className="text-[14px] text-[var(--color-muted)] leading-relaxed">
-              Still one-way capture by design: no inbox, no statuses, no replies,
-              no accounts. Deliver through a thin endpoint that owns your storage
-              keys — never ship write-keys to the browser. Before you ship, walk
-              the{" "}
-              <Link
-                className="underline decoration-[var(--color-line)] underline-offset-2 hover:text-[var(--color-ink)]"
-                href="/docs/production/"
-              >
-                production checklist
-              </Link>
-              .
-            </p>
-          </div>
-          <CodeBlock code={BETA_CODE} />
-        </div>
-      </Section>
-
-      <Section
-        eyebrow="Privacy"
-        id="scrub"
-        title="PII never reaches the artifact"
-      >
-        <p className="mb-6 max-w-2xl text-[15px] text-[var(--color-ink-2)] leading-relaxed">
-          With <code className="font-mono text-[13px]">scrubText</code> on, emails,
-          long digit runs and hex/base64 tokens are redacted from every text
-          surface: element text, the issue url, each message and stack in{" "}
-          <code className="font-mono text-[13px]">## Errors</code> — failed-request
-          paths included — and the selectors and labels in{" "}
-          <code className="font-mono text-[13px]">## Actions</code>. Dates, version
-          numbers, viewport strings and stack-trace line numbers are left alone, so
-          the report stays readable.
-        </p>
-        <div className="grid gap-6 md:grid-cols-2 md:items-start [&>*]:min-w-0">
-          <div>
-            <p className="mb-2 font-mono text-[12px] text-[var(--color-muted)] uppercase tracking-widest">
-              Captured
-            </p>
-            <CodeBlock code={SCRUB_BEFORE} lang="markdown" />
-          </div>
-          <div>
-            <p className="mb-2 font-mono text-[12px] text-[var(--color-muted)] uppercase tracking-widest">
-              Delivered
-            </p>
-            <CodeBlock code={SCRUB_AFTER} lang="markdown" />
-          </div>
-        </div>
-        <p className="mt-6 max-w-2xl text-[14px] text-[var(--color-muted)] leading-relaxed">
-          And nothing leaves your infrastructure: the widget makes no network
-          requests except to the connectors you configure — enforced by a test that
-          drives a full session with every outbound channel trapped and asserts the
-          count is zero.
-        </p>
-      </Section>
-
-      <Section eyebrow="Contract" id="artifacts" title="A stable artifact format">
-        <div className="grid gap-6 md:grid-cols-2 md:items-start [&>*]:min-w-0">
-          <div>
-            <p className="mb-4 text-[15px] text-[var(--color-ink-2)] leading-relaxed">
-              Every session is a folder: an upserted{" "}
-              <code className="font-mono text-[13px]">session.yaml</code> index
-              plus one markdown file per issue with YAML frontmatter. Structure
-              and fields are a contract — they only ever change additively. The
-              full field dictionary lives in{" "}
-              <Link className="underline underline-offset-2" href="/docs/artifacts/">
-                the artifact format reference
-              </Link>
-              .
-            </p>
-            <CodeBlock code={ARTIFACTS} lang="text" />
-          </div>
-          <div>
-            <CodeBlock code={FRONTMATTER} lang="markdown" />
-            {/* This example sits right after the privacy section, where a
-                readable `reporter.email` looks like a contradiction. It is not:
-                scrubbing is for text the widget collects, not for fields the
-                developer sets deliberately. */}
-            <p className="mt-2 text-[12px] text-[var(--color-muted)] leading-relaxed">
-              <code className="font-mono text-[11px]">reporter</code> comes from
-              the <code className="font-mono text-[11px]">identity</code> you
-              configure — scrubbing applies to text the widget captures, not to
-              fields you set on purpose.
-            </p>
-          </div>
+          ))}
         </div>
       </Section>
 

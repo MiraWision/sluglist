@@ -54,7 +54,11 @@ export default function UseCasesIndexPage() {
                 {String(i + 1).padStart(2, "0")}
               </span>
               <h2 className="font-semibold text-[17px] tracking-tight">
-                <Link className="hover:underline" href={`/for/${c.slug}/`}>
+                <Link
+                  className="hover:underline"
+                  data-umami-event={`hub-${c.slug}`}
+                  href={`/for/${c.slug}/`}
+                >
                   {c.label}
                 </Link>
               </h2>
