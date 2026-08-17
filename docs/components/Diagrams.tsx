@@ -290,3 +290,139 @@ export function LoopDiagram() {
     </figure>
   );
 }
+
+interface CycleStep {
+  label: string;
+  note: string;
+}
+
+/** Four steps and a decision — the shortest honest telling of the cycle. */
+const CYCLE: CycleStep[] = [
+  { label: "Build", note: "your change" },
+  { label: "Checklist", note: "what done means" },
+  { label: "Test", note: "in a real browser" },
+  { label: "Feedback", note: "verdicts + evidence" },
+];
+
+function Chevron({ tone = "line" }: { tone?: "line" | "pass" }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={
+        tone === "pass"
+          ? "shrink-0 text-[var(--color-pass)]"
+          : "shrink-0 text-[var(--color-muted)]"
+      }
+      fill="none"
+      height="12"
+      viewBox="0 0 18 12"
+      width="18"
+    >
+      <path
+        d="M1 6h14m0 0-4-4m4 4-4 4"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.5"
+      />
+    </svg>
+  );
+}
+
+function Node({
+  label,
+  note,
+  variant,
+}: {
+  label: string;
+  note?: string;
+  variant: "step" | "decision" | "done";
+}) {
+  const skin =
+    variant === "decision"
+      ? "tint-brand"
+      : variant === "done"
+        ? "tint-pass"
+        : "border-[var(--color-line)] bg-[var(--color-surface)]";
+  return (
+    <div className={`rounded-lg border px-3 py-2 text-center ${skin}`}>
+      <p
+        className={`font-semibold text-[13px] leading-tight ${
+          variant === "step" ? "text-[var(--color-ink)]" : ""
+        }`}
+      >
+        {label}
+      </p>
+      {note ? (
+        <p className="mt-0.5 text-[11px] text-[var(--color-muted)] leading-tight">
+          {note}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * The cycle as a strip: forward along the top, a dashed return underneath, and
+ * one straight exit.
+ *
+ * Deliberately not a ring — a ring reads as "spins forever" and hides the fact
+ * that the loop ends. And deliberately not five colours: the steps are neutral,
+ * so the only coloured things are the two outcomes (amber going back, green
+ * going out), which is what a reader needs to spot in one glance. The same
+ * pass/fail palette as every verdict elsewhere on the site.
+ */
+export function CycleStrip() {
+  return (
+    <figure className="m-0">
+      {/* Wide: one row. The return is absolutely positioned inside the cyclic
+          part only, so its two ends land under the first and last node of the
+          cycle rather than under the exit. */}
+      <div className="hidden items-start justify-center gap-2 lg:flex">
+        <div className="relative flex items-center gap-2 pb-9">
+          {CYCLE.map((step, i) => (
+            <div className="flex items-center gap-2" key={step.label}>
+              {i > 0 ? <Chevron /> : null}
+              <Node label={step.label} note={step.note} variant="step" />
+            </div>
+          ))}
+          <Chevron />
+          <Node
+            label="sluglist status"
+            note="another round?"
+            variant="decision"
+          />
+
+          {/* Down from the decision, back to Build — dashed, so it reads as
+              "again" rather than as a second forward edge. */}
+          <div className="cycle-return" />
+          <span className="cycle-return-label">still failing</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Chevron tone="pass" />
+          <Node label="Resolved" note="report handed over" variant="done" />
+        </div>
+      </div>
+
+      {/* Narrow: the same six nodes, wrapped, with the return stated in words —
+          an absolutely-positioned bracket cannot survive a wrap. */}
+      <div className="lg:hidden">
+        <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-2">
+          {CYCLE.map((step, i) => (
+            <div className="flex items-center gap-2" key={step.label}>
+              {i > 0 ? <Chevron /> : null}
+              <Node label={step.label} variant="step" />
+            </div>
+          ))}
+          <Chevron />
+          <Node label="status" variant="decision" />
+          <Chevron tone="pass" />
+          <Node label="Resolved" variant="done" />
+        </div>
+        <p className="mt-3 text-center text-[12px] text-[var(--color-gap)]">
+          ↺ still failing → back to Build
+        </p>
+      </div>
+    </figure>
+  );
+}

@@ -2,7 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CodeBlock } from "@/components/CodeBlock";
 import { DemoLazy } from "@/components/DemoLazy";
-import { ContractDiagram, LoopDiagram } from "@/components/Diagrams";
+import {
+  ContractDiagram,
+  CycleStrip,
+  LoopDiagram,
+} from "@/components/Diagrams";
 import { Icon, IconBadge, type IconName } from "@/components/Icons";
 import { TryItButton } from "@/components/TryItButton";
 import { JsonLd } from "@/components/JsonLd";
@@ -312,10 +316,7 @@ export default function HomePage() {
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 grid-bg" />
         <div className="relative mx-auto max-w-5xl px-6 pt-20 pb-14 text-center md:pt-28">
-          <span className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[12px] tint-brand">
-            Feedback → artifacts → fix → re-test → green
-          </span>
-          <h1 className="mx-auto mt-6 max-w-3xl font-bold text-4xl tracking-tight md:text-6xl">
+          <h1 className="mx-auto max-w-3xl font-bold text-4xl tracking-tight md:text-6xl">
             Feedback that ends
             <br />
             in a diff.
@@ -343,6 +344,13 @@ export default function HomePage() {
               </Link>
               <TryItButton />
             </div>
+          </div>
+
+          {/* The cycle, as a strip: forward along the top, a dashed return
+              underneath, one straight exit. Below the CTAs, so the headline
+              still owns the first screen. */}
+          <div className="mt-12">
+            <CycleStrip />
           </div>
 
           {/* Facts, not adjectives — and read from the library's own

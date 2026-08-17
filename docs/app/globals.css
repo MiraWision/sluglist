@@ -235,3 +235,44 @@ body {
 .prose-site .callout-quote {
   border-left: 3px solid color-mix(in oklab, var(--color-brand) 45%, transparent);
 }
+
+/* The cycle strip's return path: a dashed bracket that drops from the decision
+   node, runs back under the row and points up into the first step. Drawn with
+   borders rather than SVG so it stretches with the row at any width. */
+.cycle-return {
+  position: absolute;
+  /* Tuned to land on the centres of the first node and the decision node
+     (measured: 45px and 58px from the container's edges at this type size). */
+  left: 2.8rem;
+  right: 3.6rem;
+  bottom: 0.55rem;
+  height: 1.5rem;
+  border: 1.5px dashed color-mix(in oklab, var(--color-gap) 55%, transparent);
+  border-top: none;
+  border-bottom-left-radius: 0.6rem;
+  border-bottom-right-radius: 0.6rem;
+}
+
+/* Arrowhead into the first step. */
+.cycle-return::before {
+  content: "";
+  position: absolute;
+  top: -7px;
+  left: -5px;
+  border-right: 4.5px solid transparent;
+  border-bottom: 7px solid var(--color-gap);
+  border-left: 4.5px solid transparent;
+}
+
+.cycle-return-label {
+  position: absolute;
+  bottom: 0.05rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0 0.5rem;
+  background: var(--color-canvas);
+  color: var(--color-gap);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  white-space: nowrap;
+}
