@@ -1,14 +1,40 @@
 # sluglist
 
-> Universal embeddable feedback widget for dev, staging and beta sites.
+> Visual feedback that ends in a diff — for your dev loop, your client, your users, and an agent QA loop.
+
+[![npm version](https://img.shields.io/npm/v/sluglist.svg?color=4f46e5)](https://www.npmjs.com/package/sluglist)
+[![license](https://img.shields.io/npm/l/sluglist.svg?color=4f46e5)](LICENSE)
+[![bundle size](https://img.shields.io/bundlejs/size/sluglist?color=4f46e5)](https://bundlejs.com/?q=sluglist)
+[![downloads](https://img.shields.io/npm/dm/sluglist?color=4f46e5)](https://www.npmjs.com/package/sluglist)
 
 **[Live demo & docs → sluglist.dev](https://sluglist.dev)**
 
-A framework-agnostic, dependency-light widget that lets people leave visual feedback directly on
-a running web app: pick an element, grab an area or the full page, annotate the screenshot, add a
-comment, and the widget produces a standard set of artifacts and hands them to pluggable
-**connectors**. The core knows nothing about where feedback is stored; delivery is fully
-encapsulated in the connector you provide.
+Anyone reports a bug on the running app — a client signing off a release, a tester, a customer in
+production, or a QA agent driving a browser. It lands as **a folder of plain files**: `session.yaml`,
+one markdown file per issue, the screenshot. A coding agent reads that folder, fixes the code, and
+re-tests until the checklist is green — or says honestly which item it could not fix.
+
+Underneath is a framework-agnostic, dependency-light widget: pick an element, grab an area or the full
+page, annotate the screenshot, add a comment. The artifacts go to pluggable **connectors** — the core
+knows nothing about where feedback is stored, and delivery is fully encapsulated in the connector you
+provide. Alongside it, a CLI (`dev`, `report`, `status`, `init`) and four Claude Code skills that run
+the loop end to end.
+
+### Contents
+
+**Start** · [Install](#install) · [Quick start](#quick-start) · [Pick your scenario](#pick-your-scenario)
+
+**The loop** · [Local feedback loop](#local-feedback-loop) · [Let an agent fix it](#let-an-agent-fix-it-claude-code-skill) · [For agents](#for-agents) · [`sluglist init`](#set-the-project-up--npx-sluglist-init) · [`sluglist status`](#until-green--npx-sluglist-status) · [`PROJECT.md`](#project-conventions--sluglistprojectmd) · [Evidence-backed passes](#evidence-backed-passes) · [Headless writer](#headless-writer--sluglistnode)
+
+**Capture** · [Modes](#capture-modes) · [Mobile](#mobile-graceful-mode) · [Form fields](#reporter-form-fields) · [Attachments](#attachments) · [Programmatic](#programmatic-capture) · [Identity](#attach-your-user)
+
+**Delivery** · [Connectors](#connectors) · [Recipes](#connector-recipes) · [Reports](#reports)
+
+**Real users** · [Beta mode](#beta-feedback-mode) · [Production](#production) · [Localization](#localization)
+
+**Acceptance** · [Checklist mode](#checklist-mode) · [Five intents](#generate-a-checklist--five-intents)
+
+**Reference** · [Artifact format](#artifact-format-contract) · [Metadata](#metadata-collected) · [Error capture](#error-capture) · [Action trail](#action-trail--record-mode) · [Notes & limits](#notes-and-limits)
 
 ## Install
 
@@ -127,6 +153,258 @@ npx sluglist status --json             # green | continue | stalled | blocked
 
 → [For agents](#for-agents) · [until green](#until-green--npx-sluglist-status) ·
 [project conventions](#project-conventions--sluglistprojectmd) · [the skills](skills/)
+
+## Local feedback loop
+
+Test your app locally, click feedback with the widget, and have it land in a `.sluglist/` folder in
+your project — then let an agent (e.g. Claude Code) read it and fix the issues. Browser JS can't write
+to disk, so a tiny sidecar process, `sluglist dev`, sits between the widget and the folder.
+
+```ts
+import { createFeedbackWidget, mountFeedbackWidget, LocalConnector } from "sluglist";
+
+const widget = createFeedbackWidget({
+  project: "my-app",
+  connectors: [new LocalConnector()], // POSTs to http://127.0.0.1:4477 by default
+});
+mountFeedbackWidget(widget);
+```
+
+Gate it behind an env flag so it never initializes in production —
+`enabled: process.env.NODE_ENV !== "production"`.
+
+Run the sidecar next to your dev server:
+
+```bash
+npx sluglist dev                        # writes to ./.sluglist, port 4477
+npx sluglist dev --dir .feedback --port 5511
+```
+
+Click feedback → the full artifact set appears under `.sluglist/session-*/`. The dev server binds to
+`127.0.0.1` only and has **no authentication** — it is local-only by design; don't expose it or forward
+its port. If it isn't running, `LocalConnector` warns once and your other connectors keep working (the
+UI is never blocked).
+
+> Add `.sluglist/` to your project's `.gitignore` — or let [`npx sluglist init`](#set-the-project-up--npx-sluglist-init) do it.
+
+### Let an agent fix it (Claude Code skill)
+
+The package ships a `sluglist-fix` skill that reads `.sluglist/` and fixes the reported issues. Set the
+project up once:
+
+```bash
+npx sluglist init
+```
+
+That does the whole scaffold: `.sluglist/checklists/`, the `.gitignore` rules, every bundled skill in
+`.claude/skills/`, and a `.sluglist/PROJECT.md` to fill in — see
+[Set the project up](#set-the-project-up--npx-sluglist-init). Re-running it is safe: unchanged skills
+are refreshed silently, and any you have edited are reported and left alone (`--force` replaces them).
+`npx sluglist init-skills` installs only the skills.
+
+<details>
+<summary>or copy manually</summary>
+
+```bash
+mkdir -p .claude/skills && cp -r node_modules/sluglist/skills/sluglist-fix .claude/skills/
+```
+
+</details>
+
+Then, after clicking feedback, ask Claude Code to "fix feedback": it reads each issue (comment,
+selector, `element_text`, screenshot, `## Errors`), localizes and fixes the code, and writes a
+`.done` report into the session folder. See [`skills/sluglist-fix/SKILL.md`](skills/sluglist-fix/SKILL.md).
+
+`npx sluglist status` lists what is still open across the folder — issues with no record in
+`fixes.yaml`, and anything a pass left as `wontfix` or `needs_info`.
+
+## For agents
+
+sluglist is also a protocol **between agents**: a dev agent generates the checklist, a QA agent with a
+controlled browser walks it, a fix agent resolves what failed, and a re-test checklist closes the loop
+— every hand-off is a sluglist artifact, so each role has evidence rather than another agent's word.
+
+```
+dev agent ──sluglist-checklist──▶ checklist.json
+                                       │
+QA agent (browser) ──sluglist-qa──▶ session/: session.yaml (verdicts) + NN-issue.md + NN-issue.png
+                                       │
+`npx sluglist status` ──▶ green | continue | stalled | blocked   ← the loop's decision point
+                                       │  (continue)
+fix agent ──sluglist-fix──▶ code commits + fixes.yaml (fixed | wontfix | needs_info)
+                                       │
+generator re-test mode ──▶ checklist.retest.json (only the fixed items, retest_of provenance)
+                                       │
+QA agent again ──▶ round 2 ──┐
+                             └──▶ back to `sluglist status` until green, stalled or blocked
+                                       │
+`npx sluglist report` ──▶ report.html — one offline file for the human who paid for the work
+```
+
+Four skills ship in the package — one per stage, plus one that owns the cycle:
+
+| Skill | Role |
+|---|---|
+| [`sluglist-loop`](skills/sluglist-loop/SKILL.md) | The orchestrator: picks the intent, runs the stages in order, carries the evidence mode, and — when you ask for it — keeps fixing and re-testing until green or genuinely stuck. Start here. |
+| [`sluglist-checklist`](skills/sluglist-checklist/SKILL.md) | Generate or maintain a checklist: branch / re-test / smoke / regression / scenario. |
+| [`sluglist-qa`](skills/sluglist-qa/SKILL.md) | Browser QA: no fail without a screenshot, no pass without performing the check. |
+| [`sluglist-fix`](skills/sluglist-fix/SKILL.md) | Fix what failed + `fixes.yaml` (`fixed` \| `wontfix` \| `needs_info`). |
+
+### Set the project up — `npx sluglist init`
+
+One command, everything a project needs for the loop, idempotent:
+
+```bash
+npx sluglist init --agents-md
+```
+
+| It creates | Why |
+|---|---|
+| `.sluglist/checklists/` | Checklists are the committed spec — they live in the repo. |
+| `.gitignore` rules | `.sluglist/*` ignored, with `checklists/` and `PROJECT.md` re-included: sessions stay local, the spec and the conventions are versioned. |
+| `.claude/skills/*` | The four bundled skills (the `init-skills` step). |
+| `.sluglist/PROJECT.md` | Your project's conventions — see below. |
+| a "QA loop (sluglist)" section in `CLAUDE.md` / `AGENTS.md` | Only with `--agents-md`, and only if those files exist. |
+
+Re-running reports what was already there and changes nothing. `--dir <path>` retargets the project
+root. Two things are never overwritten: a skill you have edited (`--force` overrides), and
+`.sluglist/PROJECT.md` — that one holds your answers, so **not even `--force` touches it**.
+
+### Until green — `npx sluglist status`
+
+Ask for a fix pass and the cycle repeats: QA finds failures, a fix agent resolves them, a re-test
+round checks the fixes. The question that keeps the loop honest is *"is another round worth
+running?"* — and an agent's own memory of what it just fixed is the wrong place to look it up.
+
+```bash
+npx sluglist status
+```
+
+```
+.sluglist — 1 chain, 2 sessions
+
+release-2026-08 · branch · 3 items
+  1  session-2026-08-15-tw1w  1 pass · 1 fail · 1 not tested  ·  1 fixed
+  2  session-2026-08-15-jtyf  0 pass · 1 fail · 0 not tested  ·  no fix pass yet
+
+  still failing (1)
+    csv-columns — for the next fix pass · failed in 2 rounds · issue 01
+      "The CSV has every expected column"
+
+  not tested (1) — email-receipt
+
+verdict: stalled — 1 item failed in 2 or more rounds — a fix pass has already been tried
+```
+
+Everything is derived from the artifacts already on disk — the verdicts in `session.yaml`, the
+resolutions in `fixes.yaml`, and the `retest_of` chain that links round 2 back to round 1. No new
+file, no state to keep in sync.
+
+| Verdict | Meaning | What the loop does |
+|---|---|---|
+| `green` | Nothing is failing | Stop; hand over the report. |
+| `continue` | Failures a fix pass can still act on | Run another round, if the round budget allows. |
+| `stalled` | Every remaining failure already survived a fix pass | Stop; hand the list to a human. |
+| `blocked` | Everything left is `wontfix` / `needs_info` | Stop; those are the owner's calls. |
+| `empty` | No sessions on disk | Nothing ran. |
+
+`--json` gives an agent the same result as data (per-round counts, per-item `state`, `failed_rounds`,
+the fix note); `--all` includes older chains instead of just the current one; a session folder as the
+argument restricts the report to the chain containing it. It also works for the plain dev loop, where
+the work items are the issues themselves rather than checklist verdicts.
+
+The `sluglist-loop` skill reads this between rounds, and stops on `stalled` or `blocked` rather than
+grinding the same item. **Its default ceiling is 3 QA rounds** — the first pass plus two fix→re-test
+rounds — and `PROJECT.md` can change it.
+
+### Project conventions — `.sluglist/PROJECT.md`
+
+The skills ship with defaults, and editing a skill to fit your project stops it receiving upstream
+improvements (`init` never overwrites an edited skill). So project specifics go in one committed file
+instead, which every skill reads first:
+
+- the **base branch** a `branch` diff runs against (`main` by default);
+- **how to run the app** for QA — command, port, warm-up;
+- **how to sign in** — referenced by env var or seed script, *never literal credentials*;
+- **hard limits** — actions QA must never complete (live payments, real emails, external submissions);
+- **evidence-mode defaults** per intent;
+- **loop limits** — how many rounds the until-green loop may run, whether it may fix without asking,
+  and what it does about commits;
+- **environment quirks** — the flaky embed, the slow first paint, the route that 404s until a seed runs.
+
+`npx sluglist init` writes the template; you fill it in. When it is absent the skills fall back to
+their own defaults and say so once.
+
+### Evidence-backed passes
+
+By default only a `fail` carries evidence — its screenshot lives in the linked issue. Run the QA
+skill in **evidence mode `all`** and every `pass` carries proof too: the screenshot taken at the
+moment of the check, plus a note stating what was actually observed.
+
+```ts
+await session.setVerdict("reports-export-csv", "pass", {
+  evidence: {
+    screenshots: [pngBuffer],   // or a file path; several are allowed
+    note: "Clicked Export CSV on /reports — reports-2026-08.csv downloaded, 57 bytes, 3 data rows",
+  },
+});
+```
+
+That note is the point. A screenshot proves *the screen looked like this*; it cannot prove *the
+action worked*. For a download, a submission or a background job the skill requires the note to
+carry the observable fact — the file's name and size, the toast's text, the counter that changed —
+and treats a pass with nothing observable behind it as **not tested**. The result is a session, and
+a [report](#reports), you can actually check rather than take on trust.
+
+### Headless writer — `sluglist/node`
+
+A Node-only subpath (no DOM, no browser code) with the widget's exact artifact semantics:
+put-per-issue, put-per-verdict, the same `format_version`. Zero-config — one connector is a working
+session:
+
+```ts
+import { createSession, LocalConnector } from "sluglist/node";
+
+const session = await createSession({
+  connectors: [new LocalConnector({ dir: ".sluglist" })], // writes straight to disk
+  project: "my-app",
+  baseUrl: "http://localhost:5173",
+  checklist: "public/checklist.json",       // inline object, file path, or URL
+  reporter: { name: "qa-agent", kind: "agent" },
+});
+```
+
+File an issue with the agent's own browser screenshot:
+
+```ts
+const issue = await session.reportIssue({
+  comment: "Expected: Export button on Reports. Observed: toolbar has only Print.",
+  screenshot: pngBuffer,                    // Buffer | Uint8Array | Blob
+  category: "bug",
+  checklistItem: "export-button-visible",
+  meta: { url: "/reports", viewport: "1280x800" },
+});
+```
+
+Record verdicts, and (as the fix agent) resolution records:
+
+```ts
+await session.setVerdict("export-button-visible", "fail", { issue: issue.id });
+await session.setVerdict("export-downloads-xlsx", "pass");
+
+// fix agent, attached to the existing QA session folder:
+const fixer = await createSession({
+  connectors: [new LocalConnector({ dir: ".sluglist" })],
+  sessionId: issue.sessionId,
+  reporter: { name: "fix-agent", kind: "agent" },
+});
+await fixer.reportFix({ issue: issue.id, status: "fixed", commit: "a1b2c3d", note: "Null check added" });
+```
+
+Notes: `reporter.kind` is the only artifact difference from widget output (SPEC 1.5, additive).
+Delivery uses the same per-connector retry rules; the one deliberate simplification vs the browser is
+**no offline outbox** — a Node process inspects the returned report and retries itself. Every browser
+connector that only uses `fetch` (e.g. an HTTP endpoint connector) works in Node 18+ unchanged.
 
 ## Attach your user
 
@@ -698,70 +976,6 @@ artifact format version.
   decoder and JPEG encoder are part of the CLI, so `npm install sluglist` still pulls **no native
   binaries** into your browser project.
 
-## Local feedback loop
-
-Test your app locally, click feedback with the widget, and have it land in a `.sluglist/` folder in
-your project — then let an agent (e.g. Claude Code) read it and fix the issues. Browser JS can't write
-to disk, so a tiny sidecar process, `sluglist dev`, sits between the widget and the folder.
-
-```ts
-import { createFeedbackWidget, mountFeedbackWidget, LocalConnector } from "sluglist";
-
-const widget = createFeedbackWidget({
-  project: "my-app",
-  connectors: [new LocalConnector()], // POSTs to http://127.0.0.1:4477 by default
-});
-mountFeedbackWidget(widget);
-```
-
-Gate it behind an env flag so it never initializes in production —
-`enabled: process.env.NODE_ENV !== "production"`.
-
-Run the sidecar next to your dev server:
-
-```bash
-npx sluglist dev                        # writes to ./.sluglist, port 4477
-npx sluglist dev --dir .feedback --port 5511
-```
-
-Click feedback → the full artifact set appears under `.sluglist/session-*/`. The dev server binds to
-`127.0.0.1` only and has **no authentication** — it is local-only by design; don't expose it or forward
-its port. If it isn't running, `LocalConnector` warns once and your other connectors keep working (the
-UI is never blocked).
-
-> Add `.sluglist/` to your project's `.gitignore` — or let [`npx sluglist init`](#set-the-project-up--npx-sluglist-init) do it.
-
-### Let an agent fix it (Claude Code skill)
-
-The package ships a `sluglist-fix` skill that reads `.sluglist/` and fixes the reported issues. Set the
-project up once:
-
-```bash
-npx sluglist init
-```
-
-That does the whole scaffold: `.sluglist/checklists/`, the `.gitignore` rules, every bundled skill in
-`.claude/skills/`, and a `.sluglist/PROJECT.md` to fill in — see
-[Set the project up](#set-the-project-up--npx-sluglist-init). Re-running it is safe: unchanged skills
-are refreshed silently, and any you have edited are reported and left alone (`--force` replaces them).
-`npx sluglist init-skills` installs only the skills.
-
-<details>
-<summary>or copy manually</summary>
-
-```bash
-mkdir -p .claude/skills && cp -r node_modules/sluglist/skills/sluglist-fix .claude/skills/
-```
-
-</details>
-
-Then, after clicking feedback, ask Claude Code to "fix feedback": it reads each issue (comment,
-selector, `element_text`, screenshot, `## Errors`), localizes and fixes the code, and writes a
-`.done` report into the session folder. See [`skills/sluglist-fix/SKILL.md`](skills/sluglist-fix/SKILL.md).
-
-`npx sluglist status` lists what is still open across the folder — issues with no record in
-`fixes.yaml`, and anything a pass left as `wontfix` or `needs_info`.
-
 ## Programmatic capture
 
 The UI is optional. Produce and deliver an issue without any chrome:
@@ -778,195 +992,7 @@ await widget.captureIssue({
 ```
 
 Outside the browser, the same artifact semantics are available headlessly — see
-[For agents](#for-agents) below.
-
-## For agents
-
-sluglist is also a protocol **between agents**: a dev agent generates the checklist, a QA agent with a
-controlled browser walks it, a fix agent resolves what failed, and a re-test checklist closes the loop
-— every hand-off is a sluglist artifact, so each role has evidence rather than another agent's word.
-
-```
-dev agent ──sluglist-checklist──▶ checklist.json
-                                       │
-QA agent (browser) ──sluglist-qa──▶ session/: session.yaml (verdicts) + NN-issue.md + NN-issue.png
-                                       │
-`npx sluglist status` ──▶ green | continue | stalled | blocked   ← the loop's decision point
-                                       │  (continue)
-fix agent ──sluglist-fix──▶ code commits + fixes.yaml (fixed | wontfix | needs_info)
-                                       │
-generator re-test mode ──▶ checklist.retest.json (only the fixed items, retest_of provenance)
-                                       │
-QA agent again ──▶ round 2 ──┐
-                             └──▶ back to `sluglist status` until green, stalled or blocked
-                                       │
-`npx sluglist report` ──▶ report.html — one offline file for the human who paid for the work
-```
-
-Four skills ship in the package — one per stage, plus one that owns the cycle:
-
-| Skill | Role |
-|---|---|
-| [`sluglist-loop`](skills/sluglist-loop/SKILL.md) | The orchestrator: picks the intent, runs the stages in order, carries the evidence mode, and — when you ask for it — keeps fixing and re-testing until green or genuinely stuck. Start here. |
-| [`sluglist-checklist`](skills/sluglist-checklist/SKILL.md) | Generate or maintain a checklist: branch / re-test / smoke / regression / scenario. |
-| [`sluglist-qa`](skills/sluglist-qa/SKILL.md) | Browser QA: no fail without a screenshot, no pass without performing the check. |
-| [`sluglist-fix`](skills/sluglist-fix/SKILL.md) | Fix what failed + `fixes.yaml` (`fixed` \| `wontfix` \| `needs_info`). |
-
-### Set the project up — `npx sluglist init`
-
-One command, everything a project needs for the loop, idempotent:
-
-```bash
-npx sluglist init --agents-md
-```
-
-| It creates | Why |
-|---|---|
-| `.sluglist/checklists/` | Checklists are the committed spec — they live in the repo. |
-| `.gitignore` rules | `.sluglist/*` ignored, with `checklists/` and `PROJECT.md` re-included: sessions stay local, the spec and the conventions are versioned. |
-| `.claude/skills/*` | The four bundled skills (the `init-skills` step). |
-| `.sluglist/PROJECT.md` | Your project's conventions — see below. |
-| a "QA loop (sluglist)" section in `CLAUDE.md` / `AGENTS.md` | Only with `--agents-md`, and only if those files exist. |
-
-Re-running reports what was already there and changes nothing. `--dir <path>` retargets the project
-root. Two things are never overwritten: a skill you have edited (`--force` overrides), and
-`.sluglist/PROJECT.md` — that one holds your answers, so **not even `--force` touches it**.
-
-### Until green — `npx sluglist status`
-
-Ask for a fix pass and the cycle repeats: QA finds failures, a fix agent resolves them, a re-test
-round checks the fixes. The question that keeps the loop honest is *"is another round worth
-running?"* — and an agent's own memory of what it just fixed is the wrong place to look it up.
-
-```bash
-npx sluglist status
-```
-
-```
-.sluglist — 1 chain, 2 sessions
-
-release-2026-08 · branch · 3 items
-  1  session-2026-08-15-tw1w  1 pass · 1 fail · 1 not tested  ·  1 fixed
-  2  session-2026-08-15-jtyf  0 pass · 1 fail · 0 not tested  ·  no fix pass yet
-
-  still failing (1)
-    csv-columns — for the next fix pass · failed in 2 rounds · issue 01
-      "The CSV has every expected column"
-
-  not tested (1) — email-receipt
-
-verdict: stalled — 1 item failed in 2 or more rounds — a fix pass has already been tried
-```
-
-Everything is derived from the artifacts already on disk — the verdicts in `session.yaml`, the
-resolutions in `fixes.yaml`, and the `retest_of` chain that links round 2 back to round 1. No new
-file, no state to keep in sync.
-
-| Verdict | Meaning | What the loop does |
-|---|---|---|
-| `green` | Nothing is failing | Stop; hand over the report. |
-| `continue` | Failures a fix pass can still act on | Run another round, if the round budget allows. |
-| `stalled` | Every remaining failure already survived a fix pass | Stop; hand the list to a human. |
-| `blocked` | Everything left is `wontfix` / `needs_info` | Stop; those are the owner's calls. |
-| `empty` | No sessions on disk | Nothing ran. |
-
-`--json` gives an agent the same result as data (per-round counts, per-item `state`, `failed_rounds`,
-the fix note); `--all` includes older chains instead of just the current one; a session folder as the
-argument restricts the report to the chain containing it. It also works for the plain dev loop, where
-the work items are the issues themselves rather than checklist verdicts.
-
-The `sluglist-loop` skill reads this between rounds, and stops on `stalled` or `blocked` rather than
-grinding the same item. **Its default ceiling is 3 QA rounds** — the first pass plus two fix→re-test
-rounds — and `PROJECT.md` can change it.
-
-### Project conventions — `.sluglist/PROJECT.md`
-
-The skills ship with defaults, and editing a skill to fit your project stops it receiving upstream
-improvements (`init` never overwrites an edited skill). So project specifics go in one committed file
-instead, which every skill reads first:
-
-- the **base branch** a `branch` diff runs against (`main` by default);
-- **how to run the app** for QA — command, port, warm-up;
-- **how to sign in** — referenced by env var or seed script, *never literal credentials*;
-- **hard limits** — actions QA must never complete (live payments, real emails, external submissions);
-- **evidence-mode defaults** per intent;
-- **loop limits** — how many rounds the until-green loop may run, whether it may fix without asking,
-  and what it does about commits;
-- **environment quirks** — the flaky embed, the slow first paint, the route that 404s until a seed runs.
-
-`npx sluglist init` writes the template; you fill it in. When it is absent the skills fall back to
-their own defaults and say so once.
-
-### Evidence-backed passes
-
-By default only a `fail` carries evidence — its screenshot lives in the linked issue. Run the QA
-skill in **evidence mode `all`** and every `pass` carries proof too: the screenshot taken at the
-moment of the check, plus a note stating what was actually observed.
-
-```ts
-await session.setVerdict("reports-export-csv", "pass", {
-  evidence: {
-    screenshots: [pngBuffer],   // or a file path; several are allowed
-    note: "Clicked Export CSV on /reports — reports-2026-08.csv downloaded, 57 bytes, 3 data rows",
-  },
-});
-```
-
-That note is the point. A screenshot proves *the screen looked like this*; it cannot prove *the
-action worked*. For a download, a submission or a background job the skill requires the note to
-carry the observable fact — the file's name and size, the toast's text, the counter that changed —
-and treats a pass with nothing observable behind it as **not tested**. The result is a session, and
-a [report](#reports), you can actually check rather than take on trust.
-
-### Headless writer — `sluglist/node`
-
-A Node-only subpath (no DOM, no browser code) with the widget's exact artifact semantics:
-put-per-issue, put-per-verdict, the same `format_version`. Zero-config — one connector is a working
-session:
-
-```ts
-import { createSession, LocalConnector } from "sluglist/node";
-
-const session = await createSession({
-  connectors: [new LocalConnector({ dir: ".sluglist" })], // writes straight to disk
-  project: "my-app",
-  baseUrl: "http://localhost:5173",
-  checklist: "public/checklist.json",       // inline object, file path, or URL
-  reporter: { name: "qa-agent", kind: "agent" },
-});
-```
-
-File an issue with the agent's own browser screenshot:
-
-```ts
-const issue = await session.reportIssue({
-  comment: "Expected: Export button on Reports. Observed: toolbar has only Print.",
-  screenshot: pngBuffer,                    // Buffer | Uint8Array | Blob
-  category: "bug",
-  checklistItem: "export-button-visible",
-  meta: { url: "/reports", viewport: "1280x800" },
-});
-```
-
-Record verdicts, and (as the fix agent) resolution records:
-
-```ts
-await session.setVerdict("export-button-visible", "fail", { issue: issue.id });
-await session.setVerdict("export-downloads-xlsx", "pass");
-
-// fix agent, attached to the existing QA session folder:
-const fixer = await createSession({
-  connectors: [new LocalConnector({ dir: ".sluglist" })],
-  sessionId: issue.sessionId,
-  reporter: { name: "fix-agent", kind: "agent" },
-});
-await fixer.reportFix({ issue: issue.id, status: "fixed", commit: "a1b2c3d", note: "Null check added" });
-```
-
-Notes: `reporter.kind` is the only artifact difference from widget output (SPEC 1.5, additive).
-Delivery uses the same per-connector retry rules; the one deliberate simplification vs the browser is
-**no offline outbox** — a Node process inspects the returned report and retries itself. Every browser
-connector that only uses `fetch` (e.g. an HTTP endpoint connector) works in Node 18+ unchanged.
+[For agents](#for-agents) above.
 
 ## Artifact format (contract)
 
