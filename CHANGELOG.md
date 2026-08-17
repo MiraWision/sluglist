@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.16.0 — `ui.open()`
+
+One additive API. No artifact-format change (still 1.7), no behaviour change to anything that
+exists, **no new dependencies**.
+
+### `ui.open()` — start the reporting flow from your own UI
+
+`mountFeedbackWidget()` returned `dismiss()`, `isDismissed()`, `show()` and `unmount()`. Nothing in
+that set opens the capture flow: `show()` only clears a dismissal and brings the launcher back, which
+means a product that wants its **own** entry point — a "Report a problem" item in a menu, a help
+panel, an empty state — could do no better than reveal the launcher and ask the reporter to go find
+it in the corner. A menu item that answers a click with an instruction is a broken menu item.
+
+```ts
+const ui = mountFeedbackWidget(widget);
+menuItem.addEventListener("click", () => ui.open());
+```
+
+`open()` opens the capture menu exactly as clicking the launcher does, and un-dismisses first when it
+has to — so a call always ends with an open menu rather than an invisible one. It runs through the
+same UI guard as every other entry point, so an internal failure surfaces as the widget uninstalling
+itself, never as an exception inside your click handler. On a disabled widget (`enabled: false`) it is
+a no-op, like the rest of the returned API.
+
 ## 1.15.0 — `sluglist init`, project conventions, the loop skill, `sluglist status`, regression lifecycle
 
 Everything here is additive. The widget's UI, the `FeedbackConnector` contract and every existing

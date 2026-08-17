@@ -108,6 +108,16 @@ export interface MountedFeedbackWidget {
    * Production section of the README.
    */
   show(): void;
+  /**
+   * Open the capture menu now, exactly as clicking the launcher does.
+   *
+   * This is for **your own** entry point — a "Report a problem" item in your
+   * menu, a footer link, a help panel — where {@link show} is not enough:
+   * `show()` only brings the launcher back and leaves the reporter to find it
+   * in the corner. A dismissed widget is un-dismissed first, so a call always
+   * ends with an open menu.
+   */
+  open(): void;
   unmount(): void;
 }
 
@@ -230,6 +240,7 @@ export function mountFeedbackWidget(
       dismiss: () => undefined,
       isDismissed: () => false,
       show: () => undefined,
+      open: () => undefined,
       unmount: () => undefined,
     };
   }
@@ -2399,6 +2410,14 @@ export function mountFeedbackWidget(
     dismiss: dismissWidget,
     isDismissed: () => dismissed,
     show: showWidget,
+    open: guardUi("ui.open", () => {
+      // A dismissed widget is hidden entirely, so opening the menu without
+      // clearing the dismissal would open something invisible.
+      if (dismissed) {
+        showWidget();
+      }
+      openMenu();
+    }),
     unmount: () => {
       document.removeEventListener("keydown", guardedKeyDown, true);
       document.removeEventListener("pointerdown", guardedPointerDown, true);

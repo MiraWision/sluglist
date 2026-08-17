@@ -128,6 +128,42 @@ describe("dismiss in the mounted widget", () => {
     mounted = null;
   });
 
+  it("open() opens the capture menu, like clicking the launcher", () => {
+    const ui = mount();
+    // Closed is "anything but flex": the stylesheet hides it, so nothing is
+    // set inline until the widget opens or closes the menu itself.
+    expect(
+      (shadow().querySelector(".menu") as HTMLElement).style.display
+    ).not.toBe("flex");
+
+    ui.open();
+
+    expect((shadow().querySelector(".menu") as HTMLElement).style.display).toBe(
+      "flex"
+    );
+  });
+
+  it("open() un-dismisses first, so it never opens something invisible", () => {
+    const ui = mount({ preset: "production" });
+    ui.dismiss();
+    expect(ui.isDismissed()).toBe(true);
+    expect(hostEl().style.display).toBe("none");
+
+    ui.open();
+
+    expect(ui.isDismissed()).toBe(false);
+    expect(hostEl().style.display).toBe("");
+    expect((shadow().querySelector(".menu") as HTMLElement).style.display).toBe(
+      "flex"
+    );
+  });
+
+  it("open() is a no-op on a disabled widget rather than a crash", () => {
+    const ui = mount({ enabled: false });
+    expect(() => ui.open()).not.toThrow();
+    expect(document.querySelector("[data-feedback-widget]")).toBeNull();
+  });
+
   it("production preset renders an enabled ✕", () => {
     mount({ preset: "production" });
     const x = shadow().querySelector(".fab-dismiss") as HTMLElement;

@@ -778,6 +778,15 @@ own footer so the ✕ is never a one-way door:
 footerLink.addEventListener("click", () => ui.show());
 ```
 
+**Your own entry point.** `ui.open()` goes one step further: it opens the capture menu right away,
+exactly as clicking the launcher does, and un-dismisses first if it has to. Use it wherever *you*
+want the reporting flow to start — a "Report a problem" item in your menu, a help panel, an empty
+state — instead of showing the launcher and asking the reporter to find it:
+
+```ts
+menuItem.addEventListener("click", () => ui.open());
+```
+
 **Self-isolation.** Everything the widget wraps (`console.error`, `fetch`, `XMLHttpRequest`,
 `history.pushState`) calls the original host function unconditionally — a bug inside sluglist
 cannot fail your request, swallow your log or block your navigation. Internal failures are counted;
