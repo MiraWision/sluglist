@@ -323,10 +323,13 @@ export default function HomePage() {
           <div className="mb-10 hidden lg:block">
             <CycleStrip layout="wide" />
           </div>
-          <h1 className="mx-auto max-w-3xl font-bold text-4xl tracking-tight md:text-6xl">
-            Feedback that ends
-            <br />
-            in a diff.
+          {/* One line where it fits, wrapping naturally where it does not — a
+              hard <br /> forced the break at every width, including the 320px
+              case where it produced three ragged lines. No terminal full stop:
+              this is display type, not a sentence, and the prose below carries
+              the periods. */}
+          <h1 className="mx-auto max-w-4xl text-balance font-bold text-4xl tracking-tight md:text-6xl">
+            Feedback that ends in a diff
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-[17px] text-[var(--color-ink-2)] md:text-lg">
             Anyone reports a bug on the running app — a client, a tester, a
