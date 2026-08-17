@@ -1,6 +1,6 @@
 1:"$Sreact.fragment"
 2:I[38822,["/_next/static/chunks/1b58asu43-lub.js"],""]
-3:T6936,<h2>Capture modes</h2>
+3:T6bf0,<h2>Capture modes</h2>
 <ul>
 <li><strong>fullpage</strong> — the whole scrollable document</li>
 <li><strong>area</strong> — drag a rectangle and crop to it</li>
@@ -72,12 +72,10 @@ headers or query strings:</p>
 <span class="line"><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">    captureWarnings:</span><span style="--shiki-light:#0000FF;--shiki-dark:#569CD6"> false</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">, </span><span style="--shiki-light:#008000;--shiki-dark:#6A9955">// default; true also captures console.warn</span></span>
 <span class="line"><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">    captureNetwork:</span><span style="--shiki-light:#0000FF;--shiki-dark:#569CD6"> true</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">,   </span><span style="--shiki-light:#008000;--shiki-dark:#6A9955">// default; wrap fetch/XHR for failed-request facts</span></span>
 <span class="line"><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">  },</span></span>
-<span class="line"><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">});</span></span></code></pre><blockquote>
-<p><strong>Note:</strong> error messages and stack traces can contain user data — in beta mode they may include
-PII. Production stack traces are usually minified. Treat captured errors as diagnostic hints, not
+<span class="line"><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">});</span></span></code></pre><div class="callout tint-gap"><div class="callout-mark"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.5 21 19.5H3l9-15z"/><path d="M12 10v4M12 16.5v.5"/></svg><span class="callout-label">Warning</span></div><div class="callout-body"><p>Error messages and stack traces can contain user data — in beta mode they may include PII.
+Production stack traces are usually minified. Treat captured errors as diagnostic hints, not
 ground truth; sluglist stores them verbatim and does not resolve source maps.</p>
-</blockquote>
-<h2>Reporter form fields</h2>
+</div></div><h2>Reporter form fields</h2>
 <p>Ask the reporter what only they can tell you. Optional — with no <code>form</code> the panel is exactly what
 it was.</p>
 <pre class="shiki shiki-themes light-plus dark-plus" style="--shiki-light:#000000;--shiki-dark:#D4D4D4;--shiki-light-bg:#FFFFFF;--shiki-dark-bg:#1E1E1E" tabindex="0"><code><span class="line"><span style="--shiki-light:#795E26;--shiki-dark:#DCDCAA">createFeedbackWidget</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">({</span></span>
@@ -126,12 +124,10 @@ never used as a path — it is kept as data:</p>
 <span class="line"><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">  - </span><span style="--shiki-light:#800000;--shiki-dark:#569CD6">file</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#0000FF;--shiki-dark:#CE9178">03-checkout-att-01.png</span></span>
 <span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">    mime</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#0000FF;--shiki-dark:#CE9178">image/png</span></span>
 <span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">    size</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#098658;--shiki-dark:#B5CEA8">482112</span></span>
-<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">    original_name</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178">"IMG_4021.png"</span></span></code></pre><blockquote>
-<p><strong>Attachments default to OFF under <code>preset: &quot;production&quot;</code>.</strong> Accepting uploads from anonymous
+<span class="line"><span style="--shiki-light:#800000;--shiki-dark:#569CD6">    original_name</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">: </span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178">"IMG_4021.png"</span></span></code></pre><div class="callout tint-brand"><div class="callout-mark"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 5.5h15v10h-9l-4 3.5v-13.5z"/><path d="M12 8.5v3.5M12 14v.4"/></svg><span class="callout-label">Important</span></div><div class="callout-body"><p><strong>Attachments default to OFF under <code>preset: &quot;production&quot;</code>.</strong> Accepting uploads from anonymous
 users is a decision, not a default. Turn it on when you have decided your endpoint can take it —
 and validate server-side regardless (see <a href="/docs/production/">Production</a>).</p>
-</blockquote>
-<h2>Mobile graceful mode</h2>
+</div></div><h2>Mobile graceful mode</h2>
 <p>On a coarse pointer (detected from the pointer, not the user agent — a touch laptop keeps the full
 desktop UI) sluglist <strong>subtracts</strong> rather than reimplements:</p>
 <ul>
@@ -165,7 +161,7 @@ the page still captures.</li>
 7:X
 c:X
 c:C
-0:{"buildId":"sCXdAg82fGZeSrmJo3aqQ","data":[{"rsc":["$","$1","c",{"children":[["$","div",null,{"className":"mx-auto max-w-3xl px-6 py-16 md:py-20","children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Docs\",\"item\":\"https://sluglist.dev/docs/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Capture modes, annotation & attachments\",\"item\":\"https://sluglist.dev/docs/capture/\"}]}"}}],["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"TechArticle\",\"headline\":\"Capture modes, annotation & attachments\",\"description\":\"Full page, area, element and record-steps capture; annotation with arrow, box and text; error capture, the action trail, reporter form fields and attachments.\",\"url\":\"https://sluglist.dev/docs/capture/\",\"author\":{\"@id\":\"https://sluglist.dev/#org\"},\"about\":{\"@id\":\"https://sluglist.dev/#software\"}}"}}],["$","nav",null,{"className":"mb-6 text-[13px] text-[var(--color-muted)]","children":[["$","$L2",null,{"className":"hover:text-[var(--color-ink)]","href":"/docs/","children":"Docs"}]," ","/ ","Capture"]}],["$","h1",null,{"className":"mb-8 font-bold text-3xl tracking-tight md:text-4xl","children":"Capture modes, annotation & attachments"}],["$","article",null,{"className":"prose prose-site max-w-none","dangerouslySetInnerHTML":{"__html":"$3"}}],"$L4"]}],null,"$L5"]}],"isPartial":"$@6","staleTime":"$7","varyParams":null},{"rsc":"$L8","isPartial":"$@9","staleTime":"$7","varyParams":null},{"rsc":"$La","isPartial":"$@b","staleTime":"$7","varyParams":"$c"},{"rsc":"$Ld","isPartial":"$@e","staleTime":"$7","varyParams":"$c"}],"isUpgradeableISRFallback":false,"a":"$@f","rootVaryParams":null,"needsRuntimeRequest":"$@10"}
+0:{"buildId":"nS68ElR2KCJAq98z0FvMC","data":[{"rsc":["$","$1","c",{"children":[["$","div",null,{"className":"mx-auto max-w-3xl px-6 py-16 md:py-20","children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"BreadcrumbList\",\"itemListElement\":[{\"@type\":\"ListItem\",\"position\":1,\"name\":\"Docs\",\"item\":\"https://sluglist.dev/docs/\"},{\"@type\":\"ListItem\",\"position\":2,\"name\":\"Capture modes, annotation & attachments\",\"item\":\"https://sluglist.dev/docs/capture/\"}]}"}}],["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"TechArticle\",\"headline\":\"Capture modes, annotation & attachments\",\"description\":\"Full page, area, element and record-steps capture; annotation with arrow, box and text; error capture, the action trail, reporter form fields and attachments.\",\"url\":\"https://sluglist.dev/docs/capture/\",\"author\":{\"@id\":\"https://sluglist.dev/#org\"},\"about\":{\"@id\":\"https://sluglist.dev/#software\"}}"}}],["$","nav",null,{"className":"mb-6 text-[13px] text-[var(--color-muted)]","children":[["$","$L2",null,{"className":"hover:text-[var(--color-ink)]","href":"/docs/","children":"Docs"}]," ","/ ","Capture"]}],["$","h1",null,{"className":"mb-8 font-bold text-3xl tracking-tight md:text-4xl","children":"Capture modes, annotation & attachments"}],["$","article",null,{"className":"prose prose-site max-w-none","dangerouslySetInnerHTML":{"__html":"$3"}}],"$L4"]}],null,"$L5"]}],"isPartial":"$@6","staleTime":"$7","varyParams":null},{"rsc":"$L8","isPartial":"$@9","staleTime":"$7","varyParams":null},{"rsc":"$La","isPartial":"$@b","staleTime":"$7","varyParams":"$c"},{"rsc":"$Ld","isPartial":"$@e","staleTime":"$7","varyParams":"$c"}],"isUpgradeableISRFallback":false,"a":"$@f","rootVaryParams":null,"needsRuntimeRequest":"$@10"}
 11:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"OutletBoundary"]
 12:"$Sreact.suspense"
 14:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"ViewportBoundary"]
