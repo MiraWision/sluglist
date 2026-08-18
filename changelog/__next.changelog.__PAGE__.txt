@@ -1,5 +1,5 @@
 1:"$Sreact.fragment"
-2:Td6b8,<h1>Changelog</h1>
+2:Td6e9,<h1>Changelog</h1>
 <h2>1.16.0 — <code>ui.open()</code></h2>
 <p>One additive API. No artifact-format change (still 1.7), no behaviour change to anything that
 exists, <strong>no new dependencies</strong>.</p>
@@ -478,7 +478,7 @@ Every session runs the checklist fresh. <code>FeedbackConnector</code> is unchan
 <ul>
 <li><code>session.yaml</code> starts with <code>format_version: &quot;1.0&quot;</code> (always the first line). Parsers treat a missing
 field as <code>&quot;1.0&quot;</code>. Within a major version the format only ever changes additively.</li>
-<li>New <strong><a href="SPEC.md">SPEC.md</a></strong>: the full field dictionary (session.yaml + issue frontmatter), the
+<li>New <strong><a href="https://github.com/MiraWision/sluglist/blob/main/SPEC.md">SPEC.md</a></strong>: the full field dictionary (session.yaml + issue frontmatter), the
 <code>## Errors</code> / <code>## Actions</code> rules, and the versioning policy — every field verified against the
 generator. Safe to build parsers against.</li>
 </ul>
@@ -667,7 +667,7 @@ extension content script).</li>
 5:X
 a:X
 a:C
-0:{"buildId":"-4o3B9Tbnso2JosGWG1Pm","data":[{"rsc":["$","$1","c",{"children":[["$","div",null,{"className":"mx-auto max-w-3xl px-6 py-16 md:py-20","children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"WebPage\",\"name\":\"sluglist changelog\",\"url\":\"https://sluglist.dev/changelog/\",\"isPartOf\":{\"@id\":\"https://sluglist.dev/#website\"},\"about\":{\"@id\":\"https://sluglist.dev/#software\"}}"}}],["$","article",null,{"className":"prose prose-site max-w-none","dangerouslySetInnerHTML":{"__html":"$2"}}]]}],null,"$L3"]}],"isPartial":"$@4","staleTime":"$5","varyParams":null},{"rsc":"$L6","isPartial":"$@7","staleTime":"$5","varyParams":null},{"rsc":"$L8","isPartial":"$@9","staleTime":"$5","varyParams":"$a"}],"isUpgradeableISRFallback":false,"a":"$@b","rootVaryParams":null,"needsRuntimeRequest":"$@c"}
+0:{"buildId":"CVodxDJEBVaK4tKQ1mBnn","data":[{"rsc":["$","$1","c",{"children":[["$","div",null,{"className":"mx-auto max-w-3xl px-6 py-16 md:py-20","children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"WebPage\",\"name\":\"sluglist changelog\",\"url\":\"https://sluglist.dev/changelog/\",\"isPartOf\":{\"@id\":\"https://sluglist.dev/#website\"},\"about\":{\"@id\":\"https://sluglist.dev/#software\"}}"}}],["$","article",null,{"className":"prose prose-site max-w-none","dangerouslySetInnerHTML":{"__html":"$2"}}]]}],null,"$L3"]}],"isPartial":"$@4","staleTime":"$5","varyParams":null},{"rsc":"$L6","isPartial":"$@7","staleTime":"$5","varyParams":null},{"rsc":"$L8","isPartial":"$@9","staleTime":"$5","varyParams":"$a"}],"isUpgradeableISRFallback":false,"a":"$@b","rootVaryParams":null,"needsRuntimeRequest":"$@c"}
 d:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"OutletBoundary"]
 e:"$Sreact.suspense"
 10:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"ViewportBoundary"]
