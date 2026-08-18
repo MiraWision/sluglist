@@ -79,7 +79,19 @@ function blockquote(inner: string): string {
   ].join("");
 }
 
-async function parser(): Promise<Marked> {
+interface RenderOptions {
+  /**
+   * Rewrite repo-relative links (`SPEC.md`, `docs/…`, `examples/…`) to the
+   * file on GitHub. Needed for markdown written for the repository (the
+   * changelog): rendered on the site, those hrefs would otherwise resolve
+   * against the page URL and 404.
+   */
+  repoLinks?: boolean;
+}
+
+const REPO_BLOB = "https://github.com/MiraWision/sluglist/blob/main/";
+
+async function parser(opts: RenderOptions = {}): Promise<Marked> {
   const highlight = await syncHighlighter();
   const marked = new Marked({ gfm: true });
   marked.use({
@@ -92,16 +104,26 @@ async function parser(): Promise<Marked> {
       blockquote({ tokens }) {
         return blockquote(this.parser.parse(tokens));
       },
+      link({ href, title, tokens }) {
+        const inner = this.parser.parseInline(tokens);
+        const isRelative = !/^([a-z]+:|\/|#)/i.test(href);
+        const target = opts.repoLinks && isRelative ? `${REPO_BLOB}${href}` : href;
+        const titleAttr = title ? ` title="${title}"` : "";
+        return `<a href="${target}"${titleAttr}>${inner}</a>`;
+      },
     },
   });
   return marked;
 }
 
 /** Render a markdown file (path relative to the docs app root) to HTML. */
-export async function renderMarkdownFile(relPath: string): Promise<string> {
+export async function renderMarkdownFile(
+  relPath: string,
+  opts: RenderOptions = {}
+): Promise<string> {
   const file = path.join(process.cwd(), relPath);
   const raw = fs.readFileSync(file, "utf8");
-  return (await parser()).parse(raw) as string;
+  return (await parser(opts)).parse(raw) as string;
 }
 
 /** Render a markdown string to HTML. */

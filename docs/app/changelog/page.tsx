@@ -12,7 +12,7 @@ export const metadata: Metadata = pageMetadata({
 
 export default async function ChangelogPage() {
   // The library CHANGELOG is the single source of truth; rendered at build time.
-  const html = await renderMarkdownFile("../CHANGELOG.md");
+  const html = await renderMarkdownFile("../CHANGELOG.md", { repoLinks: true });
   return (
     <div className="mx-auto max-w-3xl px-6 py-16 md:py-20">
       <JsonLd
