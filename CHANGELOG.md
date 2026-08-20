@@ -1,5 +1,99 @@
 # Changelog
 
+## 1.17.0 — `sluglist/contract`, a real `HttpConnector`, and failures you can read
+
+Everything additive. The artifact format is unchanged (1.7), every existing command and connector
+behaves as before, and **no new dependencies**. This release is about the seam where sluglist meets
+somebody else's infrastructure, which is where the last few integrations went wrong.
+
+The failure that prompted it: a delivery endpoint hand-written from the docs rejected record-mode
+frames, because a frame path nests (`03-checkout-bug-frames/clip-01/02.png`) and a hand-written
+validator usually allows no slash at all. The reporter saw `upload failed`. The diagnosis took a trip
+to the server logs for information the browser already had.
+
+### `sluglist/contract` — the delivery rules, importable
+
+A new DOM-free subpath, meant for a route handler:
+
+```ts
+import { validateArtifactUpload, base64ByteLength } from "sluglist/contract";
+
+const rejection = validateArtifactUpload(
+  { sessionId, path, mime, byteLength: base64ByteLength(base64) },
+  { maxBytes: 4 * 1024 * 1024 }
+);
+if (rejection) {
+  return new Response(rejection.reason, { status: rejection.status });
+}
+```
+
+Also exported: `isArtifactPath` and `isSessionId` (the structural checks to gate writes on),
+`classifyArtifactPath` (`session` | `issue` | `screenshot` | `evidence` | `attachment` | `frame` |
+`fixes` | `unknown`), `ARTIFACT_MIME_TYPES`, `ATTACHMENT_MIME_TYPES`, `DELIVERY_MIME_TYPES`,
+`ARTIFACT_PATH_MAX_SEGMENTS`, `DEFAULT_MAX_FILE_SIZE`, `FORMAT_VERSION` and the `ArtifactPayload`
+type. 3 KB, no DOM, no Node, no dependencies — it loads in a serverless function or an edge runtime.
+
+Two design decisions worth stating. **Validation is structural, classification is permissive:**
+`isArtifactPath` refuses traversal, absolute paths and more nesting than the format uses, while
+`classifyArtifactPath` returns `"unknown"` for a valid path it does not recognise — so an artifact
+kind added in a later version is not rejected by an endpoint written today. And **it is the same
+module the library itself uses**: `LocalConnector`, the `sluglist dev` sidecar and the endpoint
+example now import it, replacing three separate copies of the same regex inside this repo.
+
+### `HttpConnector` ships
+
+It was an example file the README told you to copy, which meant the client half of the contract
+drifted too. It is now part of the package:
+
+```ts
+import { HttpConnector } from "sluglist";
+new HttpConnector("/api/feedback", () => session.token);
+```
+
+It sends `format: FORMAT_VERSION` in every payload (so a server can log *"artifact format 1.8, I
+know 1.7"* instead of answering an opaque 400), reads the token per delivery, and reads the response
+body into the error message — the endpoint's own reason is what the reporter ends up seeing. The
+short two-argument form the docs have always shown keeps working; an options object adds `headers`,
+`maxBodyBytes` and `id`. `examples/HttpConnector.ts` is deleted.
+
+### Rejections are no longer retried
+
+`PermanentDeliveryError` is exported, and delivery stops on it instead of retrying three times:
+
+```ts
+if (res.status === 415) throw new PermanentDeliveryError(`415 for ${file.path}`);
+```
+
+`HttpConnector` throws it for every 4xx except `408` and `429`. The failure is marked
+`permanent: true` in `DeliveryReport`, and recognised by that flag rather than `instanceof`, so a
+connector bundled from a different copy of sluglist still works. Previously a 413 on a
+multi-megabyte recording frame was uploaded three times before giving up.
+
+### The toast says what happened
+
+It said `Issue 03: upload failed` while the report in hand knew the connector, the path and the
+message. Now a failed delivery shows a second line with the path and the reason — outside
+`preset: "production"`, so a real user still gets the short form and a tester on dev or beta gets
+something they can screenshot. A permanent rejection reads *rejected by the endpoint* and drops the
+retry button, because a button that cannot work is worse than none.
+
+### The offline outbox is visible
+
+`widget.pendingBatches()` returns how many batches are waiting, `onQueueFlush` reports what the
+boot-time flush did (`{ batches, delivered, failed }`), and the capture menu carries a line —
+"1 report waiting to send". The mechanism has worked since 1.4; nobody could see it.
+
+### Docs
+
+- README: **Writing a delivery endpoint**, the artifact layout with the nesting spelled out,
+  temporary vs permanent failures, and the outbox API.
+- [Connectors](https://sluglist.dev/docs/connectors/): the same, plus the two callouts below.
+- **The serverless body-limit trap**, documented in both: `DEFAULT_MAX_FILE_SIZE` is 10 MB and
+  base64 adds a third, so a 10 MB attachment is ~13.3 MB of JSON — while a Vercel function rejects
+  bodies over ~4.5 MB before your code runs. `HttpConnector` now refuses locally at
+  `maxBodyBytes` (4 MB default) with a message naming the file, rather than letting the platform
+  answer 413 from the edge.
+
 ## 1.16.0 — `ui.open()`
 
 One additive API. No artifact-format change (still 1.7), no behaviour change to anything that

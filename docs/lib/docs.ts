@@ -34,7 +34,7 @@ export const DOC_PAGES: DocPage[] = [
     title: "Connectors: deliver feedback anywhere",
     label: "Connectors",
     description:
-      "A connector is the only place that knows about storage. Recipes for an API route, Vercel Blob, S3/R2 and Supabase Storage — with no write-keys in the browser.",
+      "A connector is the only place that knows about storage. HttpConnector, the sluglist/contract validators for your endpoint, and recipes for Vercel Blob, S3/R2 and Supabase.",
   },
   {
     slug: "checklist",

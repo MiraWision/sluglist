@@ -1,5 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join, resolve, sep } from "node:path";
+import { isArtifactPath, isSessionId } from "../contract";
 import type { ArtifactFile, FeedbackConnector } from "../types";
 
 /**
@@ -13,11 +14,6 @@ export interface LocalConnectorOptions {
   dir?: string;
 }
 
-const SESSION_ID = /^session-[a-z0-9-]{1,64}$/i;
-// A filename, optionally nested (frames live two levels deep:
-// "01-slug-frames/clip-01/01.png"). No "..", no absolute paths.
-const SEGMENT = "[A-Za-z0-9][A-Za-z0-9._-]{0,120}";
-const FILE_PATH = new RegExp(`^${SEGMENT}(?:/${SEGMENT}){0,2}$`);
 
 /**
  * Resolve the on-disk target for a put, rejecting traversal. Returns null when
@@ -28,7 +24,9 @@ export function resolveArtifactTarget(
   sessionId: string,
   filePath: string
 ): string | null {
-  if (!(SESSION_ID.test(sessionId) && FILE_PATH.test(filePath))) {
+  // The path rule lives in `contract.ts`, which the delivery endpoint imports
+  // too — one source, so the sidecar and a consumer's route cannot disagree.
+  if (!(isSessionId(sessionId) && isArtifactPath(filePath))) {
     return null;
   }
   const root = resolve(baseDir);

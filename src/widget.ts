@@ -112,6 +112,13 @@ export interface FeedbackWidgetCore {
   getIssueCount(): number;
   /** Number of delivery batches still uploading. */
   getPendingDeliveries(): number;
+  /**
+   * How many batches are waiting in the offline outbox — undelivered work from
+   * this load or a previous one. Zero when the outbox is disabled or
+   * unavailable. The UI shows it in the capture menu; surface it in your own
+   * chrome if a stuck report matters to your team.
+   */
+  pendingBatches(): Promise<number>;
   /** Current session state, or null before the first issue. */
   getSession(): SessionState | null;
   /** Re-send a previously failed batch (all files, puts are idempotent). */
@@ -372,6 +379,7 @@ export function createFeedbackWidget(
   function flushQueue(): void {
     deliveryQueue = deliveryQueue.then(async () => {
       const pending = await queue.all();
+      let delivered = 0;
       for (const batch of pending) {
         const report = await deliver(
           config.connectors,
@@ -380,7 +388,22 @@ export function createFeedbackWidget(
         );
         if (report.ok) {
           await queue.remove(batch.id);
+          delivered++;
         }
+      }
+      if (pending.length > 0 || config.onQueueFlush) {
+        // Reported even when empty, so a caller can use it as "the outbox is
+        // settled" rather than having to guess when to ask.
+        guard.run(
+          "config.onQueueFlush",
+          () =>
+            config.onQueueFlush?.({
+              batches: pending.length,
+              delivered,
+              failed: pending.length - delivered,
+            }),
+          undefined
+        );
       }
     });
   }
@@ -648,6 +671,7 @@ export function createFeedbackWidget(
     },
     getIssueCount: () => sessions.read()?.issues.length ?? 0,
     getPendingDeliveries: () => pendingDeliveries,
+    pendingBatches: () => queue.all().then((batches) => batches.length),
     redeliver: (capture) => enqueueDelivery(capture.sessionId, capture.files),
     setContext: (next) => {
       context = normalizeContext(next ?? {}, context ?? null);

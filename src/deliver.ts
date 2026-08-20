@@ -8,6 +8,45 @@ import type {
 const MAX_RETRIES = 2;
 const BASE_DELAY_MS = 500;
 
+/**
+ * A failure that retrying cannot fix.
+ *
+ * Delivery retries three times with backoff, which is right for a dropped
+ * connection and wrong for a rejection: a 400, 413 or 415 will be a 400, 413 or
+ * 415 again, so the retries only cost the reporter time and upload a
+ * multi-megabyte frame twice more for nothing. A connector that can tell the
+ * difference throws this instead, and delivery gives up at once and marks the
+ * failure `permanent` so the UI can say *rejected* rather than *failed*.
+ *
+ * ```ts
+ * if (res.status >= 400 && res.status < 500 && ![408, 429].includes(res.status)) {
+ *   throw new PermanentDeliveryError(`${res.status} ${res.statusText}`);
+ * }
+ * ```
+ */
+export class PermanentDeliveryError extends Error {
+  readonly permanent = true;
+
+  constructor(message: string) {
+    super(message);
+    this.name = "PermanentDeliveryError";
+  }
+}
+
+/**
+ * Recognise a permanent failure without relying on `instanceof`, which breaks
+ * across duplicated module copies (two sluglist versions in one bundle, a
+ * connector loaded from a different chunk).
+ */
+function isPermanent(error: unknown): boolean {
+  return (
+    error instanceof PermanentDeliveryError ||
+    (typeof error === "object" &&
+      error !== null &&
+      (error as { permanent?: unknown }).permanent === true)
+  );
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -27,6 +66,9 @@ async function putWithRetry(
       return;
     } catch (error) {
       lastError = error;
+      if (isPermanent(error)) {
+        break;
+      }
     }
   }
   throw lastError;
@@ -61,6 +103,7 @@ export async function deliver(
             connectorId: connector.id,
             path: file.path,
             error: error instanceof Error ? error.message : String(error),
+            ...(isPermanent(error) ? { permanent: true } : {}),
           });
           // Stop this connector for the remaining files of this batch: if a
           // screenshot failed there is little point uploading an index that

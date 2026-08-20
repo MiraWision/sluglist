@@ -300,6 +300,13 @@ export interface FeedbackWidgetConfig {
    */
   offlineQueue?: boolean;
   /**
+   * Called once after the boot-time flush of the offline outbox, with what it
+   * did. The outbox is invisible otherwise: a batch that failed yesterday is
+   * re-sent on the next load with nothing said about it, which is fine until
+   * you are the one wondering whether a report ever arrived.
+   */
+  onQueueFlush?: (report: QueueFlushReport) => void;
+  /**
    * Usage preset. Default "dev". "beta" turns on privacy defaults
    * (maskInputs + screenshotConsent) and the "Report a problem" button label
    * for real users on a production beta. "production" is beta plus text
@@ -466,10 +473,26 @@ export interface SessionState extends SessionMeta {
   issues: IssueIndexEntry[];
 }
 
+/** What the boot-time flush of the offline outbox did. */
+export interface QueueFlushReport {
+  /** Batches found waiting from a previous load. */
+  batches: number;
+  /** Batches delivered and cleared. */
+  delivered: number;
+  /** Batches that failed again and stay queued for the next load. */
+  failed: number;
+}
+
 export interface DeliveryFailure {
   connectorId: string;
   error: string;
   path: string;
+  /**
+   * True when the connector reported a rejection retrying cannot fix (a 4xx,
+   * a file over the endpoint's limit). Absent means "could not deliver, may
+   * work later" — the offline outbox will try again on the next load.
+   */
+  permanent?: boolean;
 }
 
 export interface DeliveryReport {

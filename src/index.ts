@@ -6,7 +6,10 @@ export {
   FORMAT_VERSION,
   fixesYamlFile,
 } from "./artifacts";
+export { PermanentDeliveryError } from "./deliver";
 export { DownloadConnector } from "./connectors/download";
+export { HttpConnector } from "./connectors/http";
+export type { HttpConnectorOptions } from "./connectors/http";
 export { LocalConnector } from "./connectors/local";
 export type { LocalConnectorOptions } from "./connectors/local";
 export { MemoryConnector } from "./connectors/memory";
@@ -100,6 +103,7 @@ export {
 export {
   attachmentPath,
   checkAttachment,
+  ATTACHMENT_MIME_TYPES,
   DEFAULT_MAX_FILE_SIZE,
   DEFAULT_MAX_FILES,
   extensionOf,

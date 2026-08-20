@@ -592,10 +592,115 @@ interface FeedbackConnector {
 }
 ```
 
-Built in: `MemoryConnector` (accumulates in memory, for tests) and `DownloadConnector` (zips a
-whole session via JSZip). Real targets (blob storage, an API route, a tracker) are your own
-connector. `connectors` is an array, so one issue can fan out to several destinations at once;
-a failing connector never blocks the others or the UI, and delivery retries with backoff.
+Built in: `HttpConnector` (posts each artifact to an endpoint you own — the production shape),
+`MemoryConnector` (accumulates in memory, for tests) and `DownloadConnector` (zips a whole session
+via JSZip). Anything else is your own connector. `connectors` is an array, so one issue can fan out
+to several destinations at once; a failing connector never blocks the others or the UI, and delivery
+retries with backoff.
+
+```ts
+import { HttpConnector } from "sluglist";
+
+new HttpConnector("/api/feedback", () => session.token);
+// or, with options:
+new HttpConnector("/api/feedback", {
+  token: () => session.token,
+  maxBodyBytes: 4 * 1024 * 1024,   // refuse locally instead of dying at the edge
+});
+```
+
+### Temporary vs permanent failures
+
+Delivery retries three times with backoff, which is right for a dropped connection and wrong for a
+rejection: a 400, 413 or 415 will be the same next time, and re-uploading a multi-megabyte frame
+twice more helps nobody. A connector that can tell the difference throws `PermanentDeliveryError`:
+
+```ts
+import { PermanentDeliveryError } from "sluglist";
+
+if (res.status === 415) {
+  throw new PermanentDeliveryError(`415 for ${file.path}`);
+}
+```
+
+Delivery then gives up at once, marks the failure `permanent: true` in the report, and the widget
+says *rejected* instead of *failed* — with no retry button, because retrying cannot work.
+`HttpConnector` does this for every 4xx except `408` and `429`.
+
+### Writing a delivery endpoint
+
+The artifact layout is a contract between the widget and your route, so **import it rather than
+re-deriving it**. `sluglist/contract` is a DOM-free subpath built for a route handler:
+
+```ts
+import {
+  validateArtifactUpload,
+  base64ByteLength,
+  classifyArtifactPath,
+} from "sluglist/contract";
+
+const rejection = validateArtifactUpload(
+  { sessionId, path, mime, byteLength: base64ByteLength(base64) },
+  { maxBytes: 4 * 1024 * 1024 }
+);
+if (rejection) {
+  // 400 malformed · 413 too large · 415 wrong media type — and a reason string
+  // worth returning: the client puts it in the toast.
+  return new Response(rejection.reason, { status: rejection.status });
+}
+```
+
+It also exports `isArtifactPath`, `isSessionId`, `ARTIFACT_MIME_TYPES`, `ATTACHMENT_MIME_TYPES`,
+`DELIVERY_MIME_TYPES`, `ARTIFACT_PATH_MAX_SEGMENTS`, `DEFAULT_MAX_FILE_SIZE`, `FORMAT_VERSION` and
+the `ArtifactPayload` type. The same module backs the `LocalConnector`, the `sluglist dev` sidecar
+and [the endpoint example](examples/feedback-route.ts), so they cannot drift apart.
+
+**The layout, so you know what you are validating.** Most artifacts are a single filename, but
+record-mode frames nest two levels deep:
+
+```
+session-2026-08-16-a1b2/
+  session.yaml                          # the index
+  01-save-does-nothing.md               # one issue
+  01-save-does-nothing.png              # its screenshot
+  03-checkout-att-01.pdf                # a file the reporter attached
+  ev-export-button-01.png               # evidence for a checklist verdict
+  03-checkout-bug-frames/clip-01/02.png # ← a record-mode frame: TWO slashes
+  fixes.yaml                            # written by a fix pass
+```
+
+A hand-written validator that allows no slash rejects every recording, and the reporter sees only
+"upload failed". `isArtifactPath` is the structural check to gate writes on; `classifyArtifactPath`
+tells you what a path *is* (`frame`, `attachment`, `evidence`, …) for logging and per-kind limits —
+never gate on it, since an artifact kind added later returns `"unknown"` by design.
+
+> [!CAUTION]
+> **Serverless body limits are smaller than the default file size.** `DEFAULT_MAX_FILE_SIZE` is
+> 10 MB and base64 inflates bytes by a third, so a 10 MB attachment is ~13.3 MB of JSON — while a
+> Vercel serverless function rejects bodies over ~4.5 MB *before your code runs*. That 413 comes
+> from the platform, with nothing your endpoint can log. `HttpConnector` therefore refuses to send
+> past `maxBodyBytes` (4 MB by default) with a message naming the file. For genuinely large
+> attachments, upload straight to storage with a signed URL instead of through a function, or lower
+> `attachments.maxFileSize` to match what your endpoint can actually receive.
+
+### The offline outbox is visible now
+
+An undelivered batch is persisted to IndexedDB and re-sent on the next load. That has always worked
+and was impossible to see, so:
+
+```ts
+const waiting = await widget.pendingBatches();   // batches still queued
+
+createFeedbackWidget({
+  connectors: [...],
+  onQueueFlush: ({ batches, delivered, failed }) => {
+    console.info(`[feedback] outbox: ${delivered}/${batches} sent`);
+  },
+});
+```
+
+The capture menu shows the same count as a line ("1 report waiting to send") so the reporter is not
+the last to know.
 
 ### Connector recipes
 
@@ -688,7 +793,7 @@ reporter identity, per-issue custom fields, and PII masking so screenshots are s
 
 ```ts
 import { createFeedbackWidget, mountFeedbackWidget } from "sluglist";
-import { HttpConnector } from "./HttpConnector"; // see examples/
+import { HttpConnector } from "sluglist";
 
 const widget = createFeedbackWidget({
   project: "acme",
@@ -716,8 +821,8 @@ Mark anything sensitive with `data-private` and it is always redacted in screens
 
 **Delivery in production:** never ship storage write-keys in the browser. Post to a thin endpoint on
 your side that owns the credentials and does the write (and rate-limiting). See
-[`examples/feedback-route.ts`](examples/feedback-route.ts) (a ~50-line Next.js route handler) and
-[`examples/HttpConnector.ts`](examples/HttpConnector.ts).
+[`examples/feedback-route.ts`](examples/feedback-route.ts) — a Next.js route handler that validates
+with `sluglist/contract` — and the [`HttpConnector`](#connectors) that ships in the package.
 
 ### Scope — one-way capture by design
 

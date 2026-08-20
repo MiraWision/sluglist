@@ -101,6 +101,17 @@ export interface FeedbackWidgetStrings {
   recordingFrameOne: string;
   /** Frame count, 2–4 in Slavic locales. Falls back to …Many when absent. */
   recordingFrameFew?: string;
+  /**
+   * Shown instead of {@link FeedbackWidgetStrings.deliveryFailed} when the
+   * endpoint refused the artifact — a rejection retrying cannot fix.
+   */
+  deliveryRejected: string;
+  /** Batches waiting in the offline outbox, singular. */
+  queuePendingOne: string;
+  /** Batches waiting in the offline outbox, plural. */
+  queuePendingMany: string;
+  /** Batches waiting, "few" form (Slavic bundles). */
+  queuePendingFew?: string;
   /** Frame count, plural: "{n} frames". */
   recordingFrameMany: string;
   recordingHint: string;
@@ -170,6 +181,9 @@ export const DEFAULT_STRINGS: FeedbackWidgetStrings = {
   placeholderDesign: "What looks off?...",
   placeholderIdea: "Describe your idea...",
   deliveryFailed: "Issue {id}: upload failed",
+  deliveryRejected: "Issue {id}: rejected by the endpoint",
+  queuePendingOne: "{n} report waiting to send",
+  queuePendingMany: "{n} reports waiting to send",
   dialogTitle: "New issue",
   dismiss: "Hide feedback button",
   elementHint: "Click an element to report it. Esc to cancel.",

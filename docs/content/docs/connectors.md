@@ -25,6 +25,55 @@ the others or the UI, and delivery retries with backoff.
 > your bundle for anyone to read — put a thin endpoint of your own in front and keep the key
 > server-side.
 
+## The connector that ships
+
+```ts
+import { HttpConnector } from "sluglist";
+
+createFeedbackWidget({
+  connectors: [new HttpConnector("/api/feedback", () => session.token)],
+});
+```
+
+It posts one JSON body per artifact — `{ format, sessionId, path, mime, base64 }` — reads the token
+at delivery time (so a refreshed one is picked up), and treats a 4xx as **permanent**: no retries, no
+retry button, and the widget says *rejected* rather than *failed*. `408` and `429` stay retryable,
+because those are timing rather than shape.
+
+## Validate with the library's own rules
+
+The artifact layout is a contract between the widget and your route, so import it instead of
+re-deriving it. `sluglist/contract` is a DOM-free subpath meant for a route handler:
+
+```ts
+import { validateArtifactUpload, base64ByteLength } from "sluglist/contract";
+
+const rejection = validateArtifactUpload(
+  { sessionId, path, mime, byteLength: base64ByteLength(base64) },
+  { maxBytes: 4 * 1024 * 1024 }
+);
+if (rejection) {
+  return new Response(rejection.reason, { status: rejection.status });
+}
+```
+
+The same module backs `LocalConnector`, the `sluglist dev` sidecar and the endpoint example, so they
+cannot drift apart. It also exports `isArtifactPath`, `classifyArtifactPath`, `ARTIFACT_MIME_TYPES`,
+`ATTACHMENT_MIME_TYPES`, `DELIVERY_MIME_TYPES` and `FORMAT_VERSION`.
+
+> [!WARNING]
+> Most artifacts are a single filename, but a record-mode frame nests two levels:
+> `03-checkout-bug-frames/clip-01/02.png`. A hand-written validator that allows no slash rejects
+> every recording, and the reporter sees only *upload failed*. That is the single most common
+> integration bug, and the reason this module exists.
+
+> [!CAUTION]
+> **A serverless body limit is smaller than the default file size.** `DEFAULT_MAX_FILE_SIZE` is
+> 10 MB and base64 adds a third, so a 10 MB attachment is ~13.3 MB of JSON — while a Vercel function
+> rejects bodies over ~4.5 MB before your code runs. `HttpConnector` refuses to send past
+> `maxBodyBytes` (4 MB default) with a message naming the file; for larger attachments upload
+> straight to storage with a signed URL, or lower `attachments.maxFileSize`.
+
 ## The recommended shape: a thin API route
 
 Because the browser should never hold storage credentials, the recommended shape is a **thin API

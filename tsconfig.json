@@ -8,7 +8,12 @@
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "sluglist": ["./src/index.ts"],
+      "sluglist/contract": ["./src/contract.ts"]
+    }
   },
   "include": ["src", "test"]
 }

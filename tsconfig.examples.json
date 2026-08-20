@@ -3,7 +3,8 @@
   "compilerOptions": {
     "types": ["node"],
     "paths": {
-      "sluglist": ["./src/index.ts"]
+      "sluglist": ["./src/index.ts"],
+      "sluglist/contract": ["./src/contract.ts"]
     }
   },
   "include": ["examples"]
