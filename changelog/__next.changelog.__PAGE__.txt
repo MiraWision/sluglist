@@ -1,5 +1,70 @@
 1:"$Sreact.fragment"
-2:Td6e9,<h1>Changelog</h1>
+2:T1074e,<h1>Changelog</h1>
+<h2>1.17.0 — <code>sluglist/contract</code>, a real <code>HttpConnector</code>, and failures you can read</h2>
+<p>Everything additive. The artifact format is unchanged (1.7), every existing command and connector
+behaves as before, and <strong>no new dependencies</strong>. This release is about the seam where sluglist meets
+somebody else&#39;s infrastructure, which is where the last few integrations went wrong.</p>
+<p>The failure that prompted it: a delivery endpoint hand-written from the docs rejected record-mode
+frames, because a frame path nests (<code>03-checkout-bug-frames/clip-01/02.png</code>) and a hand-written
+validator usually allows no slash at all. The reporter saw <code>upload failed</code>. The diagnosis took a trip
+to the server logs for information the browser already had.</p>
+<h3><code>sluglist/contract</code> — the delivery rules, importable</h3>
+<p>A new DOM-free subpath, meant for a route handler:</p>
+<pre class="shiki shiki-themes light-plus dark-plus" style="--shiki-light:#000000;--shiki-dark:#D4D4D4;--shiki-light-bg:#FFFFFF;--shiki-dark-bg:#1E1E1E" tabindex="0"><code><span class="line"><span style="--shiki-light:#AF00DB;--shiki-dark:#C586C0">import</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> { </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">validateArtifactUpload</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">, </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">base64ByteLength</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> } </span><span style="--shiki-light:#AF00DB;--shiki-dark:#C586C0">from</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> "sluglist/contract"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="--shiki-light:#0000FF;--shiki-dark:#569CD6">const</span><span style="--shiki-light:#0070C1;--shiki-dark:#4FC1FF"> rejection</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> = </span><span style="--shiki-light:#795E26;--shiki-dark:#DCDCAA">validateArtifactUpload</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">(</span></span>
+<span class="line"><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">  { </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">sessionId</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">, </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">path</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">, </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">mime</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">, </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">byteLength:</span><span style="--shiki-light:#795E26;--shiki-dark:#DCDCAA"> base64ByteLength</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">(</span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">base64</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">) },</span></span>
+<span class="line"><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">  { </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">maxBytes:</span><span style="--shiki-light:#098658;--shiki-dark:#B5CEA8"> 4</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> * </span><span style="--shiki-light:#098658;--shiki-dark:#B5CEA8">1024</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> * </span><span style="--shiki-light:#098658;--shiki-dark:#B5CEA8">1024</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> }</span></span>
+<span class="line"><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">);</span></span>
+<span class="line"><span style="--shiki-light:#AF00DB;--shiki-dark:#C586C0">if</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> (</span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">rejection</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">) {</span></span>
+<span class="line"><span style="--shiki-light:#AF00DB;--shiki-dark:#C586C0">  return</span><span style="--shiki-light:#0000FF;--shiki-dark:#569CD6"> new</span><span style="--shiki-light:#795E26;--shiki-dark:#DCDCAA"> Response</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">(</span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">rejection</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">.</span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">reason</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">, { </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">status:</span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE"> rejection</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">.</span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">status</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> });</span></span>
+<span class="line"><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">}</span></span></code></pre><p>Also exported: <code>isArtifactPath</code> and <code>isSessionId</code> (the structural checks to gate writes on),
+<code>classifyArtifactPath</code> (<code>session</code> | <code>issue</code> | <code>screenshot</code> | <code>evidence</code> | <code>attachment</code> | <code>frame</code> |
+<code>fixes</code> | <code>unknown</code>), <code>ARTIFACT_MIME_TYPES</code>, <code>ATTACHMENT_MIME_TYPES</code>, <code>DELIVERY_MIME_TYPES</code>,
+<code>ARTIFACT_PATH_MAX_SEGMENTS</code>, <code>DEFAULT_MAX_FILE_SIZE</code>, <code>FORMAT_VERSION</code> and the <code>ArtifactPayload</code>
+type. 3 KB, no DOM, no Node, no dependencies — it loads in a serverless function or an edge runtime.</p>
+<p>Two design decisions worth stating. <strong>Validation is structural, classification is permissive:</strong>
+<code>isArtifactPath</code> refuses traversal, absolute paths and more nesting than the format uses, while
+<code>classifyArtifactPath</code> returns <code>&quot;unknown&quot;</code> for a valid path it does not recognise — so an artifact
+kind added in a later version is not rejected by an endpoint written today. And <strong>it is the same
+module the library itself uses</strong>: <code>LocalConnector</code>, the <code>sluglist dev</code> sidecar and the endpoint
+example now import it, replacing three separate copies of the same regex inside this repo.</p>
+<h3><code>HttpConnector</code> ships</h3>
+<p>It was an example file the README told you to copy, which meant the client half of the contract
+drifted too. It is now part of the package:</p>
+<pre class="shiki shiki-themes light-plus dark-plus" style="--shiki-light:#000000;--shiki-dark:#D4D4D4;--shiki-light-bg:#FFFFFF;--shiki-dark-bg:#1E1E1E" tabindex="0"><code><span class="line"><span style="--shiki-light:#AF00DB;--shiki-dark:#C586C0">import</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> { </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">HttpConnector</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> } </span><span style="--shiki-light:#AF00DB;--shiki-dark:#C586C0">from</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> "sluglist"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">;</span></span>
+<span class="line"><span style="--shiki-light:#0000FF;--shiki-dark:#569CD6">new</span><span style="--shiki-light:#795E26;--shiki-dark:#DCDCAA"> HttpConnector</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">(</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178">"/api/feedback"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">, () </span><span style="--shiki-light:#0000FF;--shiki-dark:#569CD6">=></span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE"> session</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">.</span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">token</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">);</span></span></code></pre><p>It sends <code>format: FORMAT_VERSION</code> in every payload (so a server can log <em>&quot;artifact format 1.8, I
+know 1.7&quot;</em> instead of answering an opaque 400), reads the token per delivery, and reads the response
+body into the error message — the endpoint&#39;s own reason is what the reporter ends up seeing. The
+short two-argument form the docs have always shown keeps working; an options object adds <code>headers</code>,
+<code>maxBodyBytes</code> and <code>id</code>. <code>examples/HttpConnector.ts</code> is deleted.</p>
+<h3>Rejections are no longer retried</h3>
+<p><code>PermanentDeliveryError</code> is exported, and delivery stops on it instead of retrying three times:</p>
+<pre class="shiki shiki-themes light-plus dark-plus" style="--shiki-light:#000000;--shiki-dark:#D4D4D4;--shiki-light-bg:#FFFFFF;--shiki-dark-bg:#1E1E1E" tabindex="0"><code><span class="line"><span style="--shiki-light:#AF00DB;--shiki-dark:#C586C0">if</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> (</span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">res</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">.</span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">status</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> === </span><span style="--shiki-light:#098658;--shiki-dark:#B5CEA8">415</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">) </span><span style="--shiki-light:#AF00DB;--shiki-dark:#C586C0">throw</span><span style="--shiki-light:#0000FF;--shiki-dark:#569CD6"> new</span><span style="--shiki-light:#795E26;--shiki-dark:#DCDCAA"> PermanentDeliveryError</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">(</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178">`415 for </span><span style="--shiki-light:#0000FF;--shiki-dark:#569CD6">${</span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">file</span><span style="--shiki-light:#000000FF;--shiki-dark:#D4D4D4">.</span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">path</span><span style="--shiki-light:#0000FF;--shiki-dark:#569CD6">}</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178">`</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">);</span></span></code></pre><p><code>HttpConnector</code> throws it for every 4xx except <code>408</code> and <code>429</code>. The failure is marked
+<code>permanent: true</code> in <code>DeliveryReport</code>, and recognised by that flag rather than <code>instanceof</code>, so a
+connector bundled from a different copy of sluglist still works. Previously a 413 on a
+multi-megabyte recording frame was uploaded three times before giving up.</p>
+<h3>The toast says what happened</h3>
+<p>It said <code>Issue 03: upload failed</code> while the report in hand knew the connector, the path and the
+message. Now a failed delivery shows a second line with the path and the reason — outside
+<code>preset: &quot;production&quot;</code>, so a real user still gets the short form and a tester on dev or beta gets
+something they can screenshot. A permanent rejection reads <em>rejected by the endpoint</em> and drops the
+retry button, because a button that cannot work is worse than none.</p>
+<h3>The offline outbox is visible</h3>
+<p><code>widget.pendingBatches()</code> returns how many batches are waiting, <code>onQueueFlush</code> reports what the
+boot-time flush did (<code>{ batches, delivered, failed }</code>), and the capture menu carries a line —
+&quot;1 report waiting to send&quot;. The mechanism has worked since 1.4; nobody could see it.</p>
+<h3>Docs</h3>
+<ul>
+<li>README: <strong>Writing a delivery endpoint</strong>, the artifact layout with the nesting spelled out,
+temporary vs permanent failures, and the outbox API.</li>
+<li><a href="https://sluglist.dev/docs/connectors/">Connectors</a>: the same, plus the two callouts below.</li>
+<li><strong>The serverless body-limit trap</strong>, documented in both: <code>DEFAULT_MAX_FILE_SIZE</code> is 10 MB and
+base64 adds a third, so a 10 MB attachment is ~13.3 MB of JSON — while a Vercel function rejects
+bodies over ~4.5 MB before your code runs. <code>HttpConnector</code> now refuses locally at
+<code>maxBodyBytes</code> (4 MB default) with a message naming the file, rather than letting the platform
+answer 413 from the edge.</li>
+</ul>
 <h2>1.16.0 — <code>ui.open()</code></h2>
 <p>One additive API. No artifact-format change (still 1.7), no behaviour change to anything that
 exists, <strong>no new dependencies</strong>.</p>
@@ -667,7 +732,7 @@ extension content script).</li>
 5:X
 a:X
 a:C
-0:{"buildId":"CVodxDJEBVaK4tKQ1mBnn","data":[{"rsc":["$","$1","c",{"children":[["$","div",null,{"className":"mx-auto max-w-3xl px-6 py-16 md:py-20","children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"WebPage\",\"name\":\"sluglist changelog\",\"url\":\"https://sluglist.dev/changelog/\",\"isPartOf\":{\"@id\":\"https://sluglist.dev/#website\"},\"about\":{\"@id\":\"https://sluglist.dev/#software\"}}"}}],["$","article",null,{"className":"prose prose-site max-w-none","dangerouslySetInnerHTML":{"__html":"$2"}}]]}],null,"$L3"]}],"isPartial":"$@4","staleTime":"$5","varyParams":null},{"rsc":"$L6","isPartial":"$@7","staleTime":"$5","varyParams":null},{"rsc":"$L8","isPartial":"$@9","staleTime":"$5","varyParams":"$a"}],"isUpgradeableISRFallback":false,"a":"$@b","rootVaryParams":null,"needsRuntimeRequest":"$@c"}
+0:{"buildId":"tzD5PokgeiHiBgEVb55n8","data":[{"rsc":["$","$1","c",{"children":[["$","div",null,{"className":"mx-auto max-w-3xl px-6 py-16 md:py-20","children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"WebPage\",\"name\":\"sluglist changelog\",\"url\":\"https://sluglist.dev/changelog/\",\"isPartOf\":{\"@id\":\"https://sluglist.dev/#website\"},\"about\":{\"@id\":\"https://sluglist.dev/#software\"}}"}}],["$","article",null,{"className":"prose prose-site max-w-none","dangerouslySetInnerHTML":{"__html":"$2"}}]]}],null,"$L3"]}],"isPartial":"$@4","staleTime":"$5","varyParams":null},{"rsc":"$L6","isPartial":"$@7","staleTime":"$5","varyParams":null},{"rsc":"$L8","isPartial":"$@9","staleTime":"$5","varyParams":"$a"}],"isUpgradeableISRFallback":false,"a":"$@b","rootVaryParams":null,"needsRuntimeRequest":"$@c"}
 d:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"OutletBoundary"]
 e:"$Sreact.suspense"
 10:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"ViewportBoundary"]
