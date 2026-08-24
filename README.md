@@ -1076,7 +1076,7 @@ With more than one session the reports are ordered by **when each was written**,
 delivery time — a report captured on the 18th and delivered on the 24th (the outbox re-sends on the
 next load) still reads in the right place.
 
-<img src="evidence/report/shot-desktop.png" alt="A sluglist report: pass/fail/not-tested summary, checklist items with observed-fact notes and evidence thumbnails, then the filed issues with their fix status — single-file HTML proof" width="640">
+<img src="evidence/report/shot-desktop.png" alt="A sluglist report: the pass/fail/not-tested summary, then each checked item as its own block — a number, the check as a heading, a verdict badge, the observed fact quoted against a green bar, and the evidence thumbnail that proves it — all in one offline HTML file" width="640">
 
 What is in it, in order: the title, a sentence saying what the file holds and which application it
 came from, and a line of provenance (date, reporter, intent, session id); a summary (N pass / N fail /
