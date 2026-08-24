@@ -1,0 +1,74 @@
+format_version: "1.8"
+project: reportly
+session_id: session-2026-08-24-e4je
+created_at: 2026-08-24T10:30:25Z
+base_url: http://127.0.0.1:5099
+browser: Node 25.4.0
+os: macOS
+viewport: 1280x800
+device_pixel_ratio: 1
+reporter:
+  name: qa-agent
+  kind: agent
+checklist:
+  id: reportly-smoke
+  title: Reportly smoke pass
+  intent: smoke
+  items:
+    - id: dashboard-greeting
+      section: Dashboard
+      title: The dashboard greets you by name and shows the open report count
+      verdict: pass
+      issue: null
+      ts: 2026-08-24T10:30:25Z
+      evidence:
+        screenshots:
+          - ev-dashboard-greeting-01.png
+        note: "Opened /dashboard — heading read \"Good afternoon, Dana\", open report count showed 3"
+    - id: reports-table
+      section: Reports
+      title: The Reports page lists the reports with their row counts
+      verdict: pass
+      issue: null
+      ts: 2026-08-24T10:30:26Z
+      evidence:
+        screenshots:
+          - ev-reports-table-01.png
+        note: "Opened /reports — table listed 3 reports: Q1 revenue = 412; Q2 revenue = 388; Churn cohort = 97"
+    - id: reports-export-csv
+      section: Reports
+      title: "On Reports, Export CSV downloads a CSV file of the table"
+      verdict: pass
+      issue: null
+      ts: 2026-08-24T10:30:28Z
+      evidence:
+        screenshots:
+          - ev-reports-export-csv-01.png
+        note: "Clicked Export CSV on /reports — reports-2026-08.csv downloaded, 57 bytes, header \"Report,Rows\", 3 data rows (Q1 revenue,412 …)"
+    - id: archive-lists-everything
+      section: Reports
+      title: "The archive page lists every past report, grouped by month"
+      verdict: pass
+      issue: null
+      ts: 2026-08-24T10:30:30Z
+      evidence:
+        screenshots:
+          - ev-archive-lists-everything-01.png
+        note: "Opened /archive — 120 rows under 12 monthly headings, full page captured top to bottom"
+    - id: settings-save-confirms
+      section: Settings
+      title: Saving settings shows a confirmation message
+      verdict: pass
+      issue: null
+      ts: 2026-08-24T10:30:32Z
+      evidence:
+        screenshots:
+          - ev-settings-save-confirms-01.png
+        note: "Changed the display name on /settings and clicked Save — confirmation read \"Settings saved\""
+    - id: settings-digest-persists
+      section: Settings
+      title: The weekly digest preference survives the quarterly reconciliation
+      verdict: null
+      issue: null
+      ts: null
+issues: []

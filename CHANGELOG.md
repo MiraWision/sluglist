@@ -21,7 +21,8 @@ Thumbnails shrink to 132px — an appendix to the text rather than a gallery —
 a plain translucent overlay instead of `<dialog>`: the top layer is one dependency too many for a
 file that gets forwarded and opened in arbitrary preview panes, where a modal can end up invisible.
 Arrows walk the images of one report, with a counter; `Esc`, a click anywhere but the arrows, or the
-backdrop closes it; the article behind stays visible and cannot scroll underneath.
+backdrop closes it; the article behind stays visible and cannot scroll underneath. The filename
+bar sits on its own gradient footing, so it reads over the dimmed article rather than through it.
 
 ### Full-page captures are readable
 

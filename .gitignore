@@ -29,3 +29,6 @@ Thumbs.db
 
 # Env
 .env
+
+# Generated from the sample sessions — see evidence/report/README.md
+evidence/report/sample/*.html

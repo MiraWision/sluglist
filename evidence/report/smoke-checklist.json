@@ -26,7 +26,12 @@
           "id": "reports-export-csv",
           "title": "On Reports, Export CSV downloads a CSV file of the table",
           "url": "/reports",
-          "hint": "Click Export CSV — a file should download"
+          "hint": "Click Export CSV \u2014 a file should download"
+        },
+        {
+          "id": "archive-lists-everything",
+          "title": "The archive page lists every past report, grouped by month",
+          "url": "/archive"
         }
       ]
     },

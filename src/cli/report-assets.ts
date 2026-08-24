@@ -146,8 +146,11 @@ figcaption{font-size:.72rem;color:var(--dim);margin-top:4px;word-break:break-all
    110px strip. Fit the width and let the overlay scroll instead. */
 .lb-stage.tall{align-items:flex-start;overflow-y:auto;overscroll-behavior:contain;padding-top:56px}
 .lb-stage.tall img{max-height:none;width:min(1100px,100%);object-fit:fill}
+/* The caption sits over the dimmed article, so it gets its own footing —
+   without it the filename reads on top of whatever paragraph is behind. */
 .lb-bar{flex:none;display:flex;align-items:center;justify-content:center;gap:14px;
-  padding:0 56px 22px;font-size:.82rem;color:#aab4bf;text-align:center}
+  padding:18px 56px 22px;font-size:.82rem;color:#aab4bf;text-align:center;
+  background:linear-gradient(to top,rgba(8,10,12,.96),rgba(8,10,12,0))}
 .lb-count{font-variant-numeric:tabular-nums}
 .lb-close,.lb-nav{position:fixed;border:none;background:rgba(255,255,255,.1);color:#f2f5f7;
   cursor:pointer;border-radius:50%;width:40px;height:40px;font-size:20px;line-height:1;

@@ -1,7 +1,7 @@
 /**
  * "Reportly" — a small demo app for the sluglist end-to-end run.
  *
- * Three pages (dashboard / reports / settings) and one DELIBERATE BUG, chosen
+ * Four pages (dashboard / reports / archive / settings) and one DELIBERATE BUG, chosen
  * so the run exercises all three evidence shapes:
  *   - a visible result   → Reports table renders (pass, screenshot proves it)
  *   - an invisible result→ Export downloads a CSV (pass, only the downloaded
@@ -20,6 +20,7 @@ const NAV = `
 <nav>
   <a href="/dashboard">Dashboard</a>
   <a href="/reports">Reports</a>
+  <a href="/archive">Archive</a>
   <a href="/settings">Settings</a>
 </nav>`;
 
@@ -83,6 +84,24 @@ const PAGES = {
            document.body.appendChild(a); a.click(); a.remove();
          });
        </script>`
+    ),
+
+  // A long page, so a full-page capture is what one really is: many times
+  // taller than the viewport. This is what exercises the report's tall-image
+  // path — 1280 x ~9000 rather than a screenful.
+  "/archive": () =>
+    page(
+      "Archive",
+      `<h1>Report archive</h1>
+       <p>Everything generated since the account was opened.</p>
+       ${Array.from({ length: 12 }, (_, month) => `
+         <h2>2026 · month ${month + 1}</h2>
+         <table><thead><tr><th>Report</th><th>Rows</th><th>Generated</th></tr></thead><tbody>
+         ${Array.from({ length: 10 }, (_, i) => {
+           const n = month * 10 + i + 1;
+           return `<tr><td>Report ${n}</td><td>${100 + n * 7}</td><td>2026-${String(month + 1).padStart(2, "0")}-${String((i % 28) + 1).padStart(2, "0")}</td></tr>`;
+         }).join("")}
+         </tbody></table>`).join("")}`
     ),
 
   "/settings": () =>

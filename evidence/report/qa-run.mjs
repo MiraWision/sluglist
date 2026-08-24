@@ -33,6 +33,37 @@ const { page, close } = await launch({ downloadDir });
 const notTested = [];
 const summary = [];
 
+/**
+ * The steps this run actually performed, with real timestamps.
+ *
+ * The widget records an action trail by itself; a headless agent has to write
+ * down what it did. Nothing here is invented — each entry is appended at the
+ * moment the run performs that action, and the "Ns before report" ages are
+ * computed against the moment the issue is filed.
+ */
+const trail = [];
+function did(text) {
+  trail.push({ at: Date.now(), text });
+}
+/**
+ * A short settle after each step. An agent driving a browser waits for the page
+ * to be ready anyway; here it also means the trail's relative ages are the real
+ * spacing of a session rather than six identical "1s before report" lines.
+ */
+function settle(ms = 900) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+function trailSection(now = Date.now()) {
+  if (trail.length === 0) {
+    return "";
+  }
+  const lines = trail.map((step) => {
+    const ago = Math.max(1, Math.round((now - step.at) / 1000));
+    return `- [${ago}s before report] ${step.text}`;
+  });
+  return `\n\n## Actions\n${lines.join("\n")}`;
+}
+
 function downloaded() {
   // The observable fact for an invisible-result check: what actually landed on
   // disk. Chrome writes `*.crdownload` while in flight, so those are ignored.
@@ -43,6 +74,8 @@ function downloaded() {
 
 /* --- 1. Dashboard greeting — visible result ------------------------- */
 await page.goto(`${BASE}/dashboard`);
+did("navigate → /dashboard");
+await settle();
 {
   const heading = (await page.text("h1")).trim();
   const count = (await page.text("#open-count")).trim();
@@ -61,6 +94,8 @@ await page.goto(`${BASE}/dashboard`);
 
 /* --- 2. Reports table — visible result ------------------------------ */
 await page.goto(`${BASE}/reports`);
+did("navigate /dashboard → /reports");
+await settle();
 {
   const rows = await page.evaluate(
     `[...document.querySelectorAll('tbody tr')].map(tr =>
@@ -82,6 +117,8 @@ await page.goto(`${BASE}/reports`);
 {
   const before = downloaded().length;
   await page.click("#export");
+  did('click button#export ("Export CSV")');
+  await settle();
   // Wait for the file to actually appear; the screen shows nothing.
   let files = [];
   for (let i = 0; i < 40; i++) {
@@ -117,13 +154,38 @@ await page.goto(`${BASE}/reports`);
   }
 }
 
+/* --- 3b. Archive — a genuinely long page ----------------------------- */
+await page.goto(`${BASE}/archive`);
+did("navigate /reports → /archive");
+await settle(1400);
+{
+  const rows = await page.evaluate(
+    "document.querySelectorAll('tbody tr').length"
+  );
+  const months = await page.evaluate("document.querySelectorAll('h2').length");
+  // A full-page capture of a page many screens tall: the case the report has
+  // to render by width and scroll rather than squeeze into a strip.
+  await session.setVerdict("archive-lists-everything", "pass", {
+    evidence: {
+      screenshots: [await page.screenshot()],
+      note: `Opened /archive — ${rows} rows under ${months} monthly headings, full page captured top to bottom`,
+    },
+  });
+  summary.push("archive-lists-everything: pass");
+}
+
 /* --- 4. Settings save confirmation — the planted bug ----------------- */
 await page.goto(`${BASE}/settings`);
+did("navigate /archive → /settings");
+await settle(1100);
 {
   await page.evaluate(
     "document.querySelector('#name').value = 'Dana M. Marek'"
   );
+  did('type (13 chars) input#name');
+  await settle(700);
   await page.click("#save");
+  did('click button#save ("Save")');
   const toastVisible = await page.visible("#toast");
   if (toastVisible) {
     await session.setVerdict("settings-save-confirms", "pass", {
@@ -138,8 +200,13 @@ await page.goto(`${BASE}/settings`);
       comment:
         'Expected: changing the display name on Settings and clicking Save shows a "Settings saved" confirmation.\n' +
         "Observed: nothing appears — the confirmation stays hidden and no error is shown, so the user cannot tell whether the change was kept.\n" +
-        "Steps: open /settings, edit Display name, click Save.",
+        "Steps: open /settings, edit Display name, click Save." +
+        trailSection(),
       screenshot: await page.screenshot(),
+      // Format 1.8: the heading the report uses instead of truncating the
+      // first sentence. Five to eight words, what was seen — and the comment
+      // above still reaches the reader verbatim.
+      title: "Saving settings confirms nothing on screen",
       category: "bug",
       checklistItem: "settings-save-confirms",
       meta: { url: "/settings", selector: "#save", viewport: "1280x800" },
