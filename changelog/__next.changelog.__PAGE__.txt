@@ -1,5 +1,44 @@
 1:"$Sreact.fragment"
-2:T1074e,<h1>Changelog</h1>
+2:T1190f,<h1>Changelog</h1>
+<h2>1.18.0 — the report reads as an article</h2>
+<p><code>sluglist report</code> produced a correct document that was hard to read: a 25-step action trail buried
+the sentence a human actually wrote, a full-page capture opened as an unreadable 110px strip, and a
+week of feedback meant five separate files. This release is the fix, taken from a real production
+report that was assembled by hand first.</p>
+<h3>The trail and the metadata fold away</h3>
+<p>Each report now shows a heading, three tags — page, category, time — and the text. Everything else
+moves into one <em>Details and action trail (N steps)</em> spoiler: the full frontmatter as a table, the
+session&#39;s context (browser, timezone, locale, base URL), and the trail itself. It is evidence, so it
+is never dropped; it just no longer outweighs the report it belongs to. Spoilers open automatically
+before printing, so paper loses nothing.</p>
+<h3>The viewer</h3>
+<p>Thumbnails shrink to 132px — an appendix to the text rather than a gallery — and the lightbox is now
+a plain translucent overlay instead of <code>&lt;dialog&gt;</code>: the top layer is one dependency too many for a
+file that gets forwarded and opened in arbitrary preview panes, where a modal can end up invisible.
+Arrows walk the images of one report, with a counter; <code>Esc</code>, a click anywhere but the arrows, or the
+backdrop closes it; the article behind stays visible and cannot scroll underneath.</p>
+<h3>Full-page captures are readable</h3>
+<p>A real one measured 1708 × 13758. Contained in a viewport it became a strip about 110px wide, and it
+weighed ~2.4 MB. Now anything taller than 2:1 gets its own budget (1100px wide, quality 60, re-encoded
+harder past ~900 KB), and the viewer fits it to the width and scrolls when the ratio exceeds 1.4.</p>
+<h3>Several sessions, one article</h3>
+<pre class="shiki shiki-themes light-plus dark-plus" style="--shiki-light:#000000;--shiki-dark:#D4D4D4;--shiki-light-bg:#FFFFFF;--shiki-dark-bg:#1E1E1E" tabindex="0"><code><span class="line"><span style="--shiki-light:#795E26;--shiki-dark:#DCDCAA">npx</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> sluglist</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> report</span><span style="--shiki-light:#0000FF;--shiki-dark:#569CD6"> --all</span><span style="--shiki-light:#0000FF;--shiki-dark:#569CD6"> --since</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> 2026-08-18</span></span>
+<span class="line"><span style="--shiki-light:#795E26;--shiki-dark:#DCDCAA">npx</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> sluglist</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> report</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> session-a</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> session-b</span><span style="--shiki-light:#0000FF;--shiki-dark:#569CD6"> -o</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> week.html</span></span></code></pre><p>Reports are ordered by <strong>when each was written</strong>, not by filename or delivery time: a report captured
+on the 18th and delivered on the 24th (the outbox re-sends on the next load) belongs where it
+happened. The header then reads <em>N reports from M sessions</em>, with the period.</p>
+<h3>Headings someone actually wrote</h3>
+<p>A heading was the first sentence, truncated, which usually repeated the paragraph under it. Now the
+report prefers <code>title</code> from the issue frontmatter (<strong>format 1.8</strong>, additive, written by the
+<code>sluglist/node</code> writer) or an entry in a <code>titles.json</code> beside the sessions (<code>--titles &lt;file&gt;</code> to point
+elsewhere). It never replaces the comment — the original text stays verbatim underneath, so a title
+that drifts from what the reporter meant can be checked against the source. Without either, the old
+behaviour is unchanged.</p>
+<h3>Passes carry their proof by default on a regression run</h3>
+<p>The evidence-mode heuristic put <code>regression</code> with <code>smoke</code> on <code>fails</code>, so a full regression produced a
+column of green rows a reader had to take on trust — the one thing this protocol exists to avoid. A
+regression run&#39;s product is a report saying the app still works, so it now defaults to <code>all</code>:
+a screenshot and an observed fact per check. <code>smoke</code> stays economical; it is exploratory. The report&#39;s
+summary line says how many checks are proved with a screenshot.</p>
 <h2>1.17.0 — <code>sluglist/contract</code>, a real <code>HttpConnector</code>, and failures you can read</h2>
 <p>Everything additive. The artifact format is unchanged (1.7), every existing command and connector
 behaves as before, and <strong>no new dependencies</strong>. This release is about the seam where sluglist meets
@@ -732,7 +771,7 @@ extension content script).</li>
 5:X
 a:X
 a:C
-0:{"buildId":"tzD5PokgeiHiBgEVb55n8","data":[{"rsc":["$","$1","c",{"children":[["$","div",null,{"className":"mx-auto max-w-3xl px-6 py-16 md:py-20","children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"WebPage\",\"name\":\"sluglist changelog\",\"url\":\"https://sluglist.dev/changelog/\",\"isPartOf\":{\"@id\":\"https://sluglist.dev/#website\"},\"about\":{\"@id\":\"https://sluglist.dev/#software\"}}"}}],["$","article",null,{"className":"prose prose-site max-w-none","dangerouslySetInnerHTML":{"__html":"$2"}}]]}],null,"$L3"]}],"isPartial":"$@4","staleTime":"$5","varyParams":null},{"rsc":"$L6","isPartial":"$@7","staleTime":"$5","varyParams":null},{"rsc":"$L8","isPartial":"$@9","staleTime":"$5","varyParams":"$a"}],"isUpgradeableISRFallback":false,"a":"$@b","rootVaryParams":null,"needsRuntimeRequest":"$@c"}
+0:{"buildId":"Rb0mG-zh3FQnY-4dOoFgu","data":[{"rsc":["$","$1","c",{"children":[["$","div",null,{"className":"mx-auto max-w-3xl px-6 py-16 md:py-20","children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"WebPage\",\"name\":\"sluglist changelog\",\"url\":\"https://sluglist.dev/changelog/\",\"isPartOf\":{\"@id\":\"https://sluglist.dev/#website\"},\"about\":{\"@id\":\"https://sluglist.dev/#software\"}}"}}],["$","article",null,{"className":"prose prose-site max-w-none","dangerouslySetInnerHTML":{"__html":"$2"}}]]}],null,"$L3"]}],"isPartial":"$@4","staleTime":"$5","varyParams":null},{"rsc":"$L6","isPartial":"$@7","staleTime":"$5","varyParams":null},{"rsc":"$L8","isPartial":"$@9","staleTime":"$5","varyParams":"$a"}],"isUpgradeableISRFallback":false,"a":"$@b","rootVaryParams":null,"needsRuntimeRequest":"$@c"}
 d:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"OutletBoundary"]
 e:"$Sreact.suspense"
 10:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"ViewportBoundary"]
