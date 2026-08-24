@@ -1,4 +1,4 @@
-# sluglist artifact format — v1.7
+# sluglist artifact format — v1.8
 
 This is the on-disk contract sluglist produces for each feedback session. It is stable and safe to
 build parsers against: **within a major version the format only ever changes additively** (new optional
@@ -9,7 +9,7 @@ Source of truth: `src/artifacts.ts` (`buildSessionYaml`, `buildIssueMarkdown`, `
 
 ## Versioning
 
-- `session.yaml` starts with `format_version: "1.7"` (a quoted string, always the first line).
+- `session.yaml` starts with `format_version: "1.8"` (a quoted string, always the first line).
 - **Missing `format_version` ⇒ treat as `"1.0"`** (artifacts written before versioning was added).
 - **1.1** added the additive `checklist:` block (acceptance checklist verdicts) and the
   `checklist_item` issue field; everything from 1.0 is unchanged.
@@ -43,6 +43,11 @@ Source of truth: `src/artifacts.ts` (`buildSessionYaml`, `buildIssueMarkdown`, `
     through from the checklist config (where `retest_of` has existed since 1.5). It makes the rounds
     of one fix→re-test cycle chainable from `session.yaml` alone, which is what `sluglist status`
     reads to decide whether a loop has converged. **Absent ⇒ a first-pass run.**
+- **1.8** added, all additive:
+  - `title` in the issue frontmatter — a heading written by whoever files the report (an agent, a
+    script), used by `sluglist report` instead of a truncated first sentence. **Absent unless
+    written**, and never a replacement for the comment: the report shows the original text verbatim
+    underneath, so a title that drifts from what the reporter meant stays checkable.
 - The number is `MAJOR.MINOR`:
   - **MINOR** bumps for additive changes (a new optional field/section). Parsers must ignore unknown
     fields and keep working.
@@ -82,7 +87,7 @@ are zero-padded and monotonic within a session.
 
 | Field | Type | Required | Since | Notes |
 |---|---|---|---|---|
-| `format_version` | string | yes | 1.0 | The format version this session was written with (currently `"1.7"`); always the first line. |
+| `format_version` | string | yes | 1.0 | The format version this session was written with (currently `"1.8"`); always the first line. |
 | `project` | string | yes | 1.0 | Project slug. |
 | `session_id` | string | yes | 1.0 | `session-YYYY-MM-DD-xxxx`. |
 | `created_at` | string (ISO 8601) | yes | 1.0 | Session start. |
@@ -201,6 +206,7 @@ YAML frontmatter between `---` fences, then the reporter's comment, then optiona
 | `selector_unique` | boolean \| null | optional | 1.0 | |
 | `mode` | string | yes | 1.0 | `element` \| `fullpage` \| `area`. |
 | `category` | string | optional | 1.0 | |
+| `title` | string | optional | 1.8 | Author-written heading, 5–8 words describing what was seen. The report prefers it over the first sentence; it never replaces the comment. |
 | `checklist_item` | string \| null | optional | 1.1 | Present when this issue is a checklist item's fail-evidence; the item's id. |
 | `element_text` | string \| null | optional | 1.0 | Visible text of the clicked element (≤ 80 chars). |
 | `dom_path` | string \| null | optional | 1.0 | Tag path with no classes. |
@@ -288,7 +294,7 @@ has not been fixed yet. Upserted **by `issue` id** as fixing progresses — re-f
 its record; the file never accumulates duplicates.
 
 ```yaml
-format_version: "1.7"
+format_version: "1.8"
 fixed_by:
   name: fix-agent
   kind: agent

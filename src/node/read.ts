@@ -304,6 +304,30 @@ export async function latestSessionDir(root: string): Promise<string | null> {
   return null;
 }
 
+/**
+ * Every session folder under `root`, oldest first. The session id carries the
+ * date, so a lexical sort is chronological.
+ */
+export async function sessionDirs(root: string): Promise<string[]> {
+  let names: string[];
+  try {
+    names = (await readdir(root, { withFileTypes: true }))
+      .filter((e) => e.isDirectory() && e.name.startsWith("session-"))
+      .map((e) => e.name)
+      .sort((a, b) => a.localeCompare(b, "en"));
+  } catch {
+    return [];
+  }
+  const dirs: string[] = [];
+  for (const name of names) {
+    const dir = join(root, name);
+    if (await isSessionDir(dir)) {
+      dirs.push(dir);
+    }
+  }
+  return dirs;
+}
+
 /** True when `dir` is itself a session folder. */
 export async function isSessionDir(dir: string): Promise<boolean> {
   try {

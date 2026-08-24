@@ -1,10 +1,11 @@
 import { existsSync } from "node:fs";
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import {
   isSessionDir,
   latestSessionDir,
   readSession,
+  sessionDirs,
   sessionName,
 } from "../node/read";
 import { formatBytes } from "./embed";
@@ -39,6 +40,12 @@ interface Args {
   help: boolean;
   /** Positional argument after the command (`report [session-dir]`). */
   target: string;
+  /** Every positional after the command — `report` takes several session dirs. */
+  targets: string[];
+  /** `--since <ISO>`: only sessions created at or after this date (report). */
+  since: string;
+  /** `--titles <file>`: author-written headings for the report. */
+  titles: string;
   /** `-o` output path for `report`. */
   out: string;
   /** `--force`: overwrite locally edited skills. */
@@ -47,7 +54,7 @@ interface Args {
   agentsMd: boolean;
   /** `--json`: machine-readable output (status). */
   json: boolean;
-  /** `--all`: every chain, not just the newest (status). */
+  /** `--all`: every chain (status), or every session under `--dir` (report). */
   all: boolean;
 }
 
@@ -59,6 +66,9 @@ function parseArgs(argv: string[]): Args {
     port: 4477,
     help: false,
     target: "",
+    targets: [],
+    since: "",
+    titles: "",
     out: "",
     force: false,
     agentsMd: false,
@@ -76,6 +86,10 @@ function parseArgs(argv: string[]): Args {
       args.agentsMd = true;
     } else if (token === "--json") {
       args.json = true;
+    } else if (token === "--since") {
+      args.since = rest[++i] ?? args.since;
+    } else if (token === "--titles") {
+      args.titles = rest[++i] ?? args.titles;
     } else if (token === "--all") {
       args.all = true;
     } else if (token === "--port" || token === "-p") {
@@ -88,6 +102,7 @@ function parseArgs(argv: string[]): Args {
     } else if (!token.startsWith("-")) {
       if (args.command) {
         args.target ||= token;
+        args.targets.push(token);
       } else {
         args.command = token;
       }
@@ -101,7 +116,8 @@ const USAGE = `sluglist — local feedback sidecar, session reports, agent skill
 Usage:
   npx sluglist init [--agents-md] [--force] [--dir <project-root>]
   npx sluglist dev [--port <n>] [--dir <path>]
-  npx sluglist report [session-dir] [-o <file.html>] [--dir <path>]
+  npx sluglist report [session-dir...] [--all] [--since <date>] [--titles <f>]
+                     [-o <file.html>] [--dir <path>]
   npx sluglist status [session-dir] [--json] [--all] [--dir <path>]
   npx sluglist init-skills [--force] [--dir <path>]
 
@@ -114,8 +130,10 @@ Commands:
                Also serves checklists read-only from <dir>/checklists/<name>.json
                at GET /checklists/<name>.json, so the widget can load one without
                copying it into your app's public folder.
-  report       Render a session as one self-contained HTML file (offline, no
-               external requests) — the proof artifact you send to a client.
+  report       Render one or more sessions as a single self-contained HTML file
+               (offline, no external requests) — the proof artifact you send to
+               a client. Several folders, --all or --since merge into one
+               article, ordered by when each report was written.
   status       Where the QA loop stands: each round of the current fix→re-test
                chain, what still fails, what is blocked, and one verdict —
                green, continue, stalled or blocked. Derived from the artifacts,
@@ -138,6 +156,11 @@ Options:
                      AGENTS.md, when they exist.
       --json         status: the same result as JSON, for an agent.
       --all          status: every chain on disk, not just the newest.
+                     report: every session under --dir, not just the newest.
+      --since <date> report: only sessions from this date on (YYYY-MM-DD).
+      --titles <f>   report: JSON of author-written headings, keyed by
+                     "<session-id>/<file>". Defaults to titles.json next to the
+                     sessions when present.
   -h, --help         Show this help.
 
 Set this project up for the QA loop:
@@ -148,6 +171,9 @@ Pair with a LocalConnector in your app:
 
 Report the newest session, zero config:
   npx sluglist report
+
+One article from a week of feedback:
+  npx sluglist report --all --since 2026-08-18
 
 Ask whether the loop is done:
   npx sluglist status --json
@@ -218,9 +244,58 @@ async function resolveSessionDir(args: Args): Promise<string | null> {
   return await latestSessionDir(root);
 }
 
+/**
+ * Which session folders this run covers.
+ *
+ * One explicit folder is the common case; `--all` and `--since` exist because
+ * "the feedback from this week" is several sessions, and a reader wants one
+ * article rather than five files.
+ */
+async function resolveSessionDirs(args: Args): Promise<string[]> {
+  if (args.targets.length > 0) {
+    const dirs: string[] = [];
+    for (const target of args.targets) {
+      const path = resolve(target);
+      if (await isSessionDir(path)) {
+        dirs.push(path);
+        continue;
+      }
+      // A folder of sessions: take them all when asked, else the newest.
+      const found = args.all
+        ? await sessionDirs(path)
+        : [await latestSessionDir(path)].filter((d): d is string => d !== null);
+      dirs.push(...found);
+    }
+    return sinceFilter(dirs, args.since);
+  }
+
+  const root = resolve(args.dir);
+  if (!args.all && (await isSessionDir(root))) {
+    return [root];
+  }
+  if (args.all || args.since) {
+    return sinceFilter(await sessionDirs(root), args.since);
+  }
+  const latest = await latestSessionDir(root);
+  return latest ? [latest] : [];
+}
+
+/** Drop sessions older than `--since` (an ISO date, compared as a prefix). */
+function sinceFilter(dirs: string[], since: string): string[] {
+  if (!since) {
+    return dirs;
+  }
+  // Session ids start with the date (`session-YYYY-MM-DD-xxxx`), so a lexical
+  // compare on the id is the same as a date compare and needs no parsing.
+  return dirs.filter((dir) => {
+    const match = /session-(\d{4}-\d{2}-\d{2})/.exec(sessionName(dir));
+    return match ? match[1] >= since.slice(0, 10) : true;
+  });
+}
+
 async function runReport(args: Args): Promise<void> {
-  const dir = await resolveSessionDir(args);
-  if (!dir) {
+  const dirs = await resolveSessionDirs(args);
+  if (dirs.length === 0) {
     const where = args.target || args.dir;
     process.stderr.write(
       `No session found in ${resolve(where)}.\n` +
@@ -229,17 +304,57 @@ async function runReport(args: Args): Promise<void> {
     process.exit(1);
   }
 
-  const bundle = await readSession(dir);
-  const result = await buildReport(bundle);
-  const out = args.out ? resolve(args.out) : join(dir, "report.html");
+  const titles = await readTitles(args.titles, dirs);
+  const bundles = [];
+  for (const dir of dirs) {
+    bundles.push(await readSession(dir));
+  }
+  const result = await buildReport(bundles, { titles });
+  // A merged report belongs to the folder, not to any one session in it.
+  const out = args.out
+    ? resolve(args.out)
+    : dirs.length === 1
+      ? join(dirs[0], "report.html")
+      : join(resolve(args.dir), "report.html");
   await writeFile(out, result.html, "utf8");
 
   for (const warning of result.warnings) {
     process.stderr.write(`warning: ${warning}\n`);
   }
-  process.stdout.write(
-    `${sessionName(dir)} → ${out}  (${formatBytes(result.bytes)})\n`
-  );
+  const what =
+    dirs.length === 1
+      ? sessionName(dirs[0])
+      : `${dirs.length} sessions`;
+  process.stdout.write(`${what} → ${out}  (${formatBytes(result.bytes)})\n`);
+}
+
+/**
+ * Author-written headings: `--titles <file>`, or a `titles.json` sitting next
+ * to the sessions. Keys are `<session-id>/<file>`; see the docs.
+ */
+async function readTitles(
+  explicit: string,
+  dirs: string[]
+): Promise<Map<string, string>> {
+  const candidates = explicit
+    ? [resolve(explicit)]
+    : [...new Set(dirs.map((d) => join(d, "..", "titles.json")))];
+  for (const path of candidates) {
+    try {
+      const parsed: unknown = JSON.parse(await readFile(path, "utf8"));
+      if (parsed && typeof parsed === "object") {
+        return new Map(
+          Object.entries(parsed as Record<string, unknown>)
+            .filter(([, v]) => typeof v === "string")
+            .map(([k, v]) => [k, v as string])
+        );
+      }
+    } catch {
+      // No titles file, or an unreadable one: headings fall back to the first
+      // sentence, which is what every report did before this existed.
+    }
+  }
+  return new Map();
 }
 
 /**

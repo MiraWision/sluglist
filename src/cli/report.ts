@@ -26,6 +26,14 @@ import { REPORT_CSS, REPORT_JS } from "./report-assets";
  * English only in v1 (see the deferrals in RUN_EVIDENCE.md).
  */
 
+export interface BuildReportOptions {
+  /**
+   * Author-written headings, keyed by `<session-id>/<file>` (or by file name
+   * alone). Loaded from `--titles <file>`; see `titles.json` in the docs.
+   */
+  titles?: Map<string, string>;
+}
+
 export interface BuildReportResult {
   html: string;
   /** Byte length of the HTML. */
@@ -121,6 +129,46 @@ export function renderBody(body: string): string {
     out.push(renderLines(lines));
   }
   return out.join("\n");
+}
+
+/**
+ * Split one `## Section` out of the body, returning it and the rest.
+ *
+ * Used for the action trail: it is evidence, so it cannot be dropped, but a
+ * 25-step trail is longer than the report it belongs to and buries the sentence
+ * a human actually wrote. It moves into the spoiler instead.
+ */
+export function takeSection(
+  body: string,
+  name: string
+): { rest: string; lines: string[] } {
+  const blocks = body.trim().split(/\n{2,}/);
+  const kept: string[] = [];
+  let lines: string[] = [];
+  for (const block of blocks) {
+    const head = block.split("\n")[0].trim();
+    if (head.toLowerCase() === `## ${name.toLowerCase()}`) {
+      lines = block
+        .split("\n")
+        .slice(1)
+        .filter((l) => l.trim());
+      continue;
+    }
+    kept.push(block);
+  }
+  return { rest: kept.join("\n\n"), lines };
+}
+
+/** `- [12s before report] click #save ("Save")` → a row with a fixed stamp. */
+function renderTrail(lines: string[]): string {
+  const items = lines.map((line) => {
+    const text = line.replace(/^- /, "");
+    const match = /^\[([^\]]+)\]\s*(.*)$/.exec(text);
+    return match
+      ? `<li><span class="stamp">${esc(match[1])}</span>${esc(match[2])}</li>`
+      : `<li>${esc(text)}</li>`;
+  });
+  return `<ol class="trail">${items.join("")}</ol>`;
 }
 
 function renderLines(lines: string[]): string {
@@ -282,44 +330,98 @@ async function renderChecklist(
   return out.join("\n");
 }
 
+/**
+ * The heading. An author-written title beats a truncated first sentence, which
+ * usually repeats the paragraph directly under it — but it never *replaces* the
+ * report: the original text stays verbatim below, so a title that drifts from
+ * what the person meant can always be checked against the source.
+ *
+ * Precedence: an explicit titles file, then `title:` in the frontmatter, then
+ * the old first-sentence fallback so existing sessions render unchanged.
+ */
+function headingFor(
+  bundle: SessionBundle,
+  issue: ParsedIssue,
+  id: string,
+  titles: Map<string, string>
+): string {
+  const sessionId = str(bundle.session.session_id);
+  const keyed = titles.get(`${sessionId}/${issue.file}`) ?? titles.get(issue.file);
+  const title =
+    keyed?.trim() ||
+    str(issue.frontmatter.title).trim() ||
+    issue.body.split("\n")[0]?.trim() ||
+    `Issue ${id}`;
+  return truncate(title, 120);
+}
+
+/** Frontmatter rows, in reading order: the issue first, its session last. */
+function metaRows(
+  bundle: SessionBundle,
+  fm: Record<string, YamlNode>
+): [string, string][] {
+  const session = bundle.session;
+  const os = [str(session.browser), str(session.os)].filter(Boolean).join(" · ");
+  const pairs: [string, string][] = [
+    ["url", str(fm.url)],
+    ["category", str(fm.category)],
+    ["mode", str(fm.mode)],
+    ["element text", str(fm.element_text)],
+    ["selector", str(fm.selector)],
+    ["selector strategy", str(fm.selector_strategy)],
+    ["component", str(fm.component)],
+    ["dom path", str(fm.dom_path)],
+    ["checklist item", str(fm.checklist_item)],
+    ["viewport", str(fm.viewport)],
+    ["screen", str(fm.screen)],
+    ["errors", fm.errors_count === undefined ? "" : String(fm.errors_count)],
+    ["actions", fm.actions_count === undefined ? "" : String(fm.actions_count)],
+    ["frames", fm.frames_count === undefined ? "" : String(fm.frames_count)],
+    ["recording", fm.recording === true ? "yes" : ""],
+    ["masked", fm.masked === true ? "yes" : ""],
+    ["scrubbed", fm.scrubbed === true ? "yes" : ""],
+    ["reported", str(fm.created_at) ? formatDate(str(fm.created_at)) : ""],
+    ["issue id", str(fm.id)],
+    ["session", str(session.session_id)],
+    ["base url", str(session.base_url)],
+    ["browser", os],
+    ["timezone", str(session.timezone)],
+    ["language", str(session.language)],
+    ["color scheme", str(session.color_scheme)],
+  ];
+  return pairs.filter(([, value]) => value !== "");
+}
+
 async function renderIssue(
   bundle: SessionBundle,
   issue: ParsedIssue,
   fixes: Map<string, FixInfo>,
   options: EmbedOptions,
-  warnings: string[]
+  warnings: string[],
+  titles: Map<string, string>
 ): Promise<string> {
   const fm = issue.frontmatter;
   const id = str(fm.id) || issue.file.split("-")[0];
   const out: string[] = [`<article class="issue" id="issue-${esc(id)}">`];
 
-  const title = issue.body.split("\n")[0]?.trim() || `Issue ${id}`;
   out.push(
-    `<h3><span class="issue-id">${esc(id)}</span> ${esc(truncate(title, 120))}</h3>`
+    `<h3><span class="issue-id">${esc(id)}</span> ${esc(headingFor(bundle, issue, id, titles))}</h3>`
   );
 
-  // Metadata line: only the fields that carry meaning for a reader.
-  const meta: string[] = [];
+  // Above the fold, three facts and no more: where, what kind, when. They are
+  // what a reader scans; everything else lives in the spoiler at the end.
+  const tags: string[] = [];
   if (str(fm.url)) {
-    meta.push(`<span><b>URL</b> ${esc(str(fm.url))}</span>`);
+    tags.push(`<span class="tag"><code>${esc(str(fm.url))}</code></span>`);
   }
   if (str(fm.category)) {
-    meta.push(`<span><b>Category</b> ${esc(str(fm.category))}</span>`);
-  }
-  if (str(fm.selector)) {
-    meta.push(`<span><b>Selector</b> <code>${esc(str(fm.selector))}</code></span>`);
-  }
-  if (str(fm.viewport)) {
-    meta.push(`<span><b>Viewport</b> ${esc(str(fm.viewport))}</span>`);
-  }
-  if (str(fm.checklist_item)) {
-    meta.push(`<span><b>Checklist item</b> ${esc(str(fm.checklist_item))}</span>`);
+    tags.push(`<span class="tag">${esc(str(fm.category))}</span>`);
   }
   if (str(fm.created_at)) {
-    meta.push(`<span><b>Reported</b> ${esc(formatDate(str(fm.created_at)))}</span>`);
+    tags.push(`<span class="tag">${esc(formatDate(str(fm.created_at)))}</span>`);
   }
-  if (meta.length > 0) {
-    out.push(`<div class="meta">${meta.join("")}</div>`);
+  if (tags.length > 0) {
+    out.push(`<div class="tags">${tags.join("")}</div>`);
   }
 
   const fix = fixes.get(id);
@@ -335,8 +437,16 @@ async function renderIssue(
     );
   }
 
-  // The body's first line became the heading; keep the rest.
-  const rest = issue.body.split("\n").slice(1).join("\n");
+  // The first line became the heading only when it *is* the fallback heading;
+  // with an author title the whole comment stays, quoted in full.
+  const authored =
+    titles.has(`${str(bundle.session.session_id)}/${issue.file}`) ||
+    titles.has(issue.file) ||
+    str(fm.title) !== "";
+  const body = authored
+    ? issue.body
+    : issue.body.split("\n").slice(1).join("\n");
+  const { rest, lines: trail } = takeSection(body, "Actions");
   out.push(renderBody(rest));
 
   // Screenshots: `screenshots` when present, else the single `screenshot`.
@@ -408,6 +518,30 @@ async function renderIssue(
     out.push(`<p class="nb">Attachments</p><ul class="attachments">${rows.join("")}</ul>`);
   }
 
+  // Everything a reader wants only when they doubt the text: the full
+  // frontmatter, the session's context, and the action trail.
+  const rows = metaRows(bundle, fm)
+    .map(
+      ([label, value]) =>
+        `<div class="row"><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`
+    )
+    .join("");
+  const summary =
+    trail.length > 0
+      ? `Details and action trail (${trail.length} step${trail.length === 1 ? "" : "s"})`
+      : "Details";
+  out.push(
+    '<details class="details">',
+    `<summary><span class="chev"></span>${esc(summary)}</summary>`,
+    '<div class="details-body">',
+    `<dl class="meta-table">${rows}</dl>`,
+    trail.length > 0
+      ? `<p class="trail-title">Action trail</p>${renderTrail(trail)}`
+      : "",
+    "</div>",
+    "</details>"
+  );
+
   out.push("</article>");
   return out.join("\n");
 }
@@ -433,50 +567,109 @@ async function firstFrame(
 /* Document                                                            */
 /* ------------------------------------------------------------------ */
 
+/** One issue with the session it came from, so a merged file keeps provenance. */
+interface Entry {
+  bundle: SessionBundle;
+  issue: ParsedIssue;
+  /** Sort key: when the report was written, never when it was delivered. */
+  at: string;
+}
+
+/**
+ * Order reports by when they were written.
+ *
+ * Not by filename, and not by delivery time: a session captured on the 18th can
+ * be delivered on the 24th (the outbox re-sends on the next load), and sorting
+ * by arrival puts the story out of order in a file that reads as an article.
+ */
+function entriesOf(bundles: SessionBundle[]): Entry[] {
+  const entries: Entry[] = [];
+  for (const bundle of bundles) {
+    for (const issue of bundle.issues) {
+      entries.push({
+        bundle,
+        issue,
+        at:
+          str(issue.frontmatter.created_at) ||
+          `${str(bundle.session.created_at)}#${issue.file}`,
+      });
+    }
+  }
+  return entries.sort((a, b) => a.at.localeCompare(b.at, "en"));
+}
+
 async function buildOnce(
-  bundle: SessionBundle,
+  bundles: SessionBundle[],
+  titles: Map<string, string>,
   options: EmbedOptions
 ): Promise<{ html: string; warnings: string[] }> {
   const warnings: string[] = [];
-  const session = bundle.session;
-  const checklist = record(session.checklist);
-  const reporter = record(session.reporter);
-  const fixes = fixesByIssue(bundle);
+  const single = bundles[0];
+  const many = bundles.length > 1;
+  const entries = entriesOf(bundles);
 
-  const items = list(checklist.items).map(record);
   const counts = { pass: 0, fail: 0, skip: 0, "not-tested": 0 };
-  for (const item of items) {
-    counts[verdictOf(item.verdict)]++;
+  let checklistItems = 0;
+  for (const bundle of bundles) {
+    for (const item of list(record(bundle.session.checklist).items).map(record)) {
+      counts[verdictOf(item.verdict)]++;
+      checklistItems++;
+    }
   }
 
-  const title = str(checklist.title) || str(session.project) || "Session report";
+  const checklist = record(single.session.checklist);
+  const reporter = record(single.session.reporter);
+  const title = many
+    ? `${str(single.session.project) || "Feedback"} — feedback report`
+    : str(checklist.title) || str(single.session.project) || "Session report";
 
   // ---- Header -----------------------------------------------------
   const head: string[] = ['<header class="page-head">'];
   head.push(`<h1>${esc(title)}</h1>`);
   const facts: string[] = [];
-  if (str(session.created_at)) {
-    facts.push(`<span><b>Date</b> ${esc(formatDate(str(session.created_at)))}</span>`);
+  if (many) {
+    const dates = entries.map((e) => e.at).filter(Boolean);
+    const span =
+      dates.length > 0
+        ? `${formatDate(dates[0])} – ${formatDate(dates[dates.length - 1])}`
+        : "";
+    facts.push(
+      `<span><b>Reports</b> ${entries.length} from ${bundles.length} session${bundles.length === 1 ? "" : "s"}</span>`
+    );
+    if (span) {
+      facts.push(`<span><b>Period</b> ${esc(span)}</span>`);
+    }
+  } else if (str(single.session.created_at)) {
+    facts.push(
+      `<span><b>Date</b> ${esc(formatDate(str(single.session.created_at)))}</span>`
+    );
   }
-  if (str(session.base_url)) {
-    facts.push(`<span><b>Application</b> ${esc(str(session.base_url))}</span>`);
+  const urls = [
+    ...new Set(bundles.map((b) => str(b.session.base_url)).filter(Boolean)),
+  ];
+  if (urls.length > 0) {
+    facts.push(`<span><b>Application</b> ${esc(urls.join(", "))}</span>`);
   }
-  if (str(reporter.name)) {
+  if (!many && str(reporter.name)) {
     const kind = str(reporter.kind);
     facts.push(
       `<span><b>Reporter</b> ${esc(str(reporter.name))}${kind ? ` <span class="dim">(${esc(kind)})</span>` : ""}</span>`
     );
   }
-  if (str(checklist.intent)) {
+  if (!many && str(checklist.intent)) {
     facts.push(`<span><b>Intent</b> ${esc(str(checklist.intent))}</span>`);
   }
-  facts.push(`<span><b>Session</b> <code>${esc(str(session.session_id))}</code></span>`);
+  if (!many) {
+    facts.push(
+      `<span><b>Session</b> <code>${esc(str(single.session.session_id))}</code></span>`
+    );
+  }
   head.push(`<div class="meta">${facts.join("")}</div>`);
   head.push("</header>");
 
   // ---- Summary ----------------------------------------------------
   const summary: string[] = ['<section class="summary">'];
-  if (items.length > 0) {
+  if (checklistItems > 0) {
     const tiles: string[] = [
       `<div class="tile tile-pass"><span class="n">${counts.pass}</span><span class="l">pass</span></div>`,
       `<div class="tile tile-fail"><span class="n">${counts.fail}</span><span class="l">fail</span></div>`,
@@ -492,32 +685,71 @@ async function buildOnce(
     summary.push(`<div class="tiles">${tiles.join("")}</div>`);
   }
 
-  const notes: string[] = [];
-  notes.push(
-    `${bundle.issues.length} issue${bundle.issues.length === 1 ? "" : "s"} filed`
-  );
-  if (fixes.size > 0) {
-    const fixed = [...fixes.values()].filter((f) => f.status === "fixed").length;
-    notes.push(`${fixed} of ${fixes.size} resolved`);
+  const allFixes = new Map<string, FixInfo>();
+  for (const bundle of bundles) {
+    for (const [id, fix] of fixesByIssue(bundle)) {
+      allFixes.set(`${str(bundle.session.session_id)}/${id}`, fix);
+    }
+  }
+  // How many verdicts carry their own proof. A reader scanning the top of a
+  // regression report wants to know the green count is evidenced, not asserted.
+  let evidenced = 0;
+  for (const bundle of bundles) {
+    for (const item of list(record(bundle.session.checklist).items).map(record)) {
+      const evidence = record(item.evidence);
+      if (list(evidence.screenshots).length > 0) {
+        evidenced++;
+      }
+    }
+  }
+
+  const notes: string[] = [
+    `${entries.length} issue${entries.length === 1 ? "" : "s"} filed`,
+  ];
+  if (evidenced > 0) {
+    notes.push(`${evidenced} of ${checklistItems} checks proved with a screenshot`);
+  }
+  if (allFixes.size > 0) {
+    const fixed = [...allFixes.values()].filter(
+      (f) => f.status === "fixed"
+    ).length;
+    notes.push(`${fixed} of ${allFixes.size} resolved`);
   }
   summary.push(`<p class="summary-line">${esc(notes.join(" · "))}</p>`);
   summary.push("</section>");
 
   // ---- Body -------------------------------------------------------
-  const checklistHtml = await renderChecklist(bundle, options, warnings);
-
-  const issueHtml: string[] = [];
-  if (bundle.issues.length > 0) {
-    issueHtml.push('<section class="issues">', "<h2>Issues</h2>");
-    for (const issue of bundle.issues) {
-      issueHtml.push(await renderIssue(bundle, issue, fixes, options, warnings));
+  const checklistHtml: string[] = [];
+  for (const bundle of bundles) {
+    const html = await renderChecklist(bundle, options, warnings);
+    if (!html) {
+      continue;
     }
-    issueHtml.push("</section>");
-  } else if (items.length > 0) {
-    issueHtml.push('<section class="issues"><h2>Issues</h2><p class="nb">None filed.</p></section>');
+    if (many) {
+      checklistHtml.push(
+        `<p class="nb">Session <code>${esc(str(bundle.session.session_id))}</code></p>`
+      );
+    }
+    checklistHtml.push(html);
   }
 
-  const version = str(session.format_version) || "1.0";
+  const issueHtml: string[] = [];
+  if (entries.length > 0) {
+    issueHtml.push('<section class="issues">', "<h2>Reports</h2>");
+    for (const entry of entries) {
+      const fixes = fixesByIssue(entry.bundle);
+      issueHtml.push(
+        await renderIssue(entry.bundle, entry.issue, fixes, options, warnings, titles)
+      );
+    }
+    issueHtml.push("</section>");
+  } else if (checklistItems > 0) {
+    issueHtml.push(
+      '<section class="issues"><h2>Reports</h2><p class="nb">None filed.</p></section>'
+    );
+  }
+
+  const version = str(single.session.format_version) || "1.0";
 
   const html = [
     "<!doctype html>",
@@ -532,13 +764,19 @@ async function buildOnce(
     '<main class="doc">',
     head.join("\n"),
     summary.join("\n"),
-    checklistHtml,
+    checklistHtml.join("\n"),
     issueHtml.join("\n"),
     '<footer class="page-foot">',
     `<p>Artifact format ${esc(version)} · generated by <b>sluglist</b></p>`,
     "</footer>",
     "</main>",
-    '<dialog id="lightbox"><button type="button" id="lightbox-close" aria-label="Close">×</button><img id="lightbox-img" alt=""></dialog>',
+    '<div class="lightbox" id="lightbox" hidden>',
+    '<button type="button" class="lb-close" id="lb-close" aria-label="Close">×</button>',
+    '<button type="button" class="lb-nav lb-nav-prev" id="lb-prev" aria-label="Previous">‹</button>',
+    '<button type="button" class="lb-nav lb-nav-next" id="lb-next" aria-label="Next">›</button>',
+    '<div class="lb-stage"><img id="lb-img" alt=""></div>',
+    '<div class="lb-bar"><span id="lb-caption"></span><span class="lb-count" id="lb-count"></span></div>',
+    "</div>",
     `<script>${REPORT_JS}</script>`,
     "</body>",
     "</html>",
@@ -554,14 +792,20 @@ async function buildOnce(
  * report that arrives beats a perfect one that bounces off a mail server.
  */
 export async function buildReport(
-  bundle: SessionBundle
+  input: SessionBundle | SessionBundle[],
+  options: BuildReportOptions = {}
 ): Promise<BuildReportResult> {
-  let { html, warnings } = await buildOnce(bundle, DEFAULT_EMBED);
+  const bundles = Array.isArray(input) ? input : [input];
+  if (bundles.length === 0) {
+    throw new Error("[sluglist] buildReport: no sessions to render");
+  }
+  const titles = options.titles ?? new Map<string, string>();
+  let { html, warnings } = await buildOnce(bundles, titles, DEFAULT_EMBED);
   let degraded = false;
 
   if (Buffer.byteLength(html) > SIZE_LIMIT) {
     const first = Buffer.byteLength(html);
-    ({ html, warnings } = await buildOnce(bundle, AGGRESSIVE_EMBED));
+    ({ html, warnings } = await buildOnce(bundles, titles, AGGRESSIVE_EMBED));
     degraded = true;
     warnings.push(
       `report exceeded ${formatBytes(SIZE_LIMIT)} (${formatBytes(first)}); ` +

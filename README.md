@@ -1063,27 +1063,57 @@ npx sluglist report
 ```
 
 Zero config: with no arguments it takes the newest session in `.sluglist/` and writes `report.html`
-next to it. Point it somewhere else when you need to:
+next to it. Point it somewhere else, or gather several sessions into one article:
 
 ```bash
 npx sluglist report .sluglist/session-2026-08-11-2elz -o acceptance.html
+npx sluglist report --all --since 2026-08-18        # a week of feedback, one file
+npx sluglist report session-a session-b             # two folders, one article
 ```
+
+With more than one session the reports are ordered by **when each was written**, not by filename or
+delivery time — a report captured on the 18th and delivered on the 24th (the outbox re-sends on the
+next load) still reads in the right place.
 
 <img src="evidence/report/shot-desktop.png" alt="A sluglist report: pass/fail/not-tested summary, checklist items with observed-fact notes and evidence thumbnails, then the filed issues with their fix status — single-file HTML proof" width="640">
 
-What is in it, in order: the checklist title, date, application URL, reporter and intent; a summary
-(N pass / N fail / N not tested, issues filed, how many are resolved); the checklist as an article,
-each item with its verdict badge, its observed-fact note and its evidence thumbnails; then every
-issue in full, with metadata, screenshots and its fix status from `fixes.yaml`; a footer naming the
-artifact format version.
+What is in it, in order: the title, date, application URL, reporter and intent; a summary (N pass /
+N fail / N not tested, issues filed, how many are resolved, **how many checks are proved with a
+screenshot**); the checklist as an article, each item with its verdict badge, its observed-fact note
+and its evidence thumbnails; then every report in full; a footer naming the artifact format version.
 
 - **Offline and self-contained.** No stylesheet, script, font or image is fetched — CSS and JS are
   inlined, images are `data:` URIs. It opens from `file://` with the network off, and it survives
   being forwarded as one attachment.
-- **Click a thumbnail** to open it full-size (a native `<dialog>`; the full image *is* the thumbnail,
-  scaled by CSS, so nothing is stored twice).
-- **Print → Save as PDF** gives a clean document — the print stylesheet drops the lightbox, lays the
-  thumbnails out as a grid and forces a light theme.
+- **It reads as an article.** Above each report: a heading, and three tags — page, category, time.
+  Everything else — the full frontmatter, the session's context and the action trail — is folded
+  into one *Details and action trail* spoiler. A 25-step trail is longer than the report it belongs
+  to; it is evidence, so it is never dropped, but it does not get to bury the sentence a human wrote.
+- **Click a thumbnail** to open the viewer: arrows walk the images of that report, `Esc` or a click
+  anywhere closes, and the article stays visible behind a translucent backdrop. A **full-page
+  capture** (say 1708 × 13758) is fitted to the width and scrolled rather than squeezed into an
+  unreadable strip.
+- **Print → Save as PDF** gives a clean document — every spoiler opens for print, the lightbox is
+  dropped, thumbnails lay out as a grid and the theme is forced light.
+
+### Headings written by whoever files the report
+
+By default a heading is the report's first sentence, truncated — which often just repeats the
+paragraph underneath it. Two ways to do better, both optional:
+
+```yaml
+# in the issue frontmatter (format 1.8) — the sluglist/node writer takes `title`
+title: Empty states read as no test available
+```
+
+```jsonc
+// titles.json next to the sessions, or --titles <file>
+{ "session-2026-08-18-k8ty/01-it-would-be-helpful.md": "Show scientific names next to common names" }
+```
+
+A good title is five to eight words, describes **what was seen** rather than what to do about it,
+and never replaces the comment: the original text stays verbatim under the heading, so a title that
+drifts from what the reporter meant can always be checked against the source.
 - **Universal.** A session with no checklist renders as a plain list of issues.
 - Screenshots are downscaled to 1200px and re-encoded before inlining, so a typical session
   (5 items, 6 screenshots) lands around 150 KB. This uses no image dependency at all — the PNG

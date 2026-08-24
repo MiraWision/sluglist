@@ -103,3 +103,31 @@ Selectors prefer `data-testid` → `id` → `aria` → landmark path, and never 
 hashed CSS-Modules classes. `selector_strategy` names which rung was used and `selector_unique`
 says whether it matches exactly one element — an agent can trust the selector or fall back to
 `dom_path` + `element_text`.
+
+## The report a client reads
+
+The folder is the machine-readable truth; `npx sluglist report` turns it into one self-contained HTML
+file — no external request, opens from `file://`, forwards as a single attachment.
+
+```bash
+npx sluglist report                             # the newest session
+npx sluglist report --all --since 2026-08-18    # a week of feedback, one article
+npx sluglist report session-a session-b -o week.html
+```
+
+With several sessions the reports are ordered by **when each was written**, not by filename or
+delivery time — a report captured on the 18th and delivered on the 24th belongs where it happened.
+
+Each report shows a heading, three tags (page, category, time) and the reporter's own words. The full
+frontmatter, the session context and the action trail fold into one *Details and action trail*
+spoiler: a 25-step trail is evidence, so it is never dropped, but it does not get to bury the
+sentence a human wrote. Every spoiler opens before printing.
+
+> [!TIP]
+> Set `title` in the issue frontmatter (format 1.8), or drop a `titles.json` beside the sessions, and
+> the report uses that heading instead of a truncated first sentence. Five to eight words describing
+> **what was seen** — and it never replaces the comment, which stays verbatim underneath.
+
+Clicking a thumbnail opens a viewer: arrows walk the images of that report, `Esc` or a click
+anywhere closes it, and the article stays visible behind. A full-page capture (1708 × 13758 is a real
+one) is fitted to the width and scrolled, rather than squeezed into an unreadable strip.

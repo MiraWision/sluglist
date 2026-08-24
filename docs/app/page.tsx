@@ -581,6 +581,13 @@ export default function HomePage() {
                 or image. It works from <Mono>file://</Mono> with the network
                 off, and Print → Save as PDF gives a clean document.
               </p>
+              <p className="mt-3 text-[15px] text-[var(--color-ink-2)] leading-relaxed">
+                It reads as an article: a heading, three tags, the reporter&rsquo;s
+                own words — with the metadata and the 25-step action trail folded
+                into one spoiler. <Mono>--all --since</Mono> gathers a week of
+                feedback into a single file, ordered by when each report was
+                written.
+              </p>
               <div className="mt-5">
                 <Terminal code={REPORT_TERMINAL} title="your project" />
               </div>

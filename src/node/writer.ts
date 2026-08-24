@@ -74,6 +74,13 @@ export interface ReportIssueMeta {
 
 export interface ReportIssueInput {
   comment: string;
+  /**
+   * Heading for this report (format 1.8). Five to eight words describing what
+   * was seen, not what to do about it. It never replaces the comment: the
+   * report shows the original text verbatim underneath, so a title that drifts
+   * from what the reporter meant can be checked against the source.
+   */
+  title?: string;
   /** PNG screenshot bytes (the agent captures its own browser). */
   screenshot?: BinaryInput | null;
   /** Additional screenshots for the same issue. */
@@ -393,6 +400,7 @@ export async function createSession(
           screenshot: pngPaths[0] ?? null,
           ...(pngPaths.length > 1 ? { screenshots: pngPaths } : {}),
           ...(input.category ? { category: input.category } : {}),
+          ...(input.title ? { title: input.title } : {}),
           ...(input.checklistItem !== undefined
             ? { checklistItem: input.checklistItem }
             : {}),

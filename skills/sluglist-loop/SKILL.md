@@ -85,8 +85,14 @@ than testing a different build.
 | Situation | Mode |
 | --- | --- |
 | Acceptance, hand-off, "show me it works", anything a client or owner will read | `all` |
-| A long sweep — `regression`, `smoke` — where the point is coverage | `fails` |
+| `regression` — the run whose product is a report saying the app still works | `all` |
+| `smoke` — a first exploratory sweep over an app nobody has QA'd | `fails` |
 | `re-test` after a fix pass | `all` (the whole point is showing the fix landed) |
+
+A regression pass with no screenshots produces a list of green rows that a reader has to take on
+trust — which is the one thing this protocol exists to avoid. It costs one screenshot per item and
+a heavier report; say so if the list is long, and drop to `fails` only when the owner asks for
+coverage rather than proof.
 
 Precedence, highest first: **the user's explicit request** → `.sluglist/PROJECT.md` → this table.
 `all` costs one screenshot per item; say so if the list is long and you are unsure.

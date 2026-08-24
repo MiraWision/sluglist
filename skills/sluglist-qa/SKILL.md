@@ -19,6 +19,17 @@ In evidence mode `all` (below) the same rule binds `pass` symmetrically: a pass 
 screenshot and the observed fact that justify it, so the reader can verify the verdict instead of
 trusting the reporter.
 
+## Write a heading for every issue you file
+
+`reportIssue` takes an optional `title` (format 1.8) and the report uses it as the heading instead of
+truncating the first sentence. Write one:
+
+- **Five to eight words**, no full stop.
+- **What was seen, not what to do about it.** "Empty states read as no test available", not "Add an
+  Available test section".
+- **It never replaces the comment.** The reporter's text is shown verbatim underneath, so your
+  heading is checkable against the source — which is the only reason it is safe for you to write one.
+
 ## Project conventions first
 
 If `.sluglist/PROJECT.md` exists, **read it before anything else**. Its answers override this skill's

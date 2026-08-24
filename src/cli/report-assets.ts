@@ -78,13 +78,13 @@ p{margin:0 0 12px}
 .linked{margin:6px 0 0;font-size:.88rem;color:var(--dim)}
 
 .shots{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0 4px}
-.shot{margin:0;flex:0 1 220px}
+.shot{margin:0;width:132px}
 .shot-open{
   display:block;width:100%;padding:0;border:1px solid var(--line);border-radius:8px;
   background:var(--soft);cursor:zoom-in;overflow:hidden;line-height:0;
 }
 .shot-open:hover{border-color:var(--dim)}
-.shot-open img{width:100%;height:150px;object-fit:cover;object-position:top center;display:block}
+.shot-open img{width:100%;height:88px;object-fit:cover;object-position:top center;display:block}
 figcaption{font-size:.72rem;color:var(--dim);margin-top:4px;word-break:break-all;line-height:1.35}
 
 .issue{padding:22px 0;border-top:1px solid var(--line)}
@@ -101,55 +101,170 @@ figcaption{font-size:.72rem;color:var(--dim);margin-top:4px;word-break:break-all
 
 .fix{margin:0 0 12px;padding:9px 12px;border-radius:8px;background:var(--soft);border:1px solid var(--line);font-size:.9rem}
 
+/* Tags: the three facts worth scanning. Everything else is in the spoiler. */
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px;font-size:.78rem}
+.tag{border:1px solid var(--line);background:var(--soft);color:var(--dim);border-radius:999px;padding:2px 9px}
+.tag code{font-size:.95em;color:var(--ink)}
+
+/* The evidence a reader only wants when they doubt the text: every field of
+   the frontmatter, the session's context, and the action trail. A 25-step
+   trail is longer than the report it belongs to, so it travels folded. */
+.details{margin:16px 0 0;border:1px solid var(--line);border-radius:10px;background:var(--soft)}
+.details summary{cursor:pointer;list-style:none;padding:11px 14px;font-size:.86rem;color:var(--dim);
+  display:flex;align-items:center;gap:9px;user-select:none;border-radius:10px}
+.details summary::-webkit-details-marker{display:none}
+.details summary:hover{color:var(--ink)}
+.chev{flex:none;width:7px;height:7px;border-right:1.6px solid currentColor;border-bottom:1.6px solid currentColor;
+  transform:rotate(-45deg);transition:transform .16s ease;margin-left:2px}
+.details[open] .chev{transform:rotate(45deg)}
+.details-body{padding:2px 14px 16px;border-top:1px solid var(--line)}
+.meta-table{margin:14px 0 0;font-size:.85rem;display:grid;gap:1px;background:var(--line);
+  border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.meta-table .row{display:grid;grid-template-columns:170px minmax(0,1fr);gap:12px;background:var(--bg);padding:7px 11px}
+.meta-table dt{color:var(--dim)}
+.meta-table dd{margin:0;word-break:break-word}
+.trail-title{font-size:.74rem;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);
+  margin:20px 0 8px;font-weight:650}
+.trail{margin:0;padding-left:22px;font-size:.82rem;color:var(--dim)}
+.trail li{margin-bottom:5px;word-break:break-word}
+.trail code{color:var(--ink)}
+.stamp{display:inline-block;min-width:104px;padding-right:10px;color:var(--dim)}
+
 .page-foot{margin-top:56px;padding-top:16px;border-top:1px solid var(--line);font-size:.8rem;color:var(--dim)}
 
-dialog#lightbox{
-  border:none;padding:0;background:transparent;max-width:96vw;max-height:96vh;
-  overflow:visible;
-}
-dialog#lightbox::backdrop{background:rgba(0,0,0,.85)}
-#lightbox-img{max-width:96vw;max-height:92vh;display:block;border-radius:6px}
-#lightbox-close{
-  position:absolute;top:-14px;right:-14px;width:34px;height:34px;border-radius:50%;
-  border:none;background:#fff;color:#000;font-size:22px;line-height:1;cursor:pointer;
-}
+/* A plain fixed overlay rather than <dialog>: the top layer is one dependency
+   too many for a file that gets forwarded and opened in arbitrary preview
+   panes, where a modal dialog can end up invisible. The backdrop is .86 and not
+   opaque on purpose — the article stays legible behind it, so the overlay reads
+   as "looking closer", not as "navigated away". */
+.lightbox{position:fixed;inset:0;z-index:999;display:none;flex-direction:column;
+  background:rgba(8,10,12,.86);color:#f2f5f7}
+.lightbox.open{display:flex}
+.lb-stage{flex:1;display:flex;align-items:center;justify-content:center;padding:56px 56px 8px;min-height:0}
+.lb-stage img{max-width:100%;max-height:100%;object-fit:contain;border-radius:6px;cursor:zoom-out}
+/* A full-page capture is many times taller than the screen; contained, it is a
+   110px strip. Fit the width and let the overlay scroll instead. */
+.lb-stage.tall{align-items:flex-start;overflow-y:auto;overscroll-behavior:contain;padding-top:56px}
+.lb-stage.tall img{max-height:none;width:min(1100px,100%);object-fit:fill}
+.lb-bar{flex:none;display:flex;align-items:center;justify-content:center;gap:14px;
+  padding:0 56px 22px;font-size:.82rem;color:#aab4bf;text-align:center}
+.lb-count{font-variant-numeric:tabular-nums}
+.lb-close,.lb-nav{position:fixed;border:none;background:rgba(255,255,255,.1);color:#f2f5f7;
+  cursor:pointer;border-radius:50%;width:40px;height:40px;font-size:20px;line-height:1;
+  display:flex;align-items:center;justify-content:center}
+.lb-close:hover,.lb-nav:hover{background:rgba(255,255,255,.2)}
+.lb-close{top:16px;right:16px}
+.lb-nav-prev{left:12px;top:50%;transform:translateY(-50%)}
+.lb-nav-next{right:12px;top:50%;transform:translateY(-50%)}
+.lb-nav[hidden]{display:none}
 
+@media (max-width:640px){
+  .meta-table .row{grid-template-columns:minmax(0,1fr);gap:2px}
+  .stamp{min-width:0;padding-right:8px}
+}
 @media print{
   :root{--ink:#000;--dim:#444;--line:#bbb;--bg:#fff;--soft:#f4f4f4}
   body{font-size:11pt}
   .doc{max-width:none;padding:0}
-  dialog#lightbox{display:none!important}
+  .lightbox{display:none!important}
   .shot-open{cursor:default}
-  .shot{flex:0 1 30%}
-  .shot-open img{height:auto}
+  .shot{width:31%}
+  .shot-open img{height:auto;object-fit:contain}
   .item,.issue{break-inside:avoid}
   h2{break-after:avoid}
   a{text-decoration:none;color:#000}
+  /* Paper has no spoilers: the toggle disappears and the body prints. The
+     script opens every <details> on beforeprint so nothing is dropped. */
+  .details{break-inside:avoid}
+  .details summary{display:none}
+  .details-body{border-top:none}
 }
 `.trim();
 
 /**
- * Lightbox: a native `<dialog>` driven by ~20 lines. The full-size image is the
- * SAME data URI as the thumbnail (the thumbnail is CSS-scaled), so opening it
- * costs nothing and the file carries each image exactly once.
+ * The viewer: an overlay, arrows within one report, and the tall-image rule.
+ *
+ * The full-size image is the SAME data URI as the thumbnail (the thumbnail is
+ * CSS-scaled), so opening one costs nothing and the file carries each image
+ * exactly once.
  */
 export const REPORT_JS = `
 (function(){
-  var dialog=document.getElementById('lightbox');
-  var image=document.getElementById('lightbox-img');
-  if(!dialog||!image||typeof dialog.showModal!=='function')return;
+  var box=document.getElementById('lightbox');
+  var stage=document.getElementById('lb-img');
+  var caption=document.getElementById('lb-caption');
+  var counter=document.getElementById('lb-count');
+  var prev=document.getElementById('lb-prev');
+  var next=document.getElementById('lb-next');
+  if(!box||!stage)return;
+  var group=[];
+  var index=0;
+
+  function open(on){
+    box.classList.toggle('open',on);
+    box.hidden=!on;
+    // Lock the article behind the overlay, or the wheel scrolls past it.
+    document.body.style.overflow=on?'hidden':'';
+    if(!on){stage.parentElement.scrollTop=0;stage.removeAttribute('src');}
+  }
+
+  function paint(){
+    var shot=group[index];
+    if(!shot)return;
+    var img=shot.querySelector('img');
+    if(!img)return;
+    stage.parentElement.classList.remove('tall');
+    stage.parentElement.scrollTop=0;
+    stage.src=img.src;
+    stage.alt=img.alt||'';
+    caption.textContent=img.alt||'';
+    counter.textContent=group.length>1?(index+1)+' / '+group.length:'';
+    prev.hidden=next.hidden=group.length<2;
+  }
+
+  function step(delta){
+    if(group.length<2)return;
+    index=(index+delta+group.length)%group.length;
+    paint();
+  }
+
   document.addEventListener('click',function(event){
     var button=event.target.closest?event.target.closest('.shot-open'):null;
     if(button){
-      var img=button.querySelector('img');
-      if(!img)return;
-      image.src=img.src;
-      image.alt=img.alt||'';
-      dialog.showModal();
+      var figure=button.parentElement;
+      // The arrows walk the figures of THIS report, not of the whole document.
+      group=Array.prototype.slice.call(figure.parentElement.querySelectorAll('.shot'));
+      index=group.indexOf(figure);
+      paint();
+      open(true);
       return;
     }
-    if(event.target===dialog||event.target.id==='lightbox-close'){dialog.close();}
+    if(!box.classList.contains('open'))return;
+    // Anywhere but the arrows closes: the image, the caption bar, the backdrop.
+    if(!(event.target.closest&&event.target.closest('.lb-nav'))){open(false);}
   });
-  dialog.addEventListener('close',function(){image.removeAttribute('src');});
+
+  document.addEventListener('keydown',function(event){
+    if(!box.classList.contains('open'))return;
+    if(event.key==='Escape'){open(false);}
+    if(event.key==='ArrowRight'){event.preventDefault();step(1);}
+    if(event.key==='ArrowLeft'){event.preventDefault();step(-1);}
+  });
+
+  // A page capture is many times taller than the screen. Contained it becomes
+  // an unreadable strip, so fit the width and scroll the overlay instead.
+  stage.addEventListener('load',function(){
+    var tall=stage.naturalWidth>0&&stage.naturalHeight/stage.naturalWidth>1.4;
+    stage.parentElement.classList.toggle('tall',tall);
+  });
+
+  if(prev)prev.addEventListener('click',function(){step(-1);});
+  if(next)next.addEventListener('click',function(){step(1);});
+
+  // Paper has no spoilers: open every details block before printing.
+  window.addEventListener('beforeprint',function(){
+    var all=document.querySelectorAll('details');
+    for(var i=0;i<all.length;i++){all[i].open=true;}
+  });
 })();
 `.trim();

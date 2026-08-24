@@ -1,5 +1,62 @@
 # Changelog
 
+## 1.18.0 — the report reads as an article
+
+`sluglist report` produced a correct document that was hard to read: a 25-step action trail buried
+the sentence a human actually wrote, a full-page capture opened as an unreadable 110px strip, and a
+week of feedback meant five separate files. This release is the fix, taken from a real production
+report that was assembled by hand first.
+
+### The trail and the metadata fold away
+
+Each report now shows a heading, three tags — page, category, time — and the text. Everything else
+moves into one *Details and action trail (N steps)* spoiler: the full frontmatter as a table, the
+session's context (browser, timezone, locale, base URL), and the trail itself. It is evidence, so it
+is never dropped; it just no longer outweighs the report it belongs to. Spoilers open automatically
+before printing, so paper loses nothing.
+
+### The viewer
+
+Thumbnails shrink to 132px — an appendix to the text rather than a gallery — and the lightbox is now
+a plain translucent overlay instead of `<dialog>`: the top layer is one dependency too many for a
+file that gets forwarded and opened in arbitrary preview panes, where a modal can end up invisible.
+Arrows walk the images of one report, with a counter; `Esc`, a click anywhere but the arrows, or the
+backdrop closes it; the article behind stays visible and cannot scroll underneath.
+
+### Full-page captures are readable
+
+A real one measured 1708 × 13758. Contained in a viewport it became a strip about 110px wide, and it
+weighed ~2.4 MB. Now anything taller than 2:1 gets its own budget (1100px wide, quality 60, re-encoded
+harder past ~900 KB), and the viewer fits it to the width and scrolls when the ratio exceeds 1.4.
+
+### Several sessions, one article
+
+```bash
+npx sluglist report --all --since 2026-08-18
+npx sluglist report session-a session-b -o week.html
+```
+
+Reports are ordered by **when each was written**, not by filename or delivery time: a report captured
+on the 18th and delivered on the 24th (the outbox re-sends on the next load) belongs where it
+happened. The header then reads *N reports from M sessions*, with the period.
+
+### Headings someone actually wrote
+
+A heading was the first sentence, truncated, which usually repeated the paragraph under it. Now the
+report prefers `title` from the issue frontmatter (**format 1.8**, additive, written by the
+`sluglist/node` writer) or an entry in a `titles.json` beside the sessions (`--titles <file>` to point
+elsewhere). It never replaces the comment — the original text stays verbatim underneath, so a title
+that drifts from what the reporter meant can be checked against the source. Without either, the old
+behaviour is unchanged.
+
+### Passes carry their proof by default on a regression run
+
+The evidence-mode heuristic put `regression` with `smoke` on `fails`, so a full regression produced a
+column of green rows a reader had to take on trust — the one thing this protocol exists to avoid. A
+regression run's product is a report saying the app still works, so it now defaults to `all`:
+a screenshot and an observed fact per check. `smoke` stays economical; it is exploratory. The report's
+summary line says how many checks are proved with a screenshot.
+
 ## 1.17.0 — `sluglist/contract`, a real `HttpConnector`, and failures you can read
 
 Everything additive. The artifact format is unchanged (1.7), every existing command and connector

@@ -337,9 +337,9 @@ describe("format 1.7 — checklist retest_of", () => {
   });
 });
 
-describe("format 1.7 — backward compatibility", () => {
-  it("declares 1.7", () => {
-    expect(FORMAT_VERSION).toBe("1.7");
+describe("format 1.8 — backward compatibility", () => {
+  it("declares 1.8", () => {
+    expect(FORMAT_VERSION).toBe("1.8");
   });
 
   it("a session with neither evidence nor intent is byte-identical to 1.5", async () => {
@@ -353,7 +353,7 @@ describe("format 1.7 — backward compatibility", () => {
     const raw = await textOf(memory.getFile(session.sessionId, "session.yaml"));
     // Only the version line may differ from what 1.5 would have produced.
     const downgraded = raw.replace(
-      'format_version: "1.7"',
+      'format_version: "1.8"',
       'format_version: "1.5"'
     );
     expect(downgraded).not.toContain("evidence");

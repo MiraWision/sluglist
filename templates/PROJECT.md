@@ -82,16 +82,19 @@ Uncomment what applies and add your own:
 Whether a `pass` carries a screenshot + observed-fact note (`all`) or only fails carry evidence
 (`fails`). Per checklist intent; an explicit request from the user always wins.
 
-*Defaults:* the `sluglist-loop` heuristic — acceptance and hand-off runs (`branch`, `scenario`,
-`re-test`) → `all`; long sweeps (`smoke`, `regression`) → `fails`. `sluglist-qa` invoked on its own
-defaults to `fails`.
+*Defaults:* the `sluglist-loop` heuristic — anything whose product is a report (`branch`,
+`scenario`, `re-test`, `regression`) → `all`; an exploratory first `smoke` sweep → `fails`.
+`sluglist-qa` invoked on its own defaults to `fails`.
+
+`all` costs one screenshot per item and a heavier report file. It buys a green row a reader can
+verify instead of trust — which is the point of a regression run.
 
 ```
 branch: all
 re-test: all
 scenario: all
+regression: all
 smoke: fails
-regression: fails
 ```
 
 ## Loop limits

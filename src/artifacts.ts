@@ -70,12 +70,15 @@ function yamlBlock(
  *       attached to a verdict, so a `pass` can be verified and not merely
  *       trusted) and additive `checklist.intent` (why the checklist exists:
  *       branch / re-test / smoke / scenario). Both absent unless recorded.
+ * 1.8 — additive `title` in issue frontmatter: a heading written by whoever
+ *       files the report, used by `sluglist report` instead of a truncated
+ *       first sentence. Absent unless written; never replaces the comment.
  * 1.7 — additive `checklist.retest_of` in session.yaml: the id of the checklist
  *       this run re-tests, carried through from the checklist config so the
  *       rounds of one fix→re-test cycle chain from session.yaml alone (what
  *       `sluglist status` reads). Absent on a first-pass run.
  */
-export const FORMAT_VERSION = "1.7";
+export const FORMAT_VERSION = "1.8";
 
 /**
  * The `checklist:` block: definition identity + one entry per item with its
@@ -238,6 +241,12 @@ export interface IssueMarkdownInput {
   /** Checklist item this issue is evidence for; emitted as `checklist_item`. */
   checklistItem?: string | null;
   comment: string;
+  /**
+   * Additive (1.8): a heading for this report, written by whoever files it.
+   * The report uses it instead of truncating the first sentence — but never
+   * *instead of* the comment, which is always shown verbatim underneath.
+   */
+  title?: string;
   /** Nearest named React component of the captured element; null when unknown. */
   component?: string | null;
   /** Runtime host context (sluglist.setContext); `context:` block (null empty). */
@@ -323,6 +332,11 @@ export function buildIssueMarkdown(input: IssueMarkdownInput): string {
   lines.push(yamlLine("mode", input.mode));
   if (input.category !== undefined) {
     lines.push(yamlLine("category", input.category));
+  }
+  // Additive (1.8): emitted only when written, so sessions without it are
+  // byte-identical to a 1.7 one.
+  if (input.title !== undefined && input.title !== "") {
+    lines.push(yamlLine("title", input.title));
   }
   // Additive: the checklist item this issue provides fail-evidence for.
   if (input.checklistItem !== undefined) {

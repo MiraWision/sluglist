@@ -33,6 +33,21 @@ export const DEFAULT_EMBED: EmbedOptions = {
 /** Harsher pass used when the first build blows the size limit. */
 export const AGGRESSIVE_EMBED: EmbedOptions = { maxWidth: 800, quality: 50 };
 
+/**
+ * Full-page captures are a different kind of image and need a different budget.
+ *
+ * A real one measured 1708 × 13758. Downscaled to 1200 wide it is still 9670px
+ * tall and weighs ~2.4 MB at q70 — for a picture nobody reads pixel by pixel:
+ * it is an overview of a page, not proof of a detail. So anything taller than
+ * 2:1 gets a narrower, cheaper pass, and is re-encoded harder if it still lands
+ * over the cap.
+ */
+const TALL_RATIO = 2;
+const TALL_MAX_WIDTH = 1100;
+const TALL_QUALITY = 60;
+const TALL_MAX_BYTES = 900 * 1024;
+const TALL_FALLBACK_QUALITY = 40;
+
 export interface EmbeddedImage {
   /** `data:` URI ready for a `src` attribute. */
   uri: string;
@@ -80,8 +95,21 @@ export async function embedImage(
   if (ext === ".png") {
     try {
       const decoded = decodePng(source);
-      const prepared = flatten(resizeToWidth(decoded, options.maxWidth));
-      const jpeg = encodeJpeg(prepared, options.quality);
+      const tall = decoded.height > decoded.width * TALL_RATIO;
+      const maxWidth = tall
+        ? Math.min(options.maxWidth, TALL_MAX_WIDTH)
+        : options.maxWidth;
+      const quality = tall
+        ? Math.min(options.quality, TALL_QUALITY)
+        : options.quality;
+      const prepared = flatten(resizeToWidth(decoded, maxWidth));
+      let jpeg = encodeJpeg(prepared, quality);
+      if (tall && jpeg.length > TALL_MAX_BYTES) {
+        const harder = encodeJpeg(prepared, TALL_FALLBACK_QUALITY);
+        if (harder.length < jpeg.length) {
+          jpeg = harder;
+        }
+      }
       // A tiny PNG (an icon, a flat-colour capture) can beat JPEG; keep
       // whichever is actually smaller.
       if (jpeg.length < source.length) {
