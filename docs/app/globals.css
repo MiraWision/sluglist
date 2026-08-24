@@ -11,6 +11,18 @@
   --color-surface: #ffffff;
   --color-canvas: #fafafa;
   --color-accent: #18181b;
+
+  /* One accent, so a page has somewhere to look first: primary actions, the
+     eyebrow above a section, and the "contract" spine of the diagrams. */
+  --color-brand: #4f46e5;
+  --color-brand-ink: #ffffff;
+
+  /* Verdict colours. The product's whole point is pass / fail / never
+     checked, so those three read as colours everywhere they appear —
+     diagrams, coverage maps, the loop's states. */
+  --color-pass: #15803d;
+  --color-fail: #be123c;
+  --color-gap: #b45309;
 }
 
 :root {
@@ -54,6 +66,12 @@ body {
     --color-surface: #18181b;
     --color-canvas: #0b0b0d;
     --color-accent: #fafafa;
+    /* Lifted for contrast on a near-black canvas; the same roles. */
+    --color-brand: #a5b4fc;
+    --color-brand-ink: #18181b;
+    --color-pass: #4ade80;
+    --color-fail: #fb7185;
+    --color-gap: #fbbf24;
   }
 }
 
@@ -98,4 +116,163 @@ body {
 .prose-site table {
   display: block;
   overflow-x: auto;
+}
+
+/* Verdict chips and diagram nodes: a tinted wash of the semantic colour, so the
+   hue carries meaning without shouting in either theme. */
+.tint-pass {
+  color: var(--color-pass);
+  background: color-mix(in oklab, var(--color-pass) 10%, transparent);
+  border-color: color-mix(in oklab, var(--color-pass) 35%, transparent);
+}
+
+.tint-fail {
+  color: var(--color-fail);
+  background: color-mix(in oklab, var(--color-fail) 10%, transparent);
+  border-color: color-mix(in oklab, var(--color-fail) 35%, transparent);
+}
+
+.tint-gap {
+  color: var(--color-gap);
+  background: color-mix(in oklab, var(--color-gap) 12%, transparent);
+  border-color: color-mix(in oklab, var(--color-gap) 35%, transparent);
+}
+
+.tint-brand {
+  color: var(--color-brand);
+  background: color-mix(in oklab, var(--color-brand) 10%, transparent);
+  border-color: color-mix(in oklab, var(--color-brand) 35%, transparent);
+}
+
+/* The contract spine in the diagrams — a brand-tinted panel that stays legible
+   on both canvases. */
+.panel-brand {
+  background: color-mix(in oklab, var(--color-brand) 7%, var(--color-surface));
+  border-color: color-mix(in oklab, var(--color-brand) 28%, transparent);
+}
+
+/* Shiki output (build-time syntax highlighting).
+   `defaultColor: false` means each token carries only `--shiki-light` and
+   `--shiki-dark`, so the palette follows the system theme with no reload, no
+   flash and no client JavaScript. The background stays ours — VS Code's own
+   editor background would fight the page. */
+.shiki {
+  background: transparent !important;
+  margin: 0;
+  color: var(--shiki-light);
+}
+
+.shiki span {
+  color: var(--shiki-light);
+}
+
+@media (prefers-color-scheme: dark) {
+  .shiki,
+  .shiki span {
+    color: var(--shiki-dark);
+  }
+}
+
+/* Inside a CodeBlock the wrapper already scrolls, pads and sets the type. */
+.code-shiki .shiki {
+  padding: 0;
+  font: inherit;
+}
+
+/* In prose, Shiki replaces the whole <pre><code> pair, so the panel styling
+   that used to sit on `.prose-site pre` applies to its own <pre>. */
+.prose-site .shiki {
+  border: 1px solid var(--color-line);
+  border-radius: 0.75rem;
+  background: var(--color-surface) !important;
+  overflow-x: auto;
+  padding: 0.9rem 1rem;
+}
+
+/* Callouts in prose (`> [!WARNING]` and plain blockquotes).
+   The tint colours the marker and the frame; the body stays in reading ink, so
+   a warning is findable without being shouted. */
+.prose-site .callout {
+  display: flex;
+  gap: 0.85rem;
+  align-items: flex-start;
+  border: 1px solid var(--color-line);
+  border-radius: 0.75rem;
+  padding: 0.9rem 1.1rem;
+  margin: 1.4rem 0;
+}
+
+.prose-site .callout-mark {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  padding-top: 0.15rem;
+}
+
+.prose-site .callout-label {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.prose-site .callout-body {
+  color: var(--color-ink-2);
+  min-width: 0;
+}
+
+.prose-site .callout-body > :first-child {
+  margin-top: 0;
+}
+
+.prose-site .callout-body > :last-child {
+  margin-bottom: 0;
+}
+
+/* A quote with no type: same panel, a brand-tinted rule instead of a marker. */
+.prose-site .callout-quote {
+  border-left: 3px solid color-mix(in oklab, var(--color-brand) 45%, transparent);
+}
+
+/* The cycle strip's return path: a dashed bracket that drops from the decision
+   node, runs back under the row and points up into the first step. Drawn with
+   borders rather than SVG so it stretches with the row at any width. */
+.cycle-return {
+  position: absolute;
+  /* Tuned to land on the centres of the first node and the decision node
+     (measured: 45px and 58px from the container's edges at this type size). */
+  left: 2.8rem;
+  right: 3.6rem;
+  bottom: 0.55rem;
+  height: 1.5rem;
+  border: 1.5px dashed color-mix(in oklab, var(--color-gap) 55%, transparent);
+  border-top: none;
+  border-bottom-left-radius: 0.6rem;
+  border-bottom-right-radius: 0.6rem;
+}
+
+/* Arrowhead into the first step. */
+.cycle-return::before {
+  content: "";
+  position: absolute;
+  top: -7px;
+  left: -5px;
+  border-right: 4.5px solid transparent;
+  border-bottom: 7px solid var(--color-gap);
+  border-left: 4.5px solid transparent;
+}
+
+.cycle-return-label {
+  position: absolute;
+  bottom: 0.05rem;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0 0.5rem;
+  background: var(--color-canvas);
+  color: var(--color-gap);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  white-space: nowrap;
 }

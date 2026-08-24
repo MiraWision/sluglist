@@ -7,6 +7,7 @@ import {
   type FeedbackConnector,
   mountFeedbackWidget,
 } from "sluglist";
+import { onDemoOpen } from "@/lib/demo-bus";
 
 interface DemoArtifact {
   path: string;
@@ -110,7 +111,13 @@ export default function Demo() {
         { key: "idea", label: "Idea" },
       ],
     });
-    return () => ui.unmount();
+    // The hero's button asks for the capture menu through this; a click that
+    // landed before the widget mounted is replayed here.
+    const stopListening = onDemoOpen(() => ui.open());
+    return () => {
+      stopListening();
+      ui.unmount();
+    };
   }, []);
 
   const activeArtifact = useMemo(

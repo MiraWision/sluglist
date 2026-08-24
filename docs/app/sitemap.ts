@@ -17,6 +17,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "monthly" as const,
       priority: 0.7,
     })),
+    { url: `${SITE_URL}/for/`, lastModified, changeFrequency: "monthly", priority: 0.8 },
     ...USE_CASES.map((c) => ({
       url: `${SITE_URL}/for/${c.slug}/`,
       lastModified,
@@ -30,5 +31,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.6,
     })),
     { url: `${SITE_URL}/changelog/`, lastModified, changeFrequency: "weekly", priority: 0.5 },
+    // The live example QA report (a static self-contained HTML asset in public/).
+    { url: `${SITE_URL}/example-report.html`, lastModified, changeFrequency: "monthly", priority: 0.4 },
   ];
 }

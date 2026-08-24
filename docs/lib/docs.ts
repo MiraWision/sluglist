@@ -1,3 +1,5 @@
+import type { IconName } from "@/components/Icons";
+
 export interface DocPage {
   slug: string;
   title: string;
@@ -5,11 +7,14 @@ export interface DocPage {
   description: string;
   /** Short label for indexes and prev/next navigation. */
   label: string;
+  /** Marker for the docs index and the home page's "in the box" grid. */
+  icon: IconName;
 }
 
 export const DOC_PAGES: DocPage[] = [
   {
     slug: "quick-start",
+    icon: "bolt",
     title: "Quick start",
     label: "Quick start",
     description:
@@ -17,6 +22,7 @@ export const DOC_PAGES: DocPage[] = [
   },
   {
     slug: "capture",
+    icon: "crosshair",
     title: "Capture modes, annotation & attachments",
     label: "Capture",
     description:
@@ -24,13 +30,15 @@ export const DOC_PAGES: DocPage[] = [
   },
   {
     slug: "connectors",
+    icon: "plug",
     title: "Connectors: deliver feedback anywhere",
     label: "Connectors",
     description:
-      "A connector is the only place that knows about storage. Recipes for an API route, Vercel Blob, S3/R2 and Supabase Storage — with no write-keys in the browser.",
+      "A connector is the only place that knows about storage. HttpConnector, the sluglist/contract validators for your endpoint, and recipes for Vercel Blob, S3/R2 and Supabase.",
   },
   {
     slug: "checklist",
+    icon: "checklist",
     title: "Checklist mode: structured acceptance",
     label: "Checklist mode",
     description:
@@ -38,6 +46,7 @@ export const DOC_PAGES: DocPage[] = [
   },
   {
     slug: "production",
+    icon: "shield",
     title: "Production & beta: presets, privacy, PII scrubbing",
     label: "Production",
     description:
@@ -45,13 +54,23 @@ export const DOC_PAGES: DocPage[] = [
   },
   {
     slug: "agents",
+    icon: "terminal",
     title: "Agents & CLI: the local feedback loop",
     label: "Agents & CLI",
     description:
-      "Run npx sluglist dev, click feedback on your own app, and let Claude Code read the artifacts and fix the code via the bundled sluglist-fix skill.",
+      "Run npx sluglist dev, click feedback on your own app, and let an agent fix it — plus the four bundled skills, sluglist status, and the loop that runs until green.",
+  },
+  {
+    slug: "project-conventions",
+    icon: "settings-doc",
+    title: "Project conventions: .sluglist/PROJECT.md",
+    label: "Project conventions",
+    description:
+      "One committed file holds your base branch, how to run and sign in, the hard limits QA must never complete, and evidence defaults — so the bundled skills stay upgradeable.",
   },
   {
     slug: "artifacts",
+    icon: "folder",
     title: "Artifact format (contract)",
     label: "Artifact format",
     description:

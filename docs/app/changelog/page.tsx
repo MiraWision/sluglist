@@ -10,9 +10,9 @@ export const metadata: Metadata = pageMetadata({
     "Release notes for the sluglist feedback widget: every version, every feature, and the additive artifact-format history.",
 });
 
-export default function ChangelogPage() {
+export default async function ChangelogPage() {
   // The library CHANGELOG is the single source of truth; rendered at build time.
-  const html = renderMarkdownFile("../CHANGELOG.md");
+  const html = await renderMarkdownFile("../CHANGELOG.md", { repoLinks: true });
   return (
     <div className="mx-auto max-w-3xl px-6 py-16 md:py-20">
       <JsonLd

@@ -10,6 +10,13 @@
  *     size limits are the endpoint's responsibility — sluglist core does none
  *     of them by design.
  *
+ * **The shape rules are imported, not copied.** Path safety, the mime sets and
+ * the size caps come from `sluglist/contract` — a DOM-free subpath built for
+ * exactly this. When the artifact layout grows (another level of nesting, a new
+ * artifact kind), upgrading the package updates this validation with it; a
+ * hand-written regex would keep rejecting the new shape as "invalid path", which
+ * is the failure this endpoint exists to avoid.
+ *
  * What this example enforces, and why each one matters when the widget is
  * pointed at real users (see docs/production-checklist.md):
  *
@@ -25,60 +32,35 @@
 
 import { createHash, timingSafeEqual } from "node:crypto";
 import { Buffer } from "node:buffer";
+import {
+  type ArtifactPayload,
+  base64ByteLength,
+  classifyArtifactPath,
+  validateArtifactUpload,
+} from "sluglist/contract";
 
 // --- limits -------------------------------------------------------------------
-/** Max decoded artifact size. Recording frames are the big ones. */
-const MAX_BYTES = 10 * 1024 * 1024;
 /** Max artifacts accepted for a single session id. */
 const MAX_FILES_PER_SESSION = 200;
 const WINDOW_MS = 60_000;
 const MAX_PER_WINDOW = 20;
 
-/** The only mime types sluglist core ever produces itself. */
-const CORE_MIME = ["text/yaml", "text/markdown", "image/png"];
+/**
+ * Body budget. **Not a sluglist limit — a platform one.** A Vercel serverless
+ * function rejects a request body over ~4.5 MB before your code runs, and
+ * base64 inflates bytes by a third, so a 4 MB artifact is already ~5.3 MB of
+ * JSON. `HttpConnector` refuses to send past its own `maxBodyBytes` (4 MB by
+ * default) with a message that names the file; keep the two in step, and for
+ * genuinely large attachments upload straight to storage instead of through a
+ * function.
+ */
+const MAX_BYTES = 4 * 1024 * 1024;
 
 /**
- * Reporter attachments (`attachments` in the widget config) arrive through this
- * same route with the mime of the file the reporter picked, so the endpoint
- * needs its own whitelist — the client-side one is a UX affordance, not a
- * control. Keep this in sync with `src/attachments.ts`; trim it to what you
- * actually want to receive.
- *
- * Executables and archives are absent on purpose and must stay absent: an
- * archive is opaque to every check you and your storage run after this point.
- *
- * If you do NOT enable attachments, delete this list and pass `CORE_MIME` to
- * `ALLOWED_MIME` — a narrower endpoint is a better endpoint.
+ * If you do NOT enable reporter attachments, pass `ARTIFACT_MIME_TYPES` as
+ * `allowedMimeTypes` and set `rejectAttachments` — a narrower endpoint is a
+ * better endpoint.
  */
-const ATTACHMENT_MIME = [
-  "image/png", "image/jpeg", "image/webp", "image/gif", "image/heic", "image/heif",
-  "video/mp4", "video/webm", "video/quicktime",
-  "application/pdf",
-  "text/plain", "text/csv", "application/csv", "text/markdown", "text/x-markdown",
-  "application/json", "text/json",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-];
-
-const ALLOWED_MIME = new Set([...CORE_MIME, ...ATTACHMENT_MIME]);
-
-/**
- * Attachments are the only artifacts whose size the reporter controls (a phone
- * video is tens of megabytes), so they get their own cap — keep it equal to the
- * widget's `attachments.maxFileSize`, or the browser will accept a file this
- * route then rejects.
- */
-const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
-/** Artifact names the widget gives attachments: `03-checkout-att-01.png`. */
-const ATTACHMENT_PATH = /-att-\d{2}\.[A-Za-z0-9]+$/;
-/**
- * Relative POSIX paths inside the session folder. Allows the one level of
- * nesting recordings use (`01-slug-frames/clip-01/02.png`) and nothing else —
- * no `..`, no absolute paths, no leading dot.
- */
-const FILE_PATH =
-  /^[A-Za-z0-9][A-Za-z0-9._-]{0,120}(\/[A-Za-z0-9][A-Za-z0-9._-]{0,120}){0,2}$/;
-const SESSION_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,80}$/;
 
 export interface FeedbackRouteDeps {
   /** Write the artifact with YOUR storage credentials. */
@@ -159,61 +141,53 @@ export function createFeedbackHandler(
       return new Response("Payload too large", { status: 413 });
     }
 
-    let body: {
-      sessionId?: string;
-      path?: string;
-      mime?: string;
-      base64?: string;
-    };
+    let body: Partial<ArtifactPayload>;
     try {
       body = await req.json();
     } catch {
       return new Response("Bad JSON", { status: 400 });
     }
 
-    const { sessionId, path, mime, base64 } = body;
-    if (!(sessionId && path && mime && typeof base64 === "string")) {
+    const { sessionId, path, mime, base64, format } = body;
+    if (typeof base64 !== "string") {
       return new Response("Missing fields", { status: 400 });
     }
-    if (!(SESSION_ID.test(sessionId) && FILE_PATH.test(path))) {
-      return new Response("Invalid path", { status: 400 });
+
+    // 3. Shape, path safety, media type and size — one call, the library's own
+    //    rules. The reason is returned in the body and logged: a client that
+    //    sees "invalid artifact path: 01-x-frames/clip-01/02.png" knows in one
+    //    read what a bare 400 would have sent it to the server logs for.
+    //    `base64ByteLength` sizes the payload without decoding it, so a 1 GB
+    //    string is never materialised as a buffer.
+    const rejection = validateArtifactUpload(
+      { sessionId, path, mime, byteLength: base64ByteLength(base64) },
+      {
+        maxBytes,
+        maxAttachmentBytes: deps.maxAttachmentBytes ?? maxBytes,
+        // rejectAttachments: true,  // ← if your widget does not enable them
+      }
+    );
+    if (rejection) {
+      console.warn(
+        `[feedback] rejected ${String(path)} (format ${format ?? "?"}): ${rejection.reason}`
+      );
+      return new Response(rejection.reason, { status: rejection.status });
     }
-    // 3. Content type: only what the core emits, and it must be declared, not
-    //    sniffed. 415 rather than 400 so a client can tell the two apart.
-    if (!ALLOWED_MIME.has(mime)) {
-      return new Response("Unsupported media type", { status: 415 });
-    }
-    // An attachment must be a type the reporter is allowed to send, not just a
-    // type sluglist can produce — and a core artifact must never arrive with an
-    // attachment mime. Checking the pair closes the gap where "image/png" would
-    // let any file through under an artifact-shaped name.
-    const isAttachment = ATTACHMENT_PATH.test(path);
-    if (!isAttachment && !CORE_MIME.includes(mime)) {
-      return new Response("Unsupported media type", { status: 415 });
-    }
-    const limit = isAttachment
-      ? (deps.maxAttachmentBytes ?? MAX_ATTACHMENT_BYTES)
-      : maxBytes;
-    // base64 is 4 chars per 3 bytes; check before decoding so a 1GB string is
-    // never materialised as a buffer.
-    if ((base64.length * 3) / 4 > limit) {
-      return new Response("Payload too large", { status: 413 });
-    }
+    // Narrowed by the validator above; restated for TypeScript.
+    const key = `${sessionId as string}/${path as string}`;
 
     // 4. Per-session cap: a page stuck in a loop cannot fill the bucket.
-    const count = sessionFileCount.get(sessionId) ?? 0;
+    const count = sessionFileCount.get(key.split("/")[0]) ?? 0;
     if (count >= maxFiles) {
       return new Response("Session file limit reached", { status: 409 });
     }
-    sessionFileCount.set(sessionId, count + 1);
+    sessionFileCount.set(key.split("/")[0], count + 1);
 
+    // The kind is informational — useful in logs and metrics, never a gate.
+    const kind = classifyArtifactPath(path as string);
     const bytes = Buffer.from(base64, "base64");
-    if (bytes.byteLength > limit) {
-      return new Response("Payload too large", { status: 413 });
-    }
-
-    await deps.store(`feedback/${sessionId}/${path}`, bytes, mime);
-    return Response.json({ ok: true });
+    await deps.store(`feedback/${key}`, bytes, mime as string);
+    return Response.json({ ok: true, kind });
   };
 }
 

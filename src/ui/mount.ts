@@ -36,6 +36,8 @@ import type {
   AttachmentInput,
   CaptureMode,
   CaptureResult,
+  DeliveryFailure,
+  DeliveryReport,
   FeedbackPrivacy,
 } from "../types";
 import type { FeedbackWidgetCore } from "../widget";
@@ -108,6 +110,16 @@ export interface MountedFeedbackWidget {
    * Production section of the README.
    */
   show(): void;
+  /**
+   * Open the capture menu now, exactly as clicking the launcher does.
+   *
+   * This is for **your own** entry point — a "Report a problem" item in your
+   * menu, a footer link, a help panel — where {@link show} is not enough:
+   * `show()` only brings the launcher back and leaves the reporter to find it
+   * in the corner. A dismissed widget is un-dismissed first, so a call always
+   * ends with an open menu.
+   */
+  open(): void;
   unmount(): void;
 }
 
@@ -230,6 +242,7 @@ export function mountFeedbackWidget(
       dismiss: () => undefined,
       isDismissed: () => false,
       show: () => undefined,
+      open: () => undefined,
       unmount: () => undefined,
     };
   }
@@ -389,6 +402,34 @@ export function mountFeedbackWidget(
     menuItems.push({ button, run: guardedRun });
   }
 
+  /**
+   * Outbox line at the foot of the menu. The offline queue has always survived
+   * a failed upload and re-sent on the next load, but silently — so nobody knew
+   * whether a report was lost or waiting. Refreshed when the menu opens, which
+   * is the only moment it can be read.
+   */
+  const menuQueue = el("div", "menu-queue");
+  menuQueue.style.display = "none";
+
+  function refreshQueueLine(): void {
+    core
+      .pendingBatches()
+      .then((n) => {
+        menuQueue.textContent =
+          n > 0
+            ? plural(
+                strings.queuePendingOne,
+                strings.queuePendingMany,
+                n,
+                strings.queuePendingFew,
+                pluralForm
+              )
+            : "";
+        menuQueue.style.display = n > 0 ? "block" : "none";
+      })
+      .catch(() => undefined);
+  }
+
   const hint = el("div", "hint");
   const highlight = el("div", "highlight");
   const areaOverlay = el("div", "area-overlay");
@@ -529,10 +570,16 @@ export function mountFeedbackWidget(
   const toast = el("div", "toast");
   const toastSpinner = el("span", "toast-spinner");
   const toastText = el("span");
+  // The detail sits under the message rather than beside it: a path plus a
+  // status is longer than the toast is wide, and it has to stay selectable so
+  // it can be copied into a bug report.
+  const toastDetail = el("span", "toast-detail");
+  const toastBody = el("div", "toast-body");
+  toastBody.append(toastText, toastDetail);
   const toastRetry = el("button", "toast-retry");
   toastRetry.type = "button";
   toastRetry.textContent = strings.retry;
-  toast.append(toastSpinner, toastText, toastRetry);
+  toast.append(toastSpinner, toastBody, toastRetry);
 
   // Second circle + its panel: created up front but hidden; shown only if a
   // valid checklist resolves (inline immediately, or after a URL fetch settles).
@@ -1110,9 +1157,17 @@ export function mountFeedbackWidget(
 
   function showToast(
     message: string,
-    opts: { error?: boolean; retry?: boolean; spinner?: boolean } = {}
+    opts: {
+      error?: boolean;
+      retry?: boolean;
+      spinner?: boolean;
+      /** Second line: what exactly went wrong, for whoever has to fix it. */
+      detail?: string;
+    } = {}
   ): void {
     toastText.textContent = message;
+    toastDetail.textContent = opts.detail ?? "";
+    toastDetail.style.display = opts.detail ? "block" : "none";
     toast.classList.toggle("error", opts.error === true);
     toastSpinner.style.display = opts.spinner ? "inline-block" : "none";
     toastRetry.style.display = opts.retry ? "inline-block" : "none";
@@ -1141,6 +1196,7 @@ export function mountFeedbackWidget(
 
   function openMenu(): void {
     closeChecklistPanel();
+    refreshQueueLine();
     menu.style.display = "flex";
   }
 
@@ -1965,11 +2021,35 @@ export function mountFeedbackWidget(
     } else {
       retryPayload = { files: result.files, sessionId: result.sessionId };
       retryIssueId = result.issueId;
-      showToast(formatString(strings.deliveryFailed, result.issueId), {
-        error: true,
-        retry: true,
-      });
+      showFailure(result.issueId, report);
     }
+  }
+
+  /**
+   * A failed delivery, said usefully.
+   *
+   * The report already knows the path and the connector's message; printing
+   * only "upload failed" threw that away and sent whoever is testing to the
+   * server logs for something the browser already had. The detail line is shown
+   * outside `production` — a reporter who is a real user gets the short form,
+   * a tester on a dev or beta build gets the path and the status.
+   *
+   * A permanent rejection also drops the retry button: the same request will be
+   * refused the same way, and a button that cannot work is worse than none.
+   */
+  function showFailure(issueId: string, report: DeliveryReport): void {
+    const first = report.failures[0];
+    const permanent = report.failures.some(
+      (f: DeliveryFailure) => f.permanent === true
+    );
+    const template = permanent ? strings.deliveryRejected : strings.deliveryFailed;
+    const verbose = (core.config.preset ?? "dev") !== "production";
+    showToast(formatString(template, issueId), {
+      error: true,
+      retry: !permanent,
+      detail:
+        verbose && first ? `${first.path} — ${first.error}` : undefined,
+    });
   }
 
   toastRetry.addEventListener("click", async () => {
@@ -1983,10 +2063,7 @@ export function mountFeedbackWidget(
       retryPayload = null;
       showToast(formatString(strings.saved, retryIssueId));
     } else {
-      showToast(formatString(strings.deliveryFailed, retryIssueId), {
-        error: true,
-        retry: true,
-      });
+      showFailure(retryIssueId, report);
     }
   });
 
@@ -2301,6 +2378,8 @@ export function mountFeedbackWidget(
     });
   }
   menuItem(strings.menuNoScreenshot, startNoScreenshot);
+  // After the items: the outbox line is a footer, not a first option.
+  menu.appendChild(menuQueue);
   recSnapBtn.addEventListener("click", guardUi("ui.recSnap", snapFrame));
   recStopBtn.addEventListener(
     "click",
@@ -2399,6 +2478,14 @@ export function mountFeedbackWidget(
     dismiss: dismissWidget,
     isDismissed: () => dismissed,
     show: showWidget,
+    open: guardUi("ui.open", () => {
+      // A dismissed widget is hidden entirely, so opening the menu without
+      // clearing the dismissal would open something invisible.
+      if (dismissed) {
+        showWidget();
+      }
+      openMenu();
+    }),
     unmount: () => {
       document.removeEventListener("keydown", guardedKeyDown, true);
       document.removeEventListener("pointerdown", guardedPointerDown, true);

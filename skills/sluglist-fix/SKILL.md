@@ -8,6 +8,13 @@ description: Read local sluglist feedback from a project's .sluglist/ folder and
 Close the local feedback loop: someone clicked feedback with the sluglist widget while testing the app
 locally, `sluglist dev` wrote it into `.sluglist/`, and now you read those issues and fix them.
 
+## Project conventions first
+
+If `.sluglist/PROJECT.md` exists, **read it before anything else**. Its answers override this skill's
+defaults — the base branch, how to run the app to reproduce a report, environment quirks that explain
+a report that is not a defect. If it is absent, use the defaults below and mention that
+`npx sluglist init` creates the file.
+
 ## When to use
 
 - The user says "read feedback", "fix feedback", or "sluglist".
@@ -144,7 +151,10 @@ the gaps.
 
 ## Algorithm
 
-1. **Find work.** List `.sluglist/session-*/` folders. If `.sluglist/` does not exist but a legacy
+1. **Find work.** `npx sluglist status` prints what is still open across the sessions on disk —
+   failing checklist items, unfixed issues, and anything a previous pass left as `wontfix` or
+   `needs_info` — which is the fastest way to see the shape of the job before you open a folder.
+   Then list `.sluglist/session-*/` folders. If `.sluglist/` does not exist but a legacy
    `.snaglist/` does (the pre-rename folder name), use that folder instead and add a "legacy folder
    name (`.snaglist/`)" line to your `.done` report. Skip any session that already contains a `.done`
    file. Process the rest oldest-first.
@@ -208,6 +218,10 @@ the gaps.
   NOT change code — record it in `.done` as `needs clarification` with what you'd need to proceed.
 - **Only fix what was reported.** If you spot other problems while in the code, note them in the
   report; don't fix them silently.
+- **`wontfix` and `needs_info` are proposals, not exits.** Inside an autonomous loop
+  (`sluglist-loop`) they stop the cycle and go to the owner as written — so a note that says why has
+  to be one the owner can act on. Never reach for either status to make a run look finished; a
+  wrongly-closed item is worse than an honest failing one.
 - **Use `## Errors` for diagnosis, not as gospel.** A stack trace pinpoints a runtime bug; errors
   logged long before the report (large relative time) are a weak signal — corroborate with the
   comment/screenshot.

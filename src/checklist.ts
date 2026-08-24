@@ -146,6 +146,13 @@ export interface ChecklistState {
    * this was. Absent when the checklist declares no intent.
    */
   intent?: string;
+  /**
+   * Additive (format 1.7): the definition's {@link Checklist.retest_of},
+   * carried into the session so the rounds of one fix→re-test cycle can be
+   * chained from `session.yaml` alone — which is what `sluglist status` reads
+   * to decide whether the loop has converged. Absent on a first-pass run.
+   */
+  retest_of?: string;
   items: ChecklistVerdictItem[];
 }
 
@@ -361,6 +368,7 @@ export function seedChecklistState(def: ChecklistDef): ChecklistState {
     id: def.id,
     title: def.title,
     ...(def.intent ? { intent: def.intent } : {}),
+    ...(def.retest_of ? { retest_of: def.retest_of } : {}),
     items: checklistItems(def).map((item) => ({
       id: item.id,
       section: item.section,

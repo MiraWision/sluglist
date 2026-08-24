@@ -41,7 +41,7 @@ Ships as ESM and CJS; `html-to-image` is loaded lazily on the first capture, so 
 your initial bundle. Undelivered issues are persisted to IndexedDB and retried on the next load, so
 a failed upload or a closed tab does not lose feedback.
 
-## Three ways sluglist is used
+## Four ways sluglist is used
 
 ### 1 · Dev loop — you and an agent
 
@@ -57,10 +57,13 @@ mountFeedbackWidget(createFeedbackWidget({ connectors: [new LocalConnector()] })
 npx sluglist dev        # sidecar that writes to ./.sluglist
 ```
 
-Gate it behind an env flag so it never initializes in production —
-`enabled: process.env.NODE_ENV !== "production"`.
+> [!IMPORTANT]
+> Gate the widget behind an env flag so it never initializes in production —
+> `enabled: process.env.NODE_ENV !== "production"`. For real users, use
+> [`preset: "production"`](/docs/production/) deliberately instead.
 
-See [Agents & CLI](/docs/agents/) for the full loop.
+See [Agents & CLI](/docs/agents/) for the full loop, or
+[the dev-loop use case](/for/local-dev/) for the setup end to end.
 
 ### 2 · Client acceptance — someone signs off a release
 
@@ -77,7 +80,8 @@ mountFeedbackWidget(
 );
 ```
 
-See [Checklist mode](/docs/checklist/).
+See [Checklist mode](/docs/checklist/) and
+[acceptance with your client and team](/for/client-acceptance/).
 
 ### 3 · Beta / Production — real users report problems
 
@@ -95,7 +99,21 @@ mountFeedbackWidget(
 );
 ```
 
-See [Production & privacy](/docs/production/).
+See [Production & privacy](/docs/production/) and
+[the beta & production use case](/for/beta-feedback/).
+
+### 4 · Agent to agent — the loop runs itself
+
+A QA agent walks the checklist in a real browser and writes evidence-backed verdicts; a fix agent
+answers them; a re-test round closes the loop.
+
+```bash
+npx sluglist init --agents-md   # the four skills, PROJECT.md, .gitignore rules
+npx sluglist status --json      # green | continue | stalled | blocked
+```
+
+Nothing in your app changes — the QA agent writes the same artifacts through the headless writer,
+`sluglist/node`. See [the autonomous QA loop](/for/agent-loop/).
 
 ## Attach your user
 

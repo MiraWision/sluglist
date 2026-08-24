@@ -3,11 +3,13 @@
 Copy-and-adapt reference code. These are **not** part of the published package (the `files` field
 ships only `dist`); they show how to deliver feedback safely in production.
 
-- **`HttpConnector.ts`** — a client `FeedbackConnector` that POSTs each artifact as JSON to your own
-  endpoint. The browser never holds storage credentials.
 - **`feedback-route.ts`** — a Next.js App Router route handler (`app/api/feedback/route.ts`) that
   authenticates, validates and size-limits the payload, rate-limits per IP, and writes to your
   storage server-side.
+
+The validation itself is **imported, not copied**: path safety, the mime sets and the size caps come
+from `sluglist/contract`, so a change to the artifact layout reaches this endpoint by upgrading the
+package. The client half now ships too — `import { HttpConnector } from "sluglist"`.
 
 ## The one rule
 
@@ -25,8 +27,8 @@ job — sluglist core does neither by design.
 | --- | --- |
 | `401` | missing or wrong bearer token (compared in constant time) |
 | `503` | `SLUGLIST_FEEDBACK_TOKEN` not set on the server — a misconfigured endpoint is never an open one |
-| `413` | body over the size limit (default 10 MB decoded; recording frames are the big ones) |
-| `415` | any mime type other than `text/yaml`, `text/markdown`, `image/png` |
+| `413` | body over the size limit (default 4 MB — a serverless function rejects more before your code runs) |
+| `415` | a mime outside `sluglist/contract`'s `DELIVERY_MIME_TYPES`, or a core artifact wearing an attachment's mime |
 | `429` | past the per-IP sliding-window rate limit |
 | `409` | more than 200 artifacts for a single session id |
 | `400` | malformed JSON, missing fields, or a path with traversal / too much nesting |
@@ -41,7 +43,7 @@ Wire them together:
 
 ```ts
 import { createFeedbackWidget, mountFeedbackWidget } from "sluglist";
-import { HttpConnector } from "./HttpConnector";
+import { HttpConnector } from "sluglist";
 
 const widget = createFeedbackWidget({
   project: "acme",

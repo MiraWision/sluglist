@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createServer, type Server } from "node:http";
 import { dirname, join, resolve, sep } from "node:path";
 import { ATTACHMENT_MIME_TYPES } from "../attachments";
+import { isArtifactPath, isSessionId } from "../contract";
 
 /**
  * The `sluglist dev` HTTP sidecar. Browser JS can't write to disk, so the
@@ -18,12 +19,6 @@ export interface DevServerOptions {
   onFile?: (info: { sessionId: string; path: string; bytes: number }) => void;
 }
 
-const SESSION_ID = /^session-[a-z0-9-]{1,64}$/i;
-// A filename, optionally nested: record-mode frames live two levels deep
-// ("01-slug-frames/clip-01/01.png", format 1.2); pre-clip artifacts one
-// ("01-slug-frames/02.png"). No "..", no absolute, nothing deeper than two.
-const SEGMENT = "[A-Za-z0-9][A-Za-z0-9._-]{0,120}";
-const FILE_PATH = new RegExp(`^${SEGMENT}(?:/${SEGMENT}){0,2}$`);
 // The three mimes the core writes itself, plus everything the attachment
 // whitelist can produce (format 1.4 reporter attachments arrive through the
 // same /put path). Sourced from the whitelist so the lists cannot drift; a
@@ -69,7 +64,7 @@ export function resolveTarget(
   sessionId: string,
   filePath: string
 ): string | null {
-  if (!(SESSION_ID.test(sessionId) && FILE_PATH.test(filePath))) {
+  if (!(isSessionId(sessionId) && isArtifactPath(filePath))) {
     return null;
   }
   const root = resolve(baseDir);

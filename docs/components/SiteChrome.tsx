@@ -14,13 +14,26 @@ export function Logo() {
 export function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 border-[var(--color-line)] border-b bg-[color-mix(in_oklab,var(--color-canvas)_85%,transparent)] backdrop-blur">
-      <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
+      {/* One line at every width: `nowrap` plus tighter spacing on a phone. At
+          320px the nav used to wrap and push the bar to two rows. */}
+      <div className="mx-auto flex max-w-5xl flex-nowrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
         <Link className="hover:opacity-80" href="/">
           <Logo />
         </Link>
-        <nav className="flex items-center gap-5 text-[14px] text-[var(--color-muted)]">
-          <Link className="hover:text-[var(--color-ink)]" href="/docs/">
+        <nav className="flex flex-nowrap items-center gap-4 whitespace-nowrap text-[14px] text-[var(--color-muted)] sm:gap-5">
+          <Link
+            className="hover:text-[var(--color-ink)]"
+            data-umami-event="nav-docs"
+            href="/docs/"
+          >
             Docs
+          </Link>
+          <Link
+            className="hover:text-[var(--color-ink)]"
+            data-umami-event="nav-use-cases"
+            href="/for/"
+          >
+            Use cases
           </Link>
           <Link
             className="hidden hover:text-[var(--color-ink)] sm:inline"
@@ -34,11 +47,17 @@ export function SiteHeader() {
           >
             Changelog
           </Link>
-          <a className="hover:text-[var(--color-ink)]" href={NPM}>
+          {/* Below `sm` the bar has room for three links; use cases earns its
+              place there more than the npm shortcut does. */}
+          <a
+            className="hidden hover:text-[var(--color-ink)] sm:inline"
+            href={NPM}
+          >
             npm
           </a>
           <a
-            className="rounded-lg border border-[var(--color-line)] px-3 py-1.5 text-[var(--color-ink)] transition hover:bg-[var(--color-surface)]"
+            className="text-[var(--color-ink)] transition sm:rounded-lg sm:border sm:border-[var(--color-line)] sm:px-3 sm:py-1.5 sm:hover:bg-[var(--color-surface)]"
+            data-umami-event="nav-github"
             href={REPO}
           >
             GitHub
@@ -59,14 +78,18 @@ const FOOTER_COLS: { title: string; links: { label: string; href: string }[] }[]
       { label: "Production", href: "/docs/production/" },
       { label: "Artifact format", href: "/docs/artifacts/" },
       { label: "Agents & CLI", href: "/docs/agents/" },
+      { label: "Project conventions", href: "/docs/project-conventions/" },
     ],
   },
   {
     title: "Use cases",
     links: [
-      { label: "Claude Code & agents", href: "/for/claude-code/" },
-      { label: "Client acceptance", href: "/for/client-acceptance/" },
-      { label: "Beta & production", href: "/for/beta-feedback/" },
+      { label: "All four", href: "/for/" },
+      { label: "Your own dev loop", href: "/for/local-dev/" },
+      { label: "Your team & client", href: "/for/client-acceptance/" },
+      { label: "Real users", href: "/for/beta-feedback/" },
+      { label: "Agent-to-agent QA", href: "/for/agent-loop/" },
+      { label: "Claude Code", href: "/for/claude-code/" },
     ],
   },
   {

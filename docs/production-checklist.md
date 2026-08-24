@@ -12,7 +12,7 @@ Work through it once before you ship, and keep it with your deployment docs.
 
 ```ts
 import { createFeedbackWidget, mountFeedbackWidget } from "sluglist";
-import { HttpConnector } from "./HttpConnector";
+import { HttpConnector } from "sluglist";
 
 const widget = createFeedbackWidget({
   project: "acme",

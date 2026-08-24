@@ -109,3 +109,62 @@ describe("offline queue (outbox)", () => {
     ).toContain("session.yaml");
   });
 });
+
+describe("outbox visibility", () => {
+  it("reports how many batches are waiting", async () => {
+    const errorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const failing: FeedbackConnector = {
+      id: "down",
+      put: () => Promise.reject(new Error("offline")),
+    };
+    const queue = memoryQueue();
+    const widget = createFeedbackWidget(
+      { project: "p", connectors: [failing] },
+      { storage: createMemoryStorage(), environment: env, queue }
+    );
+
+    expect(await widget.pendingBatches()).toBe(0);
+    const r = await widget.captureIssue({ comment: "lost", mode: "fullpage" });
+    await r?.delivered;
+
+    // The mechanic existed; nobody could see it. This is what the menu line
+    // and any host-side "1 report waiting" indicator read.
+    expect(await widget.pendingBatches()).toBe(1);
+    errorSpy.mockRestore();
+  });
+
+  it("reports what the boot-time flush did", async () => {
+    const flushes: unknown[] = [];
+    const queue = memoryQueue([
+      {
+        id: 1,
+        sessionId: "session-2026-08-16-a1b2",
+        files: [
+          {
+            path: "01-x.md",
+            mime: "text/markdown",
+            blob: new Blob(["x"], { type: "text/markdown" }),
+          },
+        ],
+        createdAt: 1,
+      },
+    ]);
+
+    const widget = createFeedbackWidget(
+      {
+        project: "p",
+        connectors: [new MemoryConnector()],
+        onQueueFlush: (report) => flushes.push(report),
+      },
+      { storage: createMemoryStorage(), environment: env, queue }
+    );
+    // The flush runs on the delivery chain; wait for it to settle.
+    await widget.captureIssue({ comment: "next", mode: "fullpage" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(flushes[0]).toEqual({ batches: 1, delivered: 1, failed: 0 });
+    expect(await widget.pendingBatches()).toBe(0);
+  });
+});

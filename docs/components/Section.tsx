@@ -11,7 +11,7 @@ export function Section({
 }) {
   return (
     <section className="mx-auto max-w-5xl px-6 py-16 md:py-24" id={id}>
-      <p className="mb-2 font-mono text-[12px] text-[var(--color-muted)] uppercase tracking-widest">
+      <p className="mb-2 font-mono text-[12px] text-[var(--color-brand)] uppercase tracking-widest">
         {eyebrow}
       </p>
       <h2 className="mb-8 font-semibold text-2xl tracking-tight md:text-3xl">

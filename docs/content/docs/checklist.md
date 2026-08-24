@@ -50,6 +50,11 @@ Pass a **URL string** instead of an object to fetch the checklist at init (`GET`
 shape) — handy when a skill generates it: `checklist: "/checklist.json"`. An unreachable or invalid
 checklist warns and is skipped; capture still works.
 
+> [!NOTE]
+> A checklist is a session **input** and verdicts are its **output** — nothing carries over. Every
+> session runs the list from scratch, which is why a run is evidence of one moment rather than a
+> status board.
+
 ## Verdicts: the coverage map
 
 Verdicts land in `session.yaml` (put-per-verdict, upserted on every click):
@@ -84,7 +89,29 @@ checklist:
 The package ships a `sluglist-checklist` skill: point Claude Code at a branch and it builds a
 client-facing checklist from the diff (user-visible pages/components/text only — refactors, tests
 and config are excluded), grouped by feature and phrased for a non-developer, written to
-`public/checklist.json`. Ask it to *"generate a checklist from this branch"*.
+`.sluglist/checklists/<name>.json`. Ask it to *"generate a checklist from this branch"*.
+
+Five intents, one per source of truth: `branch` (the diff), `re-test` (a fixed session's
+`fixes.yaml`), `smoke` (routes + docs), `regression` (the project's standing baseline), and
+`scenario` (a written brief). The base branch a `branch` diff runs against comes from
+[`.sluglist/PROJECT.md`](/docs/project-conventions/).
+
+## The regression checklist has a lifecycle
+
+Four of the five intents produce a list you use once. `regression` is different: it is a **committed
+baseline** at `.sluglist/checklists/regression.json`, seeded once with the smoke algorithm and then
+**updated after each merge** — ask for *"update the regression checklist from this branch"*.
+
+An update is a diff of the list, not a regeneration:
+
+- **Additions** for user-visible surface the branch added — one or two loud checks per feature,
+  folded into an existing section when one fits.
+- **Removals** for items whose surface the branch deleted — always **proposed for you to confirm**,
+  never applied silently.
+- **The ~30-item cap holds.** If additions would push past it, the skill names which existing items
+  to cut instead of growing the file.
+- **Item ids stay stable** for unchanged items, so verdicts recorded in past sessions still map to
+  them.
 
 ## Scope — the checklist is a session input, verdicts are its output
 

@@ -251,6 +251,14 @@ export function widgetStyles(theme: UiTheme): string {
 .menu button:hover {
   background: #f3f4f6;
 }
+.menu .menu-queue {
+  display: none;
+  margin-top: 2px;
+  padding: 7px 12px 3px;
+  border-top: 1px solid #e5e7eb;
+  color: #6b7280;
+  font-size: 11.5px;
+}
 .menu kbd {
   font-family: inherit;
   font-size: 11px;
@@ -926,6 +934,22 @@ textarea:focus {
 }
 .toast.error {
   background: rgba(153, 27, 27, 0.95);
+}
+.toast .toast-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.toast .toast-detail {
+  display: none;
+  max-width: 300px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.35;
+  opacity: 0.85;
+  overflow-wrap: anywhere;
+  user-select: text;
 }
 .toast .toast-spinner {
   width: 13px;

@@ -1,6 +1,6 @@
 ---
 name: sluglist-checklist
-description: Generate a client-facing acceptance checklist for the sluglist widget or a QA agent — from the current branch's diff, from a fixed session's fixes.yaml (re-test), as a broad smoke pass over the app, or focused on a written scenario. Use when the user says "generate a checklist", "make an acceptance checklist", "checklist from this branch", "re-test checklist", "smoke checklist", "checklist for <scenario>", or "sluglist checklist".
+description: Generate or maintain a client-facing acceptance checklist for the sluglist widget or a QA agent — from the current branch's diff, from a fixed session's fixes.yaml (re-test), as a broad smoke pass over the app, as the project's standing regression baseline, or focused on a written scenario. Use when the user says "generate a checklist", "make an acceptance checklist", "checklist from this branch", "re-test checklist", "smoke checklist", "regression checklist", "update the regression list from this branch", "checklist for <scenario>", or "sluglist checklist".
 ---
 
 # sluglist-checklist
@@ -9,6 +9,12 @@ Produce a **client acceptance checklist** the sluglist widget can render (checkl
 `sluglist-qa` agent can walk. The developer runs this before a release; a client or a QA agent then
 opens the app, walks the checklist, and records a verdict per item (pass / fail / skip). Your job is
 to turn some source of truth into a list of things a **non-developer** can open, look at, and confirm.
+
+## Project conventions first
+
+If `.sluglist/PROJECT.md` exists, **read it before anything else**. Its answers override this skill's
+defaults — the base branch for a `branch` diff above all. If it is absent, use the defaults below and
+mention that `npx sluglist init` creates the file.
 
 ## Intents — pick one first
 
@@ -20,9 +26,14 @@ choice in the checklist's `intent` field.
 | `branch` | `git diff <base>...HEAD` | "checklist from this branch/PR", a release hand-off. **Default.** |
 | `re-test` | a session folder's `fixes.yaml` | "re-test checklist", after a fix pass |
 | `smoke` | the app's routes/navigation + its docs | "smoke checklist", "test the basic flows", a first pass on an unfamiliar app |
+| `regression` | the maintained `.sluglist/checklists/regression.json` (plus the branch diff, when updating it) | "the regression checklist", "update the regression list from this branch" |
 | `scenario` | a written brief from the owner | "check the whole card-payment flow including the error cases" |
 
-If the request is ambiguous, ask which one — the four produce very different lists.
+If the request is ambiguous, ask which one — the five produce very different lists.
+
+`smoke` and `regression` share a generation algorithm and differ in **lifecycle**: a smoke list is a
+one-off pass you throw away, a regression list is a committed baseline you *maintain* after every
+merge. See "Regression mode" below.
 
 ## Where checklists live
 
@@ -121,7 +132,7 @@ Write valid JSON matching the widget's `Checklist` type:
 - `url` (optional): the page where the item is verified. **Static routes only** (see below).
 - `url_match` (optional): a wildcard path pattern for **dynamic** routes (see below).
 - `hint` (optional): one extra line of human navigation ("Open the dashboard and pick any assessment").
-- `intent` (optional): `branch` | `re-test` | `smoke` | `scenario` — why this checklist exists. Set it
+- `intent` (optional): `branch` | `re-test` | `smoke` | `regression` | `scenario` — why this checklist exists. Set it
   always; it is carried into `session.yaml` and shown in the generated report.
 - `retest_of` (optional, re-test only): the id of the checklist this one re-tests.
 - Limits the widget enforces: ≤ 20 sections, ≤ 50 items total. Stay well under — a checklist a human
@@ -198,6 +209,63 @@ are not reading a diff — you are mapping **what the application is**.
 variations of the same one. Do not invent features you have not seen in the routes, the docs, or the
 running app; if you cannot tell what a page does, list it under "Not included — please confirm"
 rather than guessing a check for it.
+
+## Regression mode — a standing baseline you maintain
+
+A regression checklist is the same *kind* of list as a smoke one and a different *thing*: it lives in
+the repo at **`.sluglist/checklists/regression.json`**, it is committed, and it is updated
+incrementally after every merge. It answers "does everything that used to work still work?", so its
+value comes entirely from staying current and staying finishable.
+
+Two modes. Which one you are in is decided by whether the file already exists.
+
+### Seeding it (the file does not exist yet)
+
+Run the **smoke algorithm** exactly as written above — routes and docs as sources, one or two loud
+checks per page, critical paths first (auth → core CRUD → payment → the rest), capped at ~30 items —
+and write the result to `.sluglist/checklists/regression.json` with `"intent": "regression"`.
+
+Then tell the user it is a committed baseline: commit it, and update it from each branch rather than
+regenerating it (regenerating renames ids and throws away the verdict history in past sessions).
+
+### Maintenance mode (the file exists) — the usual case
+
+Trigger: "update the regression checklist from this branch", "add this feature to the regression
+list", or the post-merge step of the `sluglist-loop` skill.
+
+**Inputs**: the existing `regression.json` **and** `git diff <base>...HEAD` (base from
+`.sluglist/PROJECT.md`, else `main`, else `master` — same resolution as the `branch` intent).
+
+**Algorithm**:
+
+1. **Read the existing file first.** You are editing a document with history, not producing a new one.
+   Note its sections and every item id.
+2. **Propose additions** for user-visible surface the diff *added*: **1–2 loud checks per feature**, at
+   the same altitude as the rest of the list ("does this page still work", not "does this validation
+   message have the right comma"). Fold each one into an existing section when one fits; only add a
+   section for a genuinely new area. The "never include" list applies unchanged — refactors, tests,
+   config and invisible backend work produce no items.
+3. **Propose removals** for items whose surface the diff *deleted* — a route that no longer exists, a
+   control that was removed. **Removals are proposed, never silent.** List each one as
+   `<item id> — <title>` with the reason (the file/route the diff deleted), and wait for the user to
+   confirm before writing. A removal you cannot justify from the diff is not a removal: leave the item
+   and say you are unsure.
+4. **Enforce the cap.** The list stays at **~30 items**. If your additions would push it past that, do
+   **not** grow the file: say so, and name which existing items you would cut and why (lowest-value
+   first — incidental pages, near-duplicate checks, areas covered by another item). Cutting is the
+   user's call, exactly like a removal.
+5. **Keep ids stable.** An unchanged item keeps its `id`, its `title` and its section — verdict
+   history in past sessions maps by id, so a renamed id silently orphans it. Rewrite an item's title
+   only when the diff changed what that check should say, and then keep the id.
+6. **Write the file** in place (same path, `"intent": "regression"`), applying the additions and the
+   confirmed removals. New items get ids in the existing naming style.
+7. **Summarize as a diff of the list**, not as a new list: `+ N added` (id → title), `- N removed
+   (confirmed)`, `= N unchanged`, plus anything you deliberately left out under "Not included —
+   please confirm".
+
+**Rules specific to regression mode**: never regenerate the file from scratch when it already exists
+(that is what breaks id stability); never delete an item on your own judgement; and keep the list
+finishable — a regression list nobody completes reports nothing.
 
 ## Scenario mode — a focused checklist from a written brief
 

@@ -33,7 +33,7 @@ export default async function DocPage({
   const { slug } = await params;
   const doc = getDocPage(slug);
   if (!doc) notFound();
-  const html = renderMarkdownFile(`content/docs/${doc.slug}.md`);
+  const html = await renderMarkdownFile(`content/docs/${doc.slug}.md`);
   const index = DOC_PAGES.findIndex((d) => d.slug === doc.slug);
   const prev = DOC_PAGES[index - 1];
   const next = DOC_PAGES[index + 1];

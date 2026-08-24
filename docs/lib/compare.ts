@@ -35,7 +35,13 @@ const COMMON_ROWS = {
   agents: (other: string): CompareRow => ({
     label: "Coding agents",
     sluglist:
-      "First-class: artifacts are markdown/YAML files an agent reads; bundled Claude Code skills fix reported issues and generate acceptance checklists from a branch diff.",
+      "First-class: artifacts are markdown/YAML files an agent reads; four bundled Claude Code skills generate the checklist, walk it in a browser, fix what failed and re-test.",
+    other,
+  }),
+  loop: (other: string): CompareRow => ({
+    label: "Autonomous QA loop",
+    sluglist:
+      "A QA agent records evidence-backed verdicts (no fail without a screenshot, no pass without performing the check); npx sluglist status reads the artifacts and says whether another fix→re-test round is worth running, so the loop ends on green — or stops honestly on a stall.",
     other,
   }),
   privacy: (other: string): CompareRow => ({
@@ -78,6 +84,9 @@ export const COMPARE_PAGES: ComparePage[] = [
       COMMON_ROWS.agents(
         "Reports live in the hosted dashboard/tracker; not designed as local files for an agent loop."
       ),
+      COMMON_ROWS.loop(
+        "Not offered: a human triages the report and a human fixes it. There is no machine-readable verdict for a fix pass to answer."
+      ),
       COMMON_ROWS.workflow(
         "Built-in: statuses, assignments, comment threads with reporters, and status sync back from the tracker."
       ),
@@ -99,7 +108,7 @@ export const COMPARE_PAGES: ComparePage[] = [
     pickSluglistWhen: [
       "You want an open-source (MIT) widget with no per-seat pricing and no vendor account.",
       "Screenshots and reports must stay on infrastructure you own.",
-      "You run a coding-agent loop: feedback as local files that Claude Code reads and fixes.",
+      "You want the QA loop itself: an agent tests, fixes and re-tests until green, and sluglist status decides when to stop.",
       "You want structured acceptance checklists with a coverage map, not just free-form reports.",
     ],
     faq: [
@@ -148,6 +157,9 @@ export const COMPARE_PAGES: ComparePage[] = [
       COMMON_ROWS.agents(
         "Feedback lives in the hosted dashboard; not designed as local files for an agent loop."
       ),
+      COMMON_ROWS.loop(
+        "Not offered: reports and survey responses are for humans to read, with no verdict artifact a fix pass could close."
+      ),
       COMMON_ROWS.workflow(
         "Built-in: dashboard triage, assignments, labels, and tracker integrations."
       ),
@@ -163,7 +175,7 @@ export const COMPARE_PAGES: ComparePage[] = [
     pickSluglistWhen: [
       "You need the capture step only, embedded in your app, MIT-licensed and free.",
       "Reports must land on your own storage with PII masked and scrubbed.",
-      "Your loop is developer- or agent-driven: files in a folder, fixed by Claude Code.",
+      "Your loop is developer- or agent-driven: files in a folder, fixed by an agent that re-tests until the checklist is green.",
       "You want release-acceptance checklists with a coverage map.",
     ],
     faq: [
@@ -206,6 +218,9 @@ export const COMPARE_PAGES: ComparePage[] = [
       COMMON_ROWS.agents(
         "Tasks live on the hosted board; not designed as local files for an agent loop."
       ),
+      COMMON_ROWS.loop(
+        "Not offered: the board tracks task status a person sets, not verdicts an agent recorded with evidence."
+      ),
       COMMON_ROWS.workflow(
         "Built-in kanban board with columns, assignments and severity, plus tracker integrations."
       ),
@@ -228,7 +243,7 @@ export const COMPARE_PAGES: ComparePage[] = [
       "You want element-anchored reports as data (selector + component + errors), not just pins for humans.",
       "Client sign-off should be a structured checklist with a coverage map, not a pile of notes.",
       "Feedback must stay on your infrastructure; the widget must be MIT and free.",
-      "A coding agent (Claude Code) is part of your fix loop.",
+      "A coding agent is part of your fix loop — and you want its verdicts backed by evidence rather than taken on trust.",
     ],
     faq: [
       {

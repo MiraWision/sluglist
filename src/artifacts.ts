@@ -70,8 +70,12 @@ function yamlBlock(
  *       attached to a verdict, so a `pass` can be verified and not merely
  *       trusted) and additive `checklist.intent` (why the checklist exists:
  *       branch / re-test / smoke / scenario). Both absent unless recorded.
+ * 1.7 — additive `checklist.retest_of` in session.yaml: the id of the checklist
+ *       this run re-tests, carried through from the checklist config so the
+ *       rounds of one fix→re-test cycle chain from session.yaml alone (what
+ *       `sluglist status` reads). Absent on a first-pass run.
  */
-export const FORMAT_VERSION = "1.6";
+export const FORMAT_VERSION = "1.7";
 
 /**
  * The `checklist:` block: definition identity + one entry per item with its
@@ -88,6 +92,11 @@ function yamlChecklist(checklist: ChecklistState): string {
   // definition declared it, so sessions without it stay byte-identical.
   if (checklist.intent !== undefined) {
     head += `\n${yamlLine("intent", checklist.intent, "  ")}`;
+  }
+  // Additive (format 1.7): the checklist this run re-tests. Emitted only on a
+  // re-test run, so first-pass sessions stay byte-identical.
+  if (checklist.retest_of !== undefined) {
+    head += `\n${yamlLine("retest_of", checklist.retest_of, "  ")}`;
   }
   if (checklist.items.length === 0) {
     return `${head}\n  items: []`;

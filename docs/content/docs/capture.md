@@ -104,8 +104,9 @@ createFeedbackWidget({
 });
 ```
 
-> **Note:** error messages and stack traces can contain user data — in beta mode they may include
-> PII. Production stack traces are usually minified. Treat captured errors as diagnostic hints, not
+> [!WARNING]
+> Error messages and stack traces can contain user data — in beta mode they may include PII.
+> Production stack traces are usually minified. Treat captured errors as diagnostic hints, not
 > ground truth; sluglist stores them verbatim and does not resolve source maps.
 
 ## Reporter form fields
@@ -177,6 +178,7 @@ attachments:
     original_name: "IMG_4021.png"
 ```
 
+> [!IMPORTANT]
 > **Attachments default to OFF under `preset: "production"`.** Accepting uploads from anonymous
 > users is a decision, not a default. Turn it on when you have decided your endpoint can take it —
 > and validate server-side regardless (see [Production](/docs/production/)).

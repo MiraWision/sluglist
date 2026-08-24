@@ -1,5 +1,263 @@
 # Changelog
 
+## 1.17.0 — `sluglist/contract`, a real `HttpConnector`, and failures you can read
+
+Everything additive. The artifact format is unchanged (1.7), every existing command and connector
+behaves as before, and **no new dependencies**. This release is about the seam where sluglist meets
+somebody else's infrastructure, which is where the last few integrations went wrong.
+
+The failure that prompted it: a delivery endpoint hand-written from the docs rejected record-mode
+frames, because a frame path nests (`03-checkout-bug-frames/clip-01/02.png`) and a hand-written
+validator usually allows no slash at all. The reporter saw `upload failed`. The diagnosis took a trip
+to the server logs for information the browser already had.
+
+### `sluglist/contract` — the delivery rules, importable
+
+A new DOM-free subpath, meant for a route handler:
+
+```ts
+import { validateArtifactUpload, base64ByteLength } from "sluglist/contract";
+
+const rejection = validateArtifactUpload(
+  { sessionId, path, mime, byteLength: base64ByteLength(base64) },
+  { maxBytes: 4 * 1024 * 1024 }
+);
+if (rejection) {
+  return new Response(rejection.reason, { status: rejection.status });
+}
+```
+
+Also exported: `isArtifactPath` and `isSessionId` (the structural checks to gate writes on),
+`classifyArtifactPath` (`session` | `issue` | `screenshot` | `evidence` | `attachment` | `frame` |
+`fixes` | `unknown`), `ARTIFACT_MIME_TYPES`, `ATTACHMENT_MIME_TYPES`, `DELIVERY_MIME_TYPES`,
+`ARTIFACT_PATH_MAX_SEGMENTS`, `DEFAULT_MAX_FILE_SIZE`, `FORMAT_VERSION` and the `ArtifactPayload`
+type. 3 KB, no DOM, no Node, no dependencies — it loads in a serverless function or an edge runtime.
+
+Two design decisions worth stating. **Validation is structural, classification is permissive:**
+`isArtifactPath` refuses traversal, absolute paths and more nesting than the format uses, while
+`classifyArtifactPath` returns `"unknown"` for a valid path it does not recognise — so an artifact
+kind added in a later version is not rejected by an endpoint written today. And **it is the same
+module the library itself uses**: `LocalConnector`, the `sluglist dev` sidecar and the endpoint
+example now import it, replacing three separate copies of the same regex inside this repo.
+
+### `HttpConnector` ships
+
+It was an example file the README told you to copy, which meant the client half of the contract
+drifted too. It is now part of the package:
+
+```ts
+import { HttpConnector } from "sluglist";
+new HttpConnector("/api/feedback", () => session.token);
+```
+
+It sends `format: FORMAT_VERSION` in every payload (so a server can log *"artifact format 1.8, I
+know 1.7"* instead of answering an opaque 400), reads the token per delivery, and reads the response
+body into the error message — the endpoint's own reason is what the reporter ends up seeing. The
+short two-argument form the docs have always shown keeps working; an options object adds `headers`,
+`maxBodyBytes` and `id`. `examples/HttpConnector.ts` is deleted.
+
+### Rejections are no longer retried
+
+`PermanentDeliveryError` is exported, and delivery stops on it instead of retrying three times:
+
+```ts
+if (res.status === 415) throw new PermanentDeliveryError(`415 for ${file.path}`);
+```
+
+`HttpConnector` throws it for every 4xx except `408` and `429`. The failure is marked
+`permanent: true` in `DeliveryReport`, and recognised by that flag rather than `instanceof`, so a
+connector bundled from a different copy of sluglist still works. Previously a 413 on a
+multi-megabyte recording frame was uploaded three times before giving up.
+
+### The toast says what happened
+
+It said `Issue 03: upload failed` while the report in hand knew the connector, the path and the
+message. Now a failed delivery shows a second line with the path and the reason — outside
+`preset: "production"`, so a real user still gets the short form and a tester on dev or beta gets
+something they can screenshot. A permanent rejection reads *rejected by the endpoint* and drops the
+retry button, because a button that cannot work is worse than none.
+
+### The offline outbox is visible
+
+`widget.pendingBatches()` returns how many batches are waiting, `onQueueFlush` reports what the
+boot-time flush did (`{ batches, delivered, failed }`), and the capture menu carries a line —
+"1 report waiting to send". The mechanism has worked since 1.4; nobody could see it.
+
+### Docs
+
+- README: **Writing a delivery endpoint**, the artifact layout with the nesting spelled out,
+  temporary vs permanent failures, and the outbox API.
+- [Connectors](https://sluglist.dev/docs/connectors/): the same, plus the two callouts below.
+- **The serverless body-limit trap**, documented in both: `DEFAULT_MAX_FILE_SIZE` is 10 MB and
+  base64 adds a third, so a 10 MB attachment is ~13.3 MB of JSON — while a Vercel function rejects
+  bodies over ~4.5 MB before your code runs. `HttpConnector` now refuses locally at
+  `maxBodyBytes` (4 MB default) with a message naming the file, rather than letting the platform
+  answer 413 from the edge.
+
+## 1.16.0 — `ui.open()`
+
+One additive API. No artifact-format change (still 1.7), no behaviour change to anything that
+exists, **no new dependencies**.
+
+### `ui.open()` — start the reporting flow from your own UI
+
+`mountFeedbackWidget()` returned `dismiss()`, `isDismissed()`, `show()` and `unmount()`. Nothing in
+that set opens the capture flow: `show()` only clears a dismissal and brings the launcher back, which
+means a product that wants its **own** entry point — a "Report a problem" item in a menu, a help
+panel, an empty state — could do no better than reveal the launcher and ask the reporter to go find
+it in the corner. A menu item that answers a click with an instruction is a broken menu item.
+
+```ts
+const ui = mountFeedbackWidget(widget);
+menuItem.addEventListener("click", () => ui.open());
+```
+
+`open()` opens the capture menu exactly as clicking the launcher does, and un-dismisses first when it
+has to — so a call always ends with an open menu rather than an invisible one. It runs through the
+same UI guard as every other entry point, so an internal failure surfaces as the widget uninstalling
+itself, never as an exception inside your click handler. On a disabled widget (`enabled: false`) it is
+a no-op, like the rest of the returned API.
+
+## 1.15.0 — `sluglist init`, project conventions, the loop skill, `sluglist status`, regression lifecycle
+
+Everything here is additive. The widget's UI, the `FeedbackConnector` contract and every existing
+command and skill behave exactly as before; the one library change is a new optional field in
+`session.yaml` (**format 1.7**, below), emitted only on a re-test run. **No new dependencies.** This
+release upstreams the glue that had to be written by hand in every project that adopted the 1.12–1.14
+agent loop, and closes the loop it left open: fix → re-test → *decide whether to go again*.
+
+### `npx sluglist init` — one-command project scaffold
+
+`init-skills` installed the skills; four more things were identical in every integration and are now
+done for you, idempotently:
+
+- **`.sluglist/checklists/`** — the committed-checklists convention from 1.13, as a real folder.
+- **`.gitignore` rules** — `.sluglist/*`, with `!.sluglist/checklists/` and
+  `!.sluglist/PROJECT.md` re-included: QA sessions stay local while the checklists (the spec) and the
+  project's conventions are versioned. An existing `.gitignore` is appended to, never rewritten, and
+  the block is not duplicated on a re-run — even if you kept the rules and dropped the comment.
+- **The skills** — the `init-skills` step, with identical semantics and identical output.
+- **`.sluglist/PROJECT.md`** — the project-conventions template (below), written only when absent.
+- **Agent instructions**, behind `--agents-md`: a short "QA loop (sluglist)" section appended to
+  `CLAUDE.md` and `AGENTS.md` when those files exist. The CLI never prompts, so this is a flag; a
+  second run appends nothing.
+
+`--dir <path>` retargets the project root, `--force` passes through to the skills step, and a re-run
+reports what was created versus what was already present. **`.sluglist/PROJECT.md` is never
+overwritten — not even with `--force`**: it holds your answers, not our file. `init-skills` stays as
+the skills-only command.
+
+### `.sluglist/PROJECT.md` — project conventions as data, not skill edits
+
+The bundled skills invite you to edit them, and an edited skill is never overwritten by `init` — which
+means it also stops receiving upstream improvements. That tension is now resolved in the file system
+instead of in the prompts: project specifics live in one committed file that every skill reads first.
+
+It is a short fill-in questionnaire: **base branch** for `branch`-intent diffs; **how to run the app**
+for QA (command, port, warm-up); **how to sign in** (credentials *referenced* — env vars, a seed
+script — never written into a committed file); **hard limits**, the actions QA must never complete
+(live payments, real emails, external submissions), pre-filled commented-out; **evidence-mode
+defaults** per intent; and **environment quirks** as free text.
+
+Each bundled skill gained one short "Project conventions first" instruction — read the file if it
+exists, its answers override the skill's defaults, and if it is absent fall back and mention that
+`npx sluglist init` creates it. `sluglist-qa` also gained a hard prohibition: an action listed under
+the file's hard limits is never completed, whatever a checklist item appears to ask for — the run
+stops at the last safe step and records **not tested** with the reason.
+
+### `sluglist-loop` — the bundled orchestrator skill
+
+There were three per-stage skills and nothing that owned the cycle. The new fourth skill maps a
+request to an intent (finished branch → `branch`, "does everything still work" → `regression`, a
+written brief → `scenario`, after a fix pass → `re-test`), then runs the stages in order: checklist →
+QA run → `npx sluglist report` + a short summary → on request fix → re-test → final report.
+
+It encodes the cycle-level decisions the stage skills cannot see: the evidence-mode heuristic
+(acceptance and hand-off runs → `all`, long `regression`/`smoke` sweeps → `fails`, an explicit request
+always wins, `PROJECT.md` can change the defaults), the round budget, and the post-merge offer to
+update the regression baseline. Stage rules are delegated, not copied — one sentence each on what a
+sub-skill guarantees, and when the two disagree the stage skill wins.
+
+It has **two modes**. *One pass* is the default and ends at the report. *Until green* is opt-in — the
+user asks for it in words, or `PROJECT.md` says the loop may run unattended — and repeats
+fix → re-test → decide until a stop condition fires: green, `stalled`, `blocked`, the round ceiling
+(**default 3 QA rounds**), a hard limit, or an app that stops running. An autonomous loop has an
+obvious cheat available to it, so the prohibitions name it: never edit, narrow or delete a checklist
+item so it stops failing, and never record `wontfix` to end a round. `wontfix` and `needs_info`
+written during an unattended run are proposals surfaced to the owner, not decisions taken on their
+behalf.
+
+### `npx sluglist status` — is another round worth running?
+
+The new command answers the only question a loop has to get right, and answers it from the artifacts
+rather than from an agent's memory of what it just did:
+
+```
+release-2026-08 · branch · 3 items
+  1  session-2026-08-15-tw1w  1 pass · 1 fail · 1 not tested  ·  1 fixed
+  2  session-2026-08-15-jtyf  0 pass · 1 fail · 0 not tested  ·  no fix pass yet
+
+  still failing (1)
+    csv-columns — for the next fix pass · failed in 2 rounds · issue 01
+
+verdict: stalled — 1 item failed in 2 or more rounds — a fix pass has already been tried
+```
+
+It reads the sessions on disk, chains them into rounds through `checklist.retest_of` (falling back to
+the `<id>-retest-N` naming for pre-1.7 artifacts), and reports one verdict: **`green`** (nothing is
+failing), **`continue`** (failures a fix pass can still act on), **`stalled`** (everything left has
+already survived a fix pass), **`blocked`** (everything left is `wontfix` / `needs_info`) or
+**`empty`**. Per item it gives the state (`actionable`, `awaiting-retest`, `blocked`), how many rounds
+it has failed in, the linked issue and the fix agent's note.
+
+Because it is derived, there is no new artifact and no state to keep in sync — deleting `.sluglist/`
+loses history, not correctness. Chain-level rather than last-round-only: a re-test list carries only
+the items that were fixed, so a coverage gap from round 1 and a failure the fix pass declined to take
+both stay visible instead of quietly reading as green.
+
+`--json` gives an agent the same result as data, `--all` includes older chains, and a session folder
+as the argument restricts the report to the chain containing it. It also covers the plain dev loop,
+where the work items are the issues themselves: an issue with no record in `fixes.yaml` is open.
+
+### Format 1.7 — `checklist.retest_of` in `session.yaml`
+
+One additive field. The checklist *config* has carried `retest_of` since 1.5; it is now written into
+`session.yaml` alongside `intent`, so the rounds of one fix→re-test cycle can be chained from the
+session alone. **Absent on a first-pass run**, so sessions that are not re-tests are byte-identical
+apart from the version line, and a 1.x parser is unaffected.
+
+### Regression as a first-class checklist lifecycle
+
+`smoke` produces a broad one-off pass. A standing regression list is the same kind of list with a
+different life: it lives in the repo and is updated after every merge. `sluglist-checklist` now has a
+documented `regression` intent with two modes:
+
+- **Seeding** (no file yet) — the smoke algorithm (routes + docs, critical paths first, ~30-item cap)
+  written to `.sluglist/checklists/regression.json` with `"intent": "regression"`.
+- **Maintenance** (the file exists) — the new part. Read the existing list *and* the branch diff, then
+  propose **additions** for new user-visible surface (1–2 loud checks per feature, folded into an
+  existing section when one fits) and **removals** for surface the diff deleted. Removals are
+  **proposed, never silent** — the user confirms. The ~30-item cap is enforced by naming what to cut
+  rather than growing the file. **Item ids stay stable** for unchanged items, because verdict history
+  in past sessions maps by id and a renamed id orphans it silently. The summary is a diff of the list
+  (`+ added` / `- removed` / `= unchanged`), not a new list.
+
+SPEC.md gains an `intent` vocabulary table with the lifecycle of each value; `regression` is
+additive and the field stays an open vocabulary, so no reader needs updating.
+
+### Docs
+
+- New page: **[Project conventions](https://sluglist.dev/docs/project-conventions/)** — what goes in
+  `PROJECT.md`, why credentials are referenced rather than stored, and why hard limits are enforced
+  rather than advisory.
+- **Agents & CLI** documents `sluglist init` and the four-skill table with `sluglist-loop` first.
+- **Checklist mode** documents the five intents and the regression lifecycle.
+- **Agents & CLI** also documents `sluglist status` and the until-green loop.
+- README: the `init` scaffold table, the project-conventions section, the `sluglist status` verdict
+  table and the regression lifecycle.
+- The site gained per-scenario landing pages, a contract diagram and a colour system — see the
+  release notes on [sluglist.dev](https://sluglist.dev/).
+
 ## 1.14.0 — `sluglist init-skills`, per-page social metadata
 
 A polish release: one new CLI command and a set of site/docs consistency fixes. No library code and
