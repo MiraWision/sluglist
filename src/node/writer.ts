@@ -178,10 +178,17 @@ export interface WriterSession {
   /**
    * Record a checklist verdict and upsert session.yaml (put-per-verdict). A
    * `fail` should carry its evidencing issue id.
+   *
+   * Pass `null` to record that the item was **not tested**, with the reason in
+   * `evidence.note`. The item keeps `verdict: null` — it is not a verdict, and
+   * nothing downstream counts it as one — but the reason travels with the
+   * artifact instead of living only in the tester's chat window, which is where
+   * it used to die. Use it for an item that cannot be understood, cannot be
+   * reached, or would need an action the project forbids.
    */
   setVerdict(
     itemId: string,
-    verdict: Verdict,
+    verdict: Verdict | null,
     opts?: { issue?: string | null; evidence?: VerdictEvidenceInput }
   ): Promise<DeliveryReport>;
   /** Upsert one resolution record into fixes.yaml (put-per-fix). */
@@ -443,9 +450,12 @@ export async function createSession(
         throw new Error(`[sluglist] unknown checklist item "${itemId}"`);
       }
       item.verdict = verdict;
-      // A fail carries its evidencing issue; pass/skip drop any prior link —
-      // same rule as the widget.
+      // A fail carries its evidencing issue; every other outcome drops any
+      // prior link — same rule as the widget.
       item.issue = verdict === "fail" ? (opts.issue ?? item.issue) : null;
+      // The stamp is when the tester reached a conclusion, and "I could not
+      // test this" is one. Progress still counts the item as unchecked: that
+      // is `verdict`, and it is still null.
       item.ts = isoTimestamp(new Date());
 
       // Additive (format 1.6): optional proof for this verdict. Files land

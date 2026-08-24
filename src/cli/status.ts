@@ -98,8 +98,13 @@ export interface Chain {
   rounds: Round[];
   /** Items failing in the latest round. */
   open: OpenItem[];
-  /** Items the latest round never checked. */
-  notTested: { id: string; title: string }[];
+  /**
+   * Items the latest round never checked, with the tester's reason when one was
+   * recorded (format 1.9). A coverage gap is only actionable if you know why it
+   * is there — "no surface for it in the app" and "ran out of time" call for
+   * different answers from the owner.
+   */
+  notTested: { id: string; title: string; reason: string | null }[];
   verdict: LoopVerdict;
   /** One line explaining the verdict. */
   reason: string;
@@ -175,6 +180,8 @@ interface RoundData {
     title: string;
     verdict: string | null;
     issue: string | null;
+    /** Why it could not be tested, when the tester recorded one (format 1.9). */
+    reason: string | null;
   }[];
   /** Issues filed in this session, in order — the work items when there is no checklist. */
   issues: { id: string; title: string }[];
@@ -199,6 +206,7 @@ function toRound(bundle: SessionBundle): RoundData {
     title: str(item.title) ?? "",
     verdict: str(item.verdict),
     issue: str(item.issue),
+    reason: str(rec(item.evidence).note),
   }));
   const fixes = fixRecords(bundle);
   const counts = {
@@ -474,7 +482,11 @@ function analyzeChain(input: RoundData[]): Chain {
     open,
     notTested: [...latestByItem.values()]
       .filter(({ item }) => item.verdict === null || item.verdict === "skip")
-      .map(({ item }) => ({ id: item.id, title: item.title })),
+      .map(({ item }) => ({
+        id: item.id,
+        title: item.title,
+        reason: item.reason,
+      })),
     verdict,
     reason,
   };
@@ -609,12 +621,10 @@ export function formatStatus(result: StatusResult): string[] {
       }
     }
     if (chain.notTested.length > 0) {
-      lines.push(
-        "",
-        `  not tested (${chain.notTested.length}) — ${chain.notTested
-          .map((i) => i.id)
-          .join(", ")}`
-      );
+      lines.push("", `  not tested (${chain.notTested.length})`);
+      for (const item of chain.notTested) {
+        lines.push(`    ${item.id}${item.reason ? ` — ${item.reason}` : ""}`);
+      }
     }
   }
 
@@ -673,7 +683,11 @@ export function statusJson(result: StatusResult): unknown {
         fix_status: item.fixStatus,
         note: item.note,
       })),
-      not_tested: chain.notTested.map((i) => ({ id: i.id, title: i.title })),
+      not_tested: chain.notTested.map((i) => ({
+        id: i.id,
+        title: i.title,
+        reason: i.reason,
+      })),
     })),
   };
 }

@@ -168,6 +168,53 @@ describe("format 1.6 — verdict evidence", () => {
     expect("evidence" in item).toBe(false);
   });
 
+  it("records why an item could not be tested, verdict still null", async () => {
+    // The gap this closes: the reason used to exist only in the tester's chat
+    // window. The artifact said "not tested" and nothing else, so a reader had
+    // no way to tell an app with no surface for the check from a tester who
+    // ran out of time.
+    const memory = new MemoryConnector();
+    const session = await sessionWithChecklist(memory);
+
+    await session.setVerdict("unclear-item", null, {
+      evidence: {
+        note: 'could not test: the item names a "quarterly reconciliation" with no trigger anywhere in the app',
+      },
+    });
+
+    const yaml = parse(
+      await textOf(memory.getFile(session.sessionId, "session.yaml"))
+    );
+    const item = yaml.checklist.items.find(
+      (i: { id: string }) => i.id === "unclear-item"
+    );
+    expect(item.verdict).toBeNull();
+    expect(item.evidence.note).toContain("quarterly reconciliation");
+    // The stamp says when the tester concluded; it is not a verdict, and the
+    // item is still an open coverage gap.
+    expect(item.ts).toBeTruthy();
+    expect(session.getSession()?.checklist?.items.find((i) => i.id === "unclear-item")?.verdict).toBeNull();
+  });
+
+  it("keeps a null verdict free of any issue link", async () => {
+    const memory = new MemoryConnector();
+    const session = await sessionWithChecklist(memory);
+
+    await session.setVerdict("export-downloads-xlsx", "fail", { issue: "01" });
+    await session.setVerdict("export-downloads-xlsx", null, {
+      evidence: { note: "re-listed by mistake; nothing to check on this build" },
+    });
+
+    const yaml = parse(
+      await textOf(memory.getFile(session.sessionId, "session.yaml"))
+    );
+    const item = yaml.checklist.items.find(
+      (i: { id: string }) => i.id === "export-downloads-xlsx"
+    );
+    expect(item.verdict).toBeNull();
+    expect(item.issue).toBeNull();
+  });
+
   it("clips a note to 500 chars", async () => {
     const memory = new MemoryConnector();
     const session = await sessionWithChecklist(memory);
@@ -337,9 +384,9 @@ describe("format 1.7 — checklist retest_of", () => {
   });
 });
 
-describe("format 1.8 — backward compatibility", () => {
-  it("declares 1.8", () => {
-    expect(FORMAT_VERSION).toBe("1.8");
+describe("format 1.9 — backward compatibility", () => {
+  it("declares 1.9", () => {
+    expect(FORMAT_VERSION).toBe("1.9");
   });
 
   it("a session with neither evidence nor intent is byte-identical to 1.5", async () => {
@@ -353,7 +400,7 @@ describe("format 1.8 — backward compatibility", () => {
     const raw = await textOf(memory.getFile(session.sessionId, "session.yaml"));
     // Only the version line may differ from what 1.5 would have produced.
     const downgraded = raw.replace(
-      'format_version: "1.8"',
+      'format_version: "1.9"',
       'format_version: "1.5"'
     );
     expect(downgraded).not.toContain("evidence");

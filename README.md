@@ -291,7 +291,8 @@ release-2026-08 · branch · 3 items
     csv-columns — for the next fix pass · failed in 2 rounds · issue 01
       "The CSV has every expected column"
 
-  not tested (1) — email-receipt
+  not tested (1)
+    email-receipt — could not test: no mailbox reachable from this environment
 
 verdict: stalled — 1 item failed in 2 or more rounds — a fix pass has already been tried
 ```
@@ -1081,6 +1082,18 @@ What is in it, in order: the title, a sentence saying what the file holds and wh
 came from, and a line of provenance (date, reporter, intent, session id); a summary (N pass / N fail /
 N not tested, reports filed, how many are resolved, **how many checks are proved with a screenshot**);
 the checklist; then every filed report in full; a footer naming the artifact format version.
+
+An item nobody could check records no verdict — and, since format 1.9, the reason with it:
+
+```ts
+await session.setVerdict("digest-persists", null, {
+  evidence: { note: 'could not test: no trigger for the "quarterly reconciliation" anywhere in the app' },
+});
+```
+
+It stays a coverage gap — `sluglist status` still counts it as not tested, and the report labels the
+note *Why not*, never *Observed* — but the reason now travels in the artifact instead of only in the
+tester's chat window.
 
 A checked item and a filed report are the **same kind of block** — a number, a heading, a row of tags
 you can scan (the verdict badge among them), then the words and the proof. Everything else — the full

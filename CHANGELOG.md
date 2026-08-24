@@ -7,6 +7,27 @@ the sentence a human actually wrote, a full-page capture opened as an unreadable
 week of feedback meant five separate files. This release is the fix, taken from a real production
 report that was assembled by hand first.
 
+### "Not tested" can say why — artifact format 1.9
+
+An item a tester could not check recorded no verdict, which was right, and no reason, which was not:
+the reason existed only in the agent's chat output, and the artifact — the thing that outlives the
+conversation — said "not tested" and nothing else. A reader could not tell an app with no surface for
+the check from a tester who ran out of time, and those call for opposite answers from the owner.
+
+```ts
+await session.setVerdict("digest-persists", null, {
+  evidence: { note: 'could not test: the item names a "quarterly reconciliation" with no trigger anywhere in the app' },
+});
+```
+
+The verdict stays `null` — it is not a verdict, `sluglist status` still counts the item as a coverage
+gap, and progress still counts it unchecked. What changes is that the reason travels: the report
+shows it under the item as *Why not* (never *Observed* — the check did not happen), and
+`sluglist status` prints it beside the item and carries it in `not_tested[].reason`.
+
+Format 1.9 adds no field. `evidence` and a null verdict both already existed; the combination is new,
+so a consumer that read "has evidence" as "has a verdict" gets a version bump to notice.
+
 ### One block shape, and one theme
 
 A checked item used to be a line with a small chip on it while a filed report was a headed block with

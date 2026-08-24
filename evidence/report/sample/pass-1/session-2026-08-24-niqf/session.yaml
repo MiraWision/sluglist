@@ -1,7 +1,7 @@
-format_version: "1.8"
+format_version: "1.9"
 project: reportly
-session_id: session-2026-08-24-zi2g
-created_at: 2026-08-24T10:30:13Z
+session_id: session-2026-08-24-niqf
+created_at: 2026-08-24T12:47:58Z
 base_url: http://127.0.0.1:5099
 browser: Node 25.4.0
 os: macOS
@@ -20,7 +20,7 @@ checklist:
       title: The dashboard greets you by name and shows the open report count
       verdict: pass
       issue: null
-      ts: 2026-08-24T10:30:13Z
+      ts: 2026-08-24T12:47:58Z
       evidence:
         screenshots:
           - ev-dashboard-greeting-01.png
@@ -30,7 +30,7 @@ checklist:
       title: The Reports page lists the reports with their row counts
       verdict: pass
       issue: null
-      ts: 2026-08-24T10:30:14Z
+      ts: 2026-08-24T12:47:59Z
       evidence:
         screenshots:
           - ev-reports-table-01.png
@@ -40,7 +40,7 @@ checklist:
       title: "On Reports, Export CSV downloads a CSV file of the table"
       verdict: pass
       issue: null
-      ts: 2026-08-24T10:30:15Z
+      ts: 2026-08-24T12:48:00Z
       evidence:
         screenshots:
           - ev-reports-export-csv-01.png
@@ -50,7 +50,7 @@ checklist:
       title: "The archive page lists every past report, grouped by month"
       verdict: pass
       issue: null
-      ts: 2026-08-24T10:30:17Z
+      ts: 2026-08-24T12:48:02Z
       evidence:
         screenshots:
           - ev-archive-lists-everything-01.png
@@ -60,7 +60,7 @@ checklist:
       title: Saving settings shows a confirmation message
       verdict: fail
       issue: "01"
-      ts: 2026-08-24T10:30:19Z
+      ts: 2026-08-24T12:48:04Z
       evidence:
         screenshots:
           - ev-settings-save-confirms-01.png
@@ -70,7 +70,10 @@ checklist:
       title: The weekly digest preference survives the quarterly reconciliation
       verdict: null
       issue: null
-      ts: null
+      ts: 2026-08-24T12:48:04Z
+      evidence:
+        screenshots: []
+        note: "could not test: the item refers to a \"quarterly reconciliation\" that has no trigger or surface in the app, and no way to observe its outcome"
 issues:
   - id: "01"
     file: 01-expected-changing-the-display-name-on.md
@@ -78,4 +81,4 @@ issues:
     category: bug
     url: /settings
     selector: "#save"
-    created_at: 2026-08-24T10:30:19Z
+    created_at: 2026-08-24T12:48:04Z

@@ -1,4 +1,4 @@
-# sluglist artifact format — v1.8
+# sluglist artifact format — v1.9
 
 This is the on-disk contract sluglist produces for each feedback session. It is stable and safe to
 build parsers against: **within a major version the format only ever changes additively** (new optional
@@ -9,7 +9,7 @@ Source of truth: `src/artifacts.ts` (`buildSessionYaml`, `buildIssueMarkdown`, `
 
 ## Versioning
 
-- `session.yaml` starts with `format_version: "1.8"` (a quoted string, always the first line).
+- `session.yaml` starts with `format_version: "1.9"` (a quoted string, always the first line).
 - **Missing `format_version` ⇒ treat as `"1.0"`** (artifacts written before versioning was added).
 - **1.1** added the additive `checklist:` block (acceptance checklist verdicts) and the
   `checklist_item` issue field; everything from 1.0 is unchanged.
@@ -48,6 +48,13 @@ Source of truth: `src/artifacts.ts` (`buildSessionYaml`, `buildIssueMarkdown`, `
     script), used by `sluglist report` instead of a truncated first sentence. **Absent unless
     written**, and never a replacement for the comment: the report shows the original text verbatim
     underneath, so a title that drifts from what the reporter meant stays checkable.
+- **1.9** added, nothing to the shape:
+  - `checklist.items[].evidence` may now be present while `verdict` is still `null` — the reason the
+    item **could not be tested**. Both parts already existed; what is new is the combination, and a
+    reader that treated "has evidence" as "has a verdict" needs to know. The verdict is still the
+    only thing that says whether a check happened: a null one is a coverage gap whether or not it
+    carries a reason. **Absent ⇒ not tested, reason unrecorded** — the pre-1.9 shape, and still what
+    a session written by an older client looks like.
 - The number is `MAJOR.MINOR`:
   - **MINOR** bumps for additive changes (a new optional field/section). Parsers must ignore unknown
     fields and keep working.
@@ -87,7 +94,7 @@ are zero-padded and monotonic within a session.
 
 | Field | Type | Required | Since | Notes |
 |---|---|---|---|---|
-| `format_version` | string | yes | 1.0 | The format version this session was written with (currently `"1.8"`); always the first line. |
+| `format_version` | string | yes | 1.0 | The format version this session was written with (currently `"1.9"`); always the first line. |
 | `project` | string | yes | 1.0 | Project slug. |
 | `session_id` | string | yes | 1.0 | `session-YYYY-MM-DD-xxxx`. |
 | `created_at` | string (ISO 8601) | yes | 1.0 | Session start. |
@@ -143,7 +150,7 @@ Each `items[]` entry:
 | `verdict` | string \| null | yes | 1.1 | `pass` \| `fail` \| `skip`, or `null` when not yet checked. See note on `skip`. |
 | `issue` | string \| null | yes | 1.1 | The id of the issue that documents a flag; else `null`. See note. |
 | `ts` | string \| null | yes | 1.1 | ISO time the verdict was set; `null` when unset. |
-| `evidence` | map | optional | 1.6 | Proof for this verdict (below). Absent for a bare verdict. |
+| `evidence` | map | optional | 1.6 | Proof for this verdict, or (1.9) the reason a `null`-verdict item could not be tested (below). Absent for a bare verdict. |
 
 #### `evidence` (verdict proof, 1.6)
 
@@ -157,7 +164,10 @@ The block is valid on **any** verdict:
 - on `pass` it is the point of the feature — the screenshot and note that let a reader verify the
   sign-off instead of trusting the reporter;
 - on `fail` it is supplementary: the linked `issue` remains the primary evidence;
-- an item with **no verdict** (`null`) carries no evidence — there is nothing to show.
+- an item with **no verdict** (`null`) may carry evidence since 1.9: the `note` is then the reason it
+  could not be tested, and any screenshot is context for that reason, not proof of a check. It is
+  still not a verdict — `sluglist status` counts the item as a coverage gap either way, and
+  `sluglist report` labels the note *Why not* rather than *Observed*.
 
 `evidence` has **no `ts` of its own**: it is captured at the moment the verdict is recorded, which the
 item's own `ts` already states.
@@ -294,7 +304,7 @@ has not been fixed yet. Upserted **by `issue` id** as fixing progresses — re-f
 its record; the file never accumulates duplicates.
 
 ```yaml
-format_version: "1.8"
+format_version: "1.9"
 fixed_by:
   name: fix-agent
   kind: agent

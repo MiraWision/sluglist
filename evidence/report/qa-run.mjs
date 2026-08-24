@@ -225,12 +225,14 @@ await settle(1100);
 /* --- 5. Quarterly reconciliation — not testable ---------------------- */
 {
   // The item names a process with no surface anywhere in the app. Per the
-  // skill: no verdict, no evidence, a reason in the report.
-  notTested.push({
-    id: "settings-digest-persists",
-    reason:
-      'could not test: the item refers to a "quarterly reconciliation" that has no trigger or surface in the app, and no way to observe its outcome',
+  // skill: no verdict — and, since format 1.9, the reason recorded on the item
+  // so it reaches the report instead of dying in this process's stdout.
+  const reason =
+    'could not test: the item refers to a "quarterly reconciliation" that has no trigger or surface in the app, and no way to observe its outcome';
+  await session.setVerdict("settings-digest-persists", null, {
+    evidence: { note: reason },
   });
+  notTested.push({ id: "settings-digest-persists", reason });
   summary.push("settings-digest-persists: NOT TESTED");
 }
 

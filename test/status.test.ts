@@ -116,8 +116,31 @@ describe("readStatus — a single round", () => {
     const result = await readStatus({ dir });
     expect(result.verdict).toBe("green");
     expect(chain(result).notTested).toEqual([
-      { id: "csv-columns", title: ITEMS[1].title },
+      { id: "csv-columns", title: ITEMS[1].title, reason: null },
     ]);
+  });
+
+  it("carries the tester's reason for an item that could not be tested", async () => {
+    const run = await session({ checklist: checklist() });
+    await run.setVerdict("export-visible", "pass");
+    await run.setVerdict("csv-columns", null, {
+      evidence: { note: "no surface for it in the app on this build" },
+    });
+
+    const result = await readStatus({ dir });
+    // Still a coverage gap, not a verdict — but an actionable one, because the
+    // owner can now tell which kind of gap it is.
+    expect(result.verdict).toBe("green");
+    expect(chain(result).notTested).toEqual([
+      {
+        id: "csv-columns",
+        title: ITEMS[1].title,
+        reason: "no surface for it in the app on this build",
+      },
+    ]);
+    expect(formatStatus(result).join("\n")).toContain(
+      "no surface for it in the app"
+    );
   });
 
   it("says continue, with the failing item actionable, before any fix pass", async () => {
@@ -256,7 +279,7 @@ describe("readStatus — chained rounds", () => {
     const after = await readStatus({ dir });
     expect(after.verdict).toBe("green");
     expect(after.chains[0].notTested).toEqual([
-      { id: "export-visible", title: ITEMS[0].title },
+      { id: "export-visible", title: ITEMS[0].title, reason: null },
     ]);
   });
 

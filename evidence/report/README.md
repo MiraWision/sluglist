@@ -18,16 +18,17 @@ reader would actually open.
 `sample/` is a two-round cycle, kept in the repo so there is always something current to open,
 screenshot and link:
 
-- **`sample/pass-1/session-2026-08-24-zi2g`** — the broken build. 4 pass (with evidence), 1 fail, 1 honestly **not
-  tested**; one issue with an author `title`, a seven-step action trail, and `fixes.yaml` recording
-  the fix at commit `4be0b62`.
-- **`sample/pass-2/session-2026-08-24-e4je`** — the same checklist against the fixed build. Everything passes,
+- **`sample/pass-1/session-2026-08-24-niqf`** — the broken build. 4 pass (with evidence), 1 fail, 1 honestly **not
+  tested** *with the reason recorded on the item* (format 1.9); one issue with an author `title`, a
+  seven-step action trail, and `fixes.yaml` recording the fix at commit `4be0b62`.
+- **`sample/pass-2/session-2026-08-24-2foq`** — the same checklist against the fixed build. Everything passes,
   every pass carries a screenshot.
 - **`sample/titles.json`** — the issue heading, for `--titles`.
 
-It exercises every feature of the current report on purpose: evidence on **passing** items, an author
-title, the details/action-trail spoiler, the merged multi-session view, and — via the `/archive` page —
-a genuine full-page capture (1280×5997) that only becomes readable in the lightbox.
+It exercises every feature of the current report on purpose: evidence on **passing** items, a reason
+on the item nobody could test, an author title, the details/action-trail spoiler, the merged
+multi-session view, and — via the `/archive` page — a genuine full-page capture (1280×5997) that only
+becomes readable in the lightbox.
 
 ### Regenerate it
 
@@ -48,13 +49,13 @@ the paths below to match.
 ### Render it
 
 ```bash
-node dist/cli.js report evidence/report/sample/pass-1/session-2026-08-24-zi2g \
+node dist/cli.js report evidence/report/sample/pass-1/session-2026-08-24-niqf \
   --titles evidence/report/sample/titles.json \
   -o evidence/report/sample/report-single.html
 ```
 
 ```bash
-node dist/cli.js report evidence/report/sample/pass-1/session-2026-08-24-zi2g evidence/report/sample/pass-2/session-2026-08-24-e4je \
+node dist/cli.js report evidence/report/sample/pass-1/session-2026-08-24-niqf evidence/report/sample/pass-2/session-2026-08-24-2foq \
   --titles evidence/report/sample/titles.json \
   -o evidence/report/sample/report-merged.html
 ```

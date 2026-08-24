@@ -70,15 +70,20 @@ function yamlBlock(
  *       attached to a verdict, so a `pass` can be verified and not merely
  *       trusted) and additive `checklist.intent` (why the checklist exists:
  *       branch / re-test / smoke / scenario). Both absent unless recorded.
- * 1.8 — additive `title` in issue frontmatter: a heading written by whoever
- *       files the report, used by `sluglist report` instead of a truncated
- *       first sentence. Absent unless written; never replaces the comment.
  * 1.7 — additive `checklist.retest_of` in session.yaml: the id of the checklist
  *       this run re-tests, carried through from the checklist config so the
  *       rounds of one fix→re-test cycle chain from session.yaml alone (what
  *       `sluglist status` reads). Absent on a first-pass run.
+ * 1.8 — additive `title` in an issue's frontmatter: a heading the author wrote,
+ *       so the report stops truncating the first sentence. Absent unless
+ *       written; never replaces the comment.
+ * 1.9 — a checklist item may carry `evidence` while its `verdict` is still
+ *       null: the reason it could not be tested. Nothing about the shape is
+ *       new — `evidence` and a null verdict both predate it — but a reader
+ *       that assumed evidence implied a verdict needs to know, because "not
+ *       tested, and here is why" is now a thing an artifact can say.
  */
-export const FORMAT_VERSION = "1.8";
+export const FORMAT_VERSION = "1.9";
 
 /**
  * The `checklist:` block: definition identity + one entry per item with its

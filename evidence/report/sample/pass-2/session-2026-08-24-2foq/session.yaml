@@ -1,7 +1,7 @@
-format_version: "1.8"
+format_version: "1.9"
 project: reportly
-session_id: session-2026-08-24-e4je
-created_at: 2026-08-24T10:30:25Z
+session_id: session-2026-08-24-2foq
+created_at: 2026-08-24T12:48:09Z
 base_url: http://127.0.0.1:5099
 browser: Node 25.4.0
 os: macOS
@@ -20,7 +20,7 @@ checklist:
       title: The dashboard greets you by name and shows the open report count
       verdict: pass
       issue: null
-      ts: 2026-08-24T10:30:25Z
+      ts: 2026-08-24T12:48:09Z
       evidence:
         screenshots:
           - ev-dashboard-greeting-01.png
@@ -30,7 +30,7 @@ checklist:
       title: The Reports page lists the reports with their row counts
       verdict: pass
       issue: null
-      ts: 2026-08-24T10:30:26Z
+      ts: 2026-08-24T12:48:10Z
       evidence:
         screenshots:
           - ev-reports-table-01.png
@@ -40,7 +40,7 @@ checklist:
       title: "On Reports, Export CSV downloads a CSV file of the table"
       verdict: pass
       issue: null
-      ts: 2026-08-24T10:30:28Z
+      ts: 2026-08-24T12:48:11Z
       evidence:
         screenshots:
           - ev-reports-export-csv-01.png
@@ -50,7 +50,7 @@ checklist:
       title: "The archive page lists every past report, grouped by month"
       verdict: pass
       issue: null
-      ts: 2026-08-24T10:30:30Z
+      ts: 2026-08-24T12:48:13Z
       evidence:
         screenshots:
           - ev-archive-lists-everything-01.png
@@ -60,7 +60,7 @@ checklist:
       title: Saving settings shows a confirmation message
       verdict: pass
       issue: null
-      ts: 2026-08-24T10:30:32Z
+      ts: 2026-08-24T12:48:15Z
       evidence:
         screenshots:
           - ev-settings-save-confirms-01.png
@@ -70,5 +70,8 @@ checklist:
       title: The weekly digest preference survives the quarterly reconciliation
       verdict: null
       issue: null
-      ts: null
+      ts: 2026-08-24T12:48:15Z
+      evidence:
+        screenshots: []
+        note: "could not test: the item refers to a \"quarterly reconciliation\" that has no trigger or surface in the app, and no way to observe its outcome"
 issues: []

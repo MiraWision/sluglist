@@ -289,9 +289,13 @@ async function renderEvidence(
   const parts: string[] = [];
   if (note) {
     // The same quoted block a filed report gets: this sentence is the tester's
-    // observation, not the renderer's summary, and the accent bar says so.
+    // observation, not the renderer's summary, and the accent bar says so. On
+    // an item nobody could test it is not an observation but a reason, and
+    // calling it "Observed" would read as though the check had happened.
+    const label =
+      verdict === "pass" || verdict === "fail" ? "Observed" : "Why not";
     parts.push(
-      `<div class="quote quote-${verdict}"><span class="quote-label">Observed</span>` +
+      `<div class="quote quote-${verdict}"><span class="quote-label">${label}</span>` +
         `<p>${esc(note)}</p></div>`
     );
   }

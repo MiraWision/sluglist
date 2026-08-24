@@ -8,7 +8,7 @@ title: Saving settings confirms nothing on screen
 checklist_item: settings-save-confirms
 viewport: 1280x800
 screenshot: 01-expected-changing-the-display-name-on.png
-created_at: 2026-08-24T10:30:19Z
+created_at: 2026-08-24T12:48:04Z
 reporter:
   name: qa-agent
   kind: agent

@@ -120,9 +120,19 @@ Practical shape: one script that reads a work file of results you accumulated, o
      The comment must state *what was expected*, *what was observed*, the URL, and the steps to get
      there. A fix agent with no browser context must be able to act on it.
    - **Cannot test** (item unclear, page unreachable, precondition impossible, check requires data you
-     don't have) → record **no verdict** (the item stays `null` in session.yaml) and add the item +
-     reason to the "Not tested" section of your final report. Do not reinterpret the item into
-     something you *can* test.
+     don't have) → record **no verdict**, with the reason:
+     ```ts
+     await session.setVerdict("<item-id>", null, {
+       evidence: {
+         note: 'could not test: the item names a "quarterly reconciliation" that has no trigger or surface in the app',
+       },
+     });
+     ```
+     The item stays `verdict: null` — this is not a verdict and nothing counts it as one — but the
+     reason now travels in the artifact, so `sluglist report` and `sluglist status` can both show it.
+     Say what stopped you, in one sentence, in the same voice as an observed fact: *what you looked
+     for and what was there instead*. Still list the item in the "Not tested" section of your final
+     report. Do not reinterpret the item into something you *can* test.
 
 ## The anti-theatre rule
 
@@ -163,7 +173,9 @@ the note is absent but the standard for *calling something a pass* is identical.
   A screenshot with a note that merely restates the item is theatre — see the anti-theatre rule.
 - **Never attach a screenshot of a different moment.** The evidence image is the state at the moment
   you performed the check, not a tidy screen captured afterwards.
-- **`not tested` gets no evidence.** There is nothing to show; the reason goes in your report.
+- **`not tested` is never dressed up as a verdict.** Record the reason with `setVerdict(id, null, …)`
+  — a screenshot of the screen you got stuck on is allowed as context — but never a `pass`, a `skip`
+  or a `fail` on an item you did not actually check.
 - **Do not rephrase, split, or merge checklist items.** You verify the list as written; its wording is
   the contract with whoever wrote it.
 - **Do not fix anything.** You do not write to the repository, do not restart services to "help", do

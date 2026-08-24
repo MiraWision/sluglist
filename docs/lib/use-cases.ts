@@ -491,6 +491,11 @@ await session.setVerdict("csv-columns", "pass", {
     note: "Exported reports-2026-08.csv — 4.1 KB, 57 rows, all 9 columns present",
   },
 });
+
+// An item it could not check: no verdict, and the reason with it.
+await session.setVerdict("email-receipt", null, {
+  evidence: { note: "could not test: no mailbox reachable from this environment" },
+});
 \`\`\`
 
 Any language that can write files can produce the same artifacts:

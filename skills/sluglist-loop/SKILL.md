@@ -129,7 +129,9 @@ fixed is exactly the thing that goes wrong after two rounds.
 
 Read `open[]` for the per-item detail: `state` (`actionable`, `awaiting-retest`, `blocked`),
 `failed_rounds`, the linked `issue`, and the fix agent's `note`. `not_tested[]` is the coverage gap —
-report it, never "resolve" it by guessing.
+each entry carries the tester's `reason` when one was recorded. Report it, never "resolve" it by
+guessing. A gap with a reason is often the owner's decision to make ("the app has no surface for
+this check") rather than something another round would close.
 
 ## Step 5 — fix
 
