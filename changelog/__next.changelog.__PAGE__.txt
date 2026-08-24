@@ -1,10 +1,36 @@
 1:"$Sreact.fragment"
-2:T1190f,<h1>Changelog</h1>
+2:T12890,<h1>Changelog</h1>
 <h2>1.18.0 — the report reads as an article</h2>
 <p><code>sluglist report</code> produced a correct document that was hard to read: a 25-step action trail buried
 the sentence a human actually wrote, a full-page capture opened as an unreadable 110px strip, and a
 week of feedback meant five separate files. This release is the fix, taken from a real production
 report that was assembled by hand first.</p>
+<h3>&quot;Not tested&quot; can say why — artifact format 1.9</h3>
+<p>An item a tester could not check recorded no verdict, which was right, and no reason, which was not:
+the reason existed only in the agent&#39;s chat output, and the artifact — the thing that outlives the
+conversation — said &quot;not tested&quot; and nothing else. A reader could not tell an app with no surface for
+the check from a tester who ran out of time, and those call for opposite answers from the owner.</p>
+<pre class="shiki shiki-themes light-plus dark-plus" style="--shiki-light:#000000;--shiki-dark:#D4D4D4;--shiki-light-bg:#FFFFFF;--shiki-dark-bg:#1E1E1E" tabindex="0"><code><span class="line"><span style="--shiki-light:#AF00DB;--shiki-dark:#C586C0">await</span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE"> session</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">.</span><span style="--shiki-light:#795E26;--shiki-dark:#DCDCAA">setVerdict</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">(</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178">"digest-persists"</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">, </span><span style="--shiki-light:#0000FF;--shiki-dark:#569CD6">null</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">, {</span></span>
+<span class="line"><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">  evidence:</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> { </span><span style="--shiki-light:#001080;--shiki-dark:#9CDCFE">note:</span><span style="--shiki-light:#A31515;--shiki-dark:#CE9178"> 'could not test: the item names a "quarterly reconciliation" with no trigger anywhere in the app'</span><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4"> },</span></span>
+<span class="line"><span style="--shiki-light:#000000;--shiki-dark:#D4D4D4">});</span></span></code></pre><p>The verdict stays <code>null</code> — it is not a verdict, <code>sluglist status</code> still counts the item as a coverage
+gap, and progress still counts it unchecked. What changes is that the reason travels: the report
+shows it under the item as <em>Why not</em> (never <em>Observed</em> — the check did not happen), and
+<code>sluglist status</code> prints it beside the item and carries it in <code>not_tested[].reason</code>.</p>
+<p>Format 1.9 adds no field. <code>evidence</code> and a null verdict both already existed; the combination is new,
+so a consumer that read &quot;has evidence&quot; as &quot;has a verdict&quot; gets a version bump to notice.</p>
+<h3>One block shape, and one theme</h3>
+<p>A checked item used to be a line with a small chip on it while a filed report was a headed block with
+tags — two visual languages in one document, and the checklist read as the lesser half. Both are now
+the same block: a number, a heading, a row of tags with the <strong>verdict badge among them</strong>, then the
+observed fact quoted against a verdict-coloured bar and the evidence under it. Captions say what a
+picture is (<em>Evidence 2 of 3</em>, <em>Recording clip 01, frame 1</em>) instead of repeating a file name; the
+name moves to the figure&#39;s tooltip and to the viewer, where someone checking the artifact needs it.</p>
+<p>The report is <strong>light, always</strong>. It used to follow the reader&#39;s OS, which meant two people describing
+&quot;the report&quot; could be describing different pages, and the one screenshot in the README matched
+neither. Print inherits the same palette, so paper matches the screen.</p>
+<p>Fields in the spoiler are labelled the way a client reads — <em>Console errors</em>, not <code>errors_count</code> —
+and thumbnails no longer load lazily: an image that has not been decoded prints as a blank box, which
+is the worst possible failure in a document whose whole job is showing the evidence.</p>
 <h3>The trail and the metadata fold away</h3>
 <p>Each report now shows a heading, three tags — page, category, time — and the text. Everything else
 moves into one <em>Details and action trail (N steps)</em> spoiler: the full frontmatter as a table, the
@@ -16,7 +42,8 @@ before printing, so paper loses nothing.</p>
 a plain translucent overlay instead of <code>&lt;dialog&gt;</code>: the top layer is one dependency too many for a
 file that gets forwarded and opened in arbitrary preview panes, where a modal can end up invisible.
 Arrows walk the images of one report, with a counter; <code>Esc</code>, a click anywhere but the arrows, or the
-backdrop closes it; the article behind stays visible and cannot scroll underneath.</p>
+backdrop closes it; the article behind stays visible and cannot scroll underneath. The filename
+bar sits on its own gradient footing, so it reads over the dimmed article rather than through it.</p>
 <h3>Full-page captures are readable</h3>
 <p>A real one measured 1708 × 13758. Contained in a viewport it became a strip about 110px wide, and it
 weighed ~2.4 MB. Now anything taller than 2:1 gets its own budget (1100px wide, quality 60, re-encoded
@@ -771,7 +798,7 @@ extension content script).</li>
 5:X
 a:X
 a:C
-0:{"buildId":"Rb0mG-zh3FQnY-4dOoFgu","data":[{"rsc":["$","$1","c",{"children":[["$","div",null,{"className":"mx-auto max-w-3xl px-6 py-16 md:py-20","children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"WebPage\",\"name\":\"sluglist changelog\",\"url\":\"https://sluglist.dev/changelog/\",\"isPartOf\":{\"@id\":\"https://sluglist.dev/#website\"},\"about\":{\"@id\":\"https://sluglist.dev/#software\"}}"}}],["$","article",null,{"className":"prose prose-site max-w-none","dangerouslySetInnerHTML":{"__html":"$2"}}]]}],null,"$L3"]}],"isPartial":"$@4","staleTime":"$5","varyParams":null},{"rsc":"$L6","isPartial":"$@7","staleTime":"$5","varyParams":null},{"rsc":"$L8","isPartial":"$@9","staleTime":"$5","varyParams":"$a"}],"isUpgradeableISRFallback":false,"a":"$@b","rootVaryParams":null,"needsRuntimeRequest":"$@c"}
+0:{"buildId":"ewU49hutyWZVgIDZDXsiN","data":[{"rsc":["$","$1","c",{"children":[["$","div",null,{"className":"mx-auto max-w-3xl px-6 py-16 md:py-20","children":[["$","script",null,{"type":"application/ld+json","dangerouslySetInnerHTML":{"__html":"{\"@context\":\"https://schema.org\",\"@type\":\"WebPage\",\"name\":\"sluglist changelog\",\"url\":\"https://sluglist.dev/changelog/\",\"isPartOf\":{\"@id\":\"https://sluglist.dev/#website\"},\"about\":{\"@id\":\"https://sluglist.dev/#software\"}}"}}],["$","article",null,{"className":"prose prose-site max-w-none","dangerouslySetInnerHTML":{"__html":"$2"}}]]}],null,"$L3"]}],"isPartial":"$@4","staleTime":"$5","varyParams":null},{"rsc":"$L6","isPartial":"$@7","staleTime":"$5","varyParams":null},{"rsc":"$L8","isPartial":"$@9","staleTime":"$5","varyParams":"$a"}],"isUpgradeableISRFallback":false,"a":"$@b","rootVaryParams":null,"needsRuntimeRequest":"$@c"}
 d:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"OutletBoundary"]
 e:"$Sreact.suspense"
 10:I[81896,["/_next/static/chunks/1b58asu43-lub.js"],"ViewportBoundary"]
