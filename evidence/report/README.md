@@ -66,12 +66,13 @@ above rebuild them in a second.
 
 Three images in this repo show the report to someone who has not run it. They are taken by hand, from
 `sample/report-single.html` opened in a browser at a **1280×800** window, and they should be retaken
-whenever the report's layout changes.
+whenever the report's layout changes. The report is light whatever the browser's theme is, so the
+shots do not depend on the machine they are taken on.
 
 | Path | What to capture | Where it shows up |
 | --- | --- | --- |
 | `evidence/report/shot-desktop.png` | The top of the report: title, meta rows, the pass/fail/not-tested cards, the summary line, and the first two or three checklist items with their evidence thumbnails. Viewport shot, not full page. | README.md, at 640px wide |
-| `evidence/report/shot-lightbox.png` | `ev-archive-lists-everything-01.png` open in the lightbox — the tall capture scrolled to the top, close button, filename bar. This is the shot that shows a full-page capture is actually readable. | Reference for the docs; not embedded today |
+| `evidence/report/shot-lightbox.png` | The archive evidence (check 04) open in the lightbox — the tall capture scrolled to the top, close button, the caption bar naming `ev-archive-lists-everything-01.png`. This is the shot that shows a full-page capture is actually readable. | Reference for the docs; not embedded today |
 | `docs/public/report-example.jpg` | The same framing as `shot-desktop.png`, exported as JPEG. | The home page's report panel |
 
 `docs/public/example-report.html` is not a screenshot — it is a copy of `sample/report-single.html`,

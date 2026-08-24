@@ -10,106 +10,121 @@
 
 export const REPORT_CSS = `
 *,*::before,*::after{box-sizing:border-box}
+/* One palette, always light. A report is a document that gets forwarded,
+   printed and screenshotted, and it must look the same to everyone who opens
+   it — following the reader's OS would make two people describing "the report"
+   describe different pages. Print inherits this, so paper matches the screen. */
 :root{
   --ink:#14171a; --dim:#5b6672; --line:#e3e7ea; --bg:#fff; --soft:#f6f8f9;
+  --link:#0b5fca; --quote:#0f1418;
   --pass:#1a7f4b; --pass-bg:#e8f5ee;
   --fail:#b3261e; --fail-bg:#fdecea;
   --skip:#6b7480; --skip-bg:#eef1f3;
-  --link:#0b5fca;
-}
-@media (prefers-color-scheme:dark){
-  :root{
-    --ink:#e7ebee; --dim:#9aa5b1; --line:#2a3138; --bg:#14171a; --soft:#1b2025;
-    --pass:#6ddba0; --pass-bg:#12301f;
-    --fail:#ff9c94; --fail-bg:#381a17;
-    --skip:#9aa5b1; --skip-bg:#232a30;
-    --link:#7db3ff;
-  }
 }
 html{-webkit-text-size-adjust:100%}
 body{
   margin:0; background:var(--bg); color:var(--ink);
-  font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  font:17px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
 }
-code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.9em}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.86em}
 a{color:var(--link)}
-.doc{max-width:720px;margin:0 auto;padding:56px 20px 80px}
-
-h1{font-size:1.9rem;line-height:1.25;margin:0 0 16px;letter-spacing:-.02em}
-h2{font-size:1.3rem;margin:48px 0 8px;padding-bottom:8px;border-bottom:1px solid var(--line)}
-h3{font-size:1.02rem;margin:32px 0 12px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em}
-h4{font-size:.95rem;margin:18px 0 6px}
+.doc{max-width:760px;margin:0 auto;padding:64px 20px 96px}
 p{margin:0 0 12px}
-
-.meta{display:flex;flex-wrap:wrap;gap:6px 20px;font-size:.87rem;color:var(--dim);margin:0 0 8px}
-.meta b{font-weight:600;color:var(--ink);font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;margin-right:6px}
 .dim{color:var(--dim)}
 .nb{color:var(--dim);font-size:.9rem}
 
-.tiles{display:flex;flex-wrap:wrap;gap:10px;margin:20px 0 12px}
+/* The header: a title, one sentence saying what this is, and the provenance. */
+.page{padding-bottom:28px;border-bottom:1px solid var(--line)}
+.page h1{font-size:2.1rem;line-height:1.2;margin:0 0 12px;letter-spacing:-.022em}
+.page .lede{color:var(--dim);font-size:1.02rem;margin:0 0 6px}
+.page .source{color:var(--dim);font-size:.85rem;margin:0}
+.page .source code{font-size:.92em}
+
+.tiles{display:flex;flex-wrap:wrap;gap:10px;margin:28px 0 12px}
 .tile{flex:1 1 96px;padding:14px 12px;border-radius:10px;background:var(--soft);border:1px solid var(--line);text-align:center}
 .tile .n{display:block;font-size:1.9rem;font-weight:650;line-height:1.1;letter-spacing:-.02em}
 .tile .l{display:block;font-size:.76rem;text-transform:uppercase;letter-spacing:.07em;color:var(--dim);margin-top:2px}
 .tile-pass .n{color:var(--pass)} .tile-fail .n{color:var(--fail)}
 .tile-skip .n,.tile-none .n{color:var(--skip)}
-.summary-line{font-size:.9rem;color:var(--dim)}
+.summary-line{font-size:.9rem;color:var(--dim);margin:0}
 
-.items{list-style:none;margin:0;padding:0}
-.item{padding:14px 0;border-top:1px solid var(--line)}
-.item:first-child{border-top:none}
-.item-head{display:flex;gap:10px;align-items:baseline}
-.item-title{flex:1}
+/* Section headings — "Checklist", "Reports" — are signposts, not titles: the
+   headings a reader scans are the ones on the blocks themselves. */
+.section-title{font-size:.76rem;text-transform:uppercase;letter-spacing:.09em;color:var(--dim);
+  font-weight:650;margin:56px 0 0}
+.group{font-size:.74rem;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);
+  font-weight:650;margin:36px 0 -8px}
+.session-mark{font-size:.8rem;color:var(--dim);margin:32px 0 -12px}
 
+/* Every checked item and every filed report is the same kind of block: a
+   number, a heading, a row of scannable tags, then the words and the proof. */
+.report{padding:44px 0;border-bottom:1px solid var(--line)}
+.report-head{display:flex;gap:12px;align-items:baseline}
+.num{flex:none;font-size:.78rem;font-weight:650;color:var(--dim);
+  background:var(--soft);border:1px solid var(--line);border-radius:6px;padding:2px 7px}
+.report h3{font-size:1.32rem;line-height:1.3;margin:0;letter-spacing:-.012em;font-weight:640;
+  text-transform:none;color:var(--ink)}
+.report h4{font-size:.95rem;margin:20px 0 6px}
+.report ul{margin:0 0 12px;padding-left:20px}
+.report li{margin-bottom:3px}
+
+.tags{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 0}
+.tag{font-size:.76rem;padding:2px 9px;border-radius:999px;background:var(--soft);
+  border:1px solid var(--line);color:var(--dim);white-space:nowrap}
+.tag-page code{color:var(--ink)}
+.tag-dim{border-style:dashed}
+/* The verdict rides in the same row: it is one more fact about the item, and a
+   reader scanning a column of blocks reads colour before words. */
+.tag-verdict{font-weight:650;text-transform:uppercase;letter-spacing:.05em;font-size:.71rem;padding:3px 10px}
+.tag-pass{background:var(--pass-bg);border-color:transparent;color:var(--pass)}
+.tag-fail{background:var(--fail-bg);border-color:transparent;color:var(--fail)}
+.tag-skip,.tag-not-tested{background:var(--skip-bg);border-color:transparent;color:var(--skip)}
+.tag-link{padding:0}
+.tag-link a{display:block;padding:2px 9px;color:inherit;text-decoration:none}
+.tag-link:hover{border-color:var(--dim)}
+
+/* What the person wrote, or what the tester saw. The accent bar says "these
+   are not my words" — its colour carries the verdict on a checked item. */
+.quote{margin:18px 0 0;padding-left:16px;border-left:3px solid var(--pass);color:var(--quote)}
+.quote p{margin:0 0 10px}
+.quote p:last-child{margin-bottom:0}
+.quote-fail{border-left-color:var(--fail)}
+.quote-skip,.quote-not-tested{border-left-color:var(--line)}
+.quote-label{
+  display:block;font-size:.7rem;font-weight:650;text-transform:uppercase;letter-spacing:.06em;
+  color:var(--dim);margin-bottom:5px;
+}
+.linked{margin:14px 0 0;font-size:.85rem;color:var(--dim)}
+.cont{color:var(--dim);font-size:.85em;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.attachments{list-style:none;padding:0;margin:14px 0 0;font-size:.88rem}
+.attachments li{margin-bottom:4px}
+
+.fix{margin:18px 0 0;padding:10px 13px;border-radius:8px;background:var(--soft);
+  border:1px solid var(--line);font-size:.9rem}
 .badge{
-  display:inline-block;flex:none;padding:2px 9px;border-radius:999px;
+  display:inline-block;padding:2px 9px;border-radius:999px;
   font-size:.71rem;font-weight:650;text-transform:uppercase;letter-spacing:.05em;
   background:var(--skip-bg);color:var(--skip);white-space:nowrap;
 }
-.badge-pass{background:var(--pass-bg);color:var(--pass)}
-.badge-fail{background:var(--fail-bg);color:var(--fail)}
 .badge-fix-fixed{background:var(--pass-bg);color:var(--pass)}
 .badge-fix-wontfix,.badge-fix-needs_info{background:var(--skip-bg);color:var(--skip)}
 
-.observed{margin:8px 0 0;font-size:.92rem}
-.observed-label{
-  font-size:.7rem;font-weight:650;text-transform:uppercase;letter-spacing:.06em;
-  color:var(--dim);margin-right:7px;
-}
-.linked{margin:6px 0 0;font-size:.88rem;color:var(--dim)}
-
-.shots{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0 4px}
+.shots{display:flex;flex-wrap:wrap;gap:10px;margin:20px 0 0}
 .shot{margin:0;width:132px}
 .shot-open{
   display:block;width:100%;padding:0;border:1px solid var(--line);border-radius:8px;
   background:var(--soft);cursor:zoom-in;overflow:hidden;line-height:0;
+  transition:border-color .14s ease,transform .14s ease;
 }
-.shot-open:hover{border-color:var(--dim)}
+.shot-open:hover{border-color:var(--dim);transform:translateY(-1px)}
+.shot-open:focus-visible{outline:2px solid var(--link);outline-offset:2px}
 .shot-open img{width:100%;height:88px;object-fit:cover;object-position:top center;display:block}
-figcaption{font-size:.72rem;color:var(--dim);margin-top:4px;word-break:break-all;line-height:1.35}
-
-.issue{padding:22px 0;border-top:1px solid var(--line)}
-.issue h3{text-transform:none;letter-spacing:normal;color:var(--ink);font-size:1.06rem;margin:0 0 10px;display:flex;gap:9px;align-items:baseline}
-.issue-id{
-  flex:none;font-size:.72rem;font-weight:650;color:var(--dim);
-  background:var(--soft);border:1px solid var(--line);border-radius:5px;padding:1px 6px;
-}
-.issue ul{margin:0 0 12px;padding-left:20px}
-.issue li{margin-bottom:3px}
-.cont{color:var(--dim);font-size:.85em;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-.attachments{list-style:none;padding:0;font-size:.88rem}
-.attachments li{margin-bottom:4px}
-
-.fix{margin:0 0 12px;padding:9px 12px;border-radius:8px;background:var(--soft);border:1px solid var(--line);font-size:.9rem}
-
-/* Tags: the three facts worth scanning. Everything else is in the spoiler. */
-.tags{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px;font-size:.78rem}
-.tag{border:1px solid var(--line);background:var(--soft);color:var(--dim);border-radius:999px;padding:2px 9px}
-.tag code{font-size:.95em;color:var(--ink)}
+figcaption{font-size:.72rem;color:var(--dim);margin-top:5px;line-height:1.3}
 
 /* The evidence a reader only wants when they doubt the text: every field of
    the frontmatter, the session's context, and the action trail. A 25-step
    trail is longer than the report it belongs to, so it travels folded. */
-.details{margin:16px 0 0;border:1px solid var(--line);border-radius:10px;background:var(--soft)}
+.details{margin:22px 0 0;border:1px solid var(--line);border-radius:10px;background:var(--soft)}
 .details summary{cursor:pointer;list-style:none;padding:11px 14px;font-size:.86rem;color:var(--dim);
   display:flex;align-items:center;gap:9px;user-select:none;border-radius:10px}
 .details summary::-webkit-details-marker{display:none}
@@ -130,7 +145,7 @@ figcaption{font-size:.72rem;color:var(--dim);margin-top:4px;word-break:break-all
 .trail code{color:var(--ink)}
 .stamp{display:inline-block;min-width:104px;padding-right:10px;color:var(--dim)}
 
-.page-foot{margin-top:56px;padding-top:16px;border-top:1px solid var(--line);font-size:.8rem;color:var(--dim)}
+.page-foot{margin-top:48px;font-size:.82rem;color:var(--dim)}
 
 /* A plain fixed overlay rather than <dialog>: the top layer is one dependency
    too many for a file that gets forwarded and opened in arbitrary preview
@@ -151,6 +166,9 @@ figcaption{font-size:.72rem;color:var(--dim);margin-top:4px;word-break:break-all
 .lb-bar{flex:none;display:flex;align-items:center;justify-content:center;gap:14px;
   padding:18px 56px 22px;font-size:.82rem;color:#aab4bf;text-align:center;
   background:linear-gradient(to top,rgba(8,10,12,.96),rgba(8,10,12,0))}
+/* The caption says what the picture is; the file name says which artifact it
+   is. Full size is where someone checking the evidence needs both. */
+.lb-file{color:#7d8792;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92em}
 .lb-count{font-variant-numeric:tabular-nums}
 .lb-close,.lb-nav{position:fixed;border:none;background:rgba(255,255,255,.1);color:#f2f5f7;
   cursor:pointer;border-radius:50%;width:40px;height:40px;font-size:20px;line-height:1;
@@ -164,19 +182,22 @@ figcaption{font-size:.72rem;color:var(--dim);margin-top:4px;word-break:break-all
 @media (max-width:640px){
   .meta-table .row{grid-template-columns:minmax(0,1fr);gap:2px}
   .stamp{min-width:0;padding-right:8px}
+  .page h1{font-size:1.75rem}
 }
 @media print{
-  :root{--ink:#000;--dim:#444;--line:#bbb;--bg:#fff;--soft:#f4f4f4}
+  :root{--ink:#000;--dim:#444;--line:#bbb;--bg:#fff;--soft:#f5f5f5}
   body{font-size:11pt}
   .doc{max-width:none;padding:0}
-  .lightbox{display:none!important}
-  .shot-open{cursor:default}
+  .report{break-inside:avoid;padding:26px 0}
+  /* Thumbnails keep a fixed height on paper too. Let a full-page capture size
+     itself and one 1280x6000 evidence shot becomes a page of its own — Chrome
+     drops it and prints the blank. The file itself is where a reader zooms. */
   .shot{width:31%}
-  .shot-open img{height:auto;object-fit:contain}
-  .item,.issue{break-inside:avoid}
-  h2{break-after:avoid}
-  a{text-decoration:none;color:#000}
-  /* Paper has no spoilers: the toggle disappears and the body prints. The
+  .shot-open{cursor:default}
+  .shot-open img{height:130px}
+  .lightbox{display:none!important}
+  /* On paper a spoiler cannot be opened, so it is not one: the summary row
+     disappears and the evidence prints as an ordinary appendix. The viewer
      script opens every <details> on beforeprint so nothing is dropped. */
   .details{break-inside:avoid}
   .details summary{display:none}
@@ -196,6 +217,7 @@ export const REPORT_JS = `
   var box=document.getElementById('lightbox');
   var stage=document.getElementById('lb-img');
   var caption=document.getElementById('lb-caption');
+  var file=document.getElementById('lb-file');
   var counter=document.getElementById('lb-count');
   var prev=document.getElementById('lb-prev');
   var next=document.getElementById('lb-next');
@@ -221,6 +243,7 @@ export const REPORT_JS = `
     stage.src=img.src;
     stage.alt=img.alt||'';
     caption.textContent=img.alt||'';
+    if(file)file.textContent=img.getAttribute('data-file')||'';
     counter.textContent=group.length>1?(index+1)+' / '+group.length:'';
     prev.hidden=next.hidden=group.length<2;
   }

@@ -7,6 +7,23 @@ the sentence a human actually wrote, a full-page capture opened as an unreadable
 week of feedback meant five separate files. This release is the fix, taken from a real production
 report that was assembled by hand first.
 
+### One block shape, and one theme
+
+A checked item used to be a line with a small chip on it while a filed report was a headed block with
+tags — two visual languages in one document, and the checklist read as the lesser half. Both are now
+the same block: a number, a heading, a row of tags with the **verdict badge among them**, then the
+observed fact quoted against a verdict-coloured bar and the evidence under it. Captions say what a
+picture is (*Evidence 2 of 3*, *Recording clip 01, frame 1*) instead of repeating a file name; the
+name moves to the figure's tooltip and to the viewer, where someone checking the artifact needs it.
+
+The report is **light, always**. It used to follow the reader's OS, which meant two people describing
+"the report" could be describing different pages, and the one screenshot in the README matched
+neither. Print inherits the same palette, so paper matches the screen.
+
+Fields in the spoiler are labelled the way a client reads — *Console errors*, not `errors_count` —
+and thumbnails no longer load lazily: an image that has not been decoded prints as a blank box, which
+is the worst possible failure in a document whose whole job is showing the evidence.
+
 ### The trail and the metadata fold away
 
 Each report now shows a heading, three tags — page, category, time — and the text. Everything else

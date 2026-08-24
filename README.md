@@ -1077,10 +1077,15 @@ next load) still reads in the right place.
 
 <img src="evidence/report/shot-desktop.png" alt="A sluglist report: pass/fail/not-tested summary, checklist items with observed-fact notes and evidence thumbnails, then the filed issues with their fix status — single-file HTML proof" width="640">
 
-What is in it, in order: the title, date, application URL, reporter and intent; a summary (N pass /
-N fail / N not tested, issues filed, how many are resolved, **how many checks are proved with a
-screenshot**); the checklist as an article, each item with its verdict badge, its observed-fact note
-and its evidence thumbnails; then every report in full; a footer naming the artifact format version.
+What is in it, in order: the title, a sentence saying what the file holds and which application it
+came from, and a line of provenance (date, reporter, intent, session id); a summary (N pass / N fail /
+N not tested, reports filed, how many are resolved, **how many checks are proved with a screenshot**);
+the checklist; then every filed report in full; a footer naming the artifact format version.
+
+A checked item and a filed report are the **same kind of block** — a number, a heading, a row of tags
+you can scan (the verdict badge among them), then the words and the proof. Everything else — the full
+frontmatter and the action trail — folds into one spoiler per block. The document is light, always:
+it gets forwarded, printed and screenshotted, and it should look the same to everyone who opens it.
 
 - **Offline and self-contained.** No stylesheet, script, font or image is fetched — CSS and JS are
   inlined, images are `data:` URIs. It opens from `file://` with the network off, and it survives

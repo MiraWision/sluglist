@@ -277,13 +277,13 @@ describe("buildReport — content", () => {
     const { html } = await report({ withChecklist: false });
     expect(html).not.toContain('class="checklist"');
     expect(html).toContain('id="issue-01"');
-    expect(html).toContain("1 issue filed");
+    expect(html).toContain("1 report filed");
   });
 
   it("renders a checklist session with no issues", async () => {
     const { html } = await report({ withIssue: false });
     expect(html).toContain("None filed.");
-    expect(html).toContain("0 issues filed");
+    expect(html).toContain("0 reports filed");
   });
 
   it("states the artifact format version in the footer", async () => {
@@ -395,13 +395,15 @@ describe("buildReport — the article shape", () => {
     // The trail is evidence, so it is folded, never dropped.
     expect(html).toContain('class="trail"');
     expect(html).toContain('class="meta-table"');
-    // …and the fields that used to be a flat line are inside the table.
-    expect(html).toContain("<dt>url</dt>");
-    expect(html).toContain("<dt>checklist item</dt>");
+    // …and the fields that used to be a flat line are inside the table,
+    // labelled the way a client reads rather than the way YAML is keyed.
+    expect(html).toContain("<dt>Page</dt>");
+    expect(html).toContain("<dt>Checklist item</dt>");
+    expect(html).not.toContain("<dt>url</dt>");
     // Session context travels with each report, so a merged file keeps it.
-    expect(html).toContain("<dt>session</dt>");
+    expect(html).toContain("<dt>Session</dt>");
     // An empty field is dropped rather than printed as a blank row.
-    expect(html).not.toContain("<dt>selector</dt>");
+    expect(html).not.toContain("<dt>Selector</dt>");
   });
 
   it("counts checks proved with a screenshot in the summary", async () => {
@@ -457,8 +459,8 @@ describe("buildReport — several sessions", () => {
       await readSession(early),
     ]);
 
-    expect(html).toContain("2 from 2 sessions");
-    expect(html).toContain("<b>Period</b>");
+    expect(html).toContain("2 reports from 2 sessions");
+    expect(html).toContain("1 August 2026, 09:00 UTC – 11 August 2026, 10:00 UTC");
     // Both reports are present, and the one written first comes first —
     // "1 August" is a substring of "11 August", so compare the tag markup.
     const early01 = html.indexOf(">1 August 2026, 09:00 UTC<");
@@ -470,7 +472,10 @@ describe("buildReport — several sessions", () => {
 
   it("still renders a single session the way it always did", async () => {
     const { html } = await report({});
-    expect(html).toContain("<b>Session</b>");
+    // The single-session header says what the file holds and where it came
+    // from — the same facts the merged one states about many.
+    expect(html).toContain("3 checks and 1 report on http://localhost:5000.");
+    expect(html).toContain("<code>session-2026-08-11-aaaa</code>");
     expect(html).not.toContain("from 1 sessions");
   });
 });

@@ -165,8 +165,8 @@ function renderTrail(lines: string[]): string {
     const text = line.replace(/^- /, "");
     const match = /^\[([^\]]+)\]\s*(.*)$/.exec(text);
     return match
-      ? `<li><span class="stamp">${esc(match[1])}</span>${esc(match[2])}</li>`
-      : `<li>${esc(text)}</li>`;
+      ? `<li><span class="stamp">${esc(match[1])}</span><code>${esc(match[2])}</code></li>`
+      : `<li><code>${esc(text)}</code></li>`;
   });
   return `<ol class="trail">${items.join("")}</ol>`;
 }
@@ -237,12 +237,40 @@ function fixesByIssue(bundle: SessionBundle): Map<string, FixInfo> {
 /* Rendering                                                           */
 /* ------------------------------------------------------------------ */
 
+/**
+ * A caption a reader can act on. The file name is provenance, not information —
+ * `ev-archive-lists-everything-01.png` says nothing that the item's own heading
+ * has not already said — so the caption says what the picture *is*, and the
+ * name stays on the figure as a tooltip for anyone checking the artifact.
+ */
+function captionFor(name: string, index: number, total: number): string {
+  const frame = /-frames\/([^/]+)\/(\d+)\.png$/.exec(name);
+  if (frame) {
+    return `Recording ${frame[1].replace(/-/g, " ")}, frame ${Number(frame[2])}`;
+  }
+  const nth = total > 1 ? ` ${index + 1} of ${total}` : "";
+  if (/^ev-/.test(name)) {
+    return `Evidence${nth}`;
+  }
+  if (/-att-\d+\./.test(name)) {
+    return `Attachment${nth}`;
+  }
+  if (/^\d+-.*\.png$/.test(name)) {
+    return `Screenshot${nth}`;
+  }
+  return name;
+}
+
 /** One figure: a thumbnail that opens the full image in the lightbox. */
-function figure(uri: string, caption: string, id: string): string {
+function figure(uri: string, caption: string, id: string, file: string): string {
   return [
     '<figure class="shot">',
-    `<button type="button" class="shot-open" data-full="${id}" aria-label="Enlarge: ${esc(caption)}">`,
-    `<img src="${uri}" alt="${esc(caption)}" loading="lazy">`,
+    `<button type="button" class="shot-open" data-full="${id}" title="${esc(file)}"` +
+      ` aria-label="Open full screen: ${esc(caption)}">`,
+    // No `loading="lazy"`: every image is already in the file, and a lazy one
+    // that has not been decoded yet prints as a blank box — which is the worst
+    // possible failure in a document whose whole job is showing the evidence.
+    `<img src="${uri}" alt="${esc(caption)}" data-file="${esc(file)}">`,
     "</button>",
     caption ? `<figcaption>${esc(caption)}</figcaption>` : "",
     "</figure>",
@@ -252,6 +280,7 @@ function figure(uri: string, caption: string, id: string): string {
 async function renderEvidence(
   bundle: SessionBundle,
   evidence: Record<string, YamlNode>,
+  verdict: VerdictKind,
   options: EmbedOptions,
   warnings: string[]
 ): Promise<string> {
@@ -259,16 +288,21 @@ async function renderEvidence(
   const note = str(evidence.note);
   const parts: string[] = [];
   if (note) {
-    parts.push(`<p class="observed"><span class="observed-label">Observed</span> ${esc(note)}</p>`);
+    // The same quoted block a filed report gets: this sentence is the tester's
+    // observation, not the renderer's summary, and the accent bar says so.
+    parts.push(
+      `<div class="quote quote-${verdict}"><span class="quote-label">Observed</span>` +
+        `<p>${esc(note)}</p></div>`
+    );
   }
   const figures: string[] = [];
-  for (const name of shots) {
+  for (const [i, name] of shots.entries()) {
     const image = await embedImage(bundle.dir, name, options);
     if (!image) {
       warnings.push(`evidence image not found: ${name}`);
       continue;
     }
-    figures.push(figure(image.uri, name, name));
+    figures.push(figure(image.uri, captionFor(name, i, shots.length), name, name));
   }
   if (figures.length > 0) {
     parts.push(`<div class="shots">${figures.join("")}</div>`);
@@ -299,34 +333,49 @@ async function renderChecklist(
     section.items.push(item);
   }
 
-  const out: string[] = ['<section class="checklist">', "<h2>Checklist</h2>"];
+  const out: string[] = [];
+  let ordinal = 0;
   for (const section of sections) {
     if (section.title) {
-      out.push(`<h3>${esc(section.title)}</h3>`);
+      out.push(`<h3 class="group">${esc(section.title)}</h3>`);
     }
-    out.push('<ol class="items">');
     for (const item of section.items) {
       const verdict = verdictOf(item.verdict);
       const issue = str(item.issue);
-      out.push(`<li class="item item-${verdict}">`);
+      ordinal++;
+      // A checked item is the same kind of block as a filed report — number,
+      // heading, tags, then the words and the proof. The verdict rides in the
+      // tag row: it is one more fact about the item, and a reader scanning a
+      // column of blocks reads its colour before they read anything else.
       out.push(
-        `<div class="item-head"><span class="badge badge-${verdict}">${VERDICT_LABEL[verdict]}</span>` +
-          `<span class="item-title">${esc(str(item.title))}</span></div>`
+        `<section class="report check check-${verdict}" id="check-${esc(str(item.id))}">`
       );
+      out.push(
+        '<div class="report-head">' +
+          `<span class="num">${String(ordinal).padStart(2, "0")}</span>` +
+          `<h3>${esc(str(item.title))}</h3>` +
+          "</div>"
+      );
+      const tags: string[] = [
+        `<span class="tag tag-verdict tag-${verdict}">${VERDICT_LABEL[verdict]}</span>`,
+      ];
+      if (str(item.id)) {
+        tags.push(`<span class="tag tag-page"><code>${esc(str(item.id))}</code></span>`);
+      }
       if (issue) {
-        out.push(
-          `<p class="linked">Evidence: <a href="#issue-${esc(issue)}">issue ${esc(issue)}</a></p>`
+        tags.push(
+          `<span class="tag tag-link"><a href="#issue-${esc(issue)}">report ${esc(issue)}</a></span>`
         );
       }
+      out.push(`<div class="tags">${tags.join("")}</div>`);
+
       const evidence = record(item.evidence);
       if (Object.keys(evidence).length > 0) {
-        out.push(await renderEvidence(bundle, evidence, options, warnings));
+        out.push(await renderEvidence(bundle, evidence, verdict, options, warnings));
       }
-      out.push("</li>");
+      out.push("</section>");
     }
-    out.push("</ol>");
   }
-  out.push("</section>");
   return out.join("\n");
 }
 
@@ -355,39 +404,48 @@ function headingFor(
   return truncate(title, 120);
 }
 
-/** Frontmatter rows, in reading order: the issue first, its session last. */
+/**
+ * Frontmatter rows, in reading order: the report first, its session last.
+ *
+ * Labels are written out ("Console errors", not `errors_count`): the spoiler is
+ * where a client goes when they doubt the text, and a column of snake_case keys
+ * reads as a database dump rather than as evidence. Values that are literally
+ * code — a path, a selector, a component name — are marked so.
+ */
+type MetaRow = [label: string, value: string, code?: boolean];
+
 function metaRows(
   bundle: SessionBundle,
   fm: Record<string, YamlNode>
-): [string, string][] {
+): MetaRow[] {
   const session = bundle.session;
   const os = [str(session.browser), str(session.os)].filter(Boolean).join(" · ");
-  const pairs: [string, string][] = [
-    ["url", str(fm.url)],
-    ["category", str(fm.category)],
-    ["mode", str(fm.mode)],
-    ["element text", str(fm.element_text)],
-    ["selector", str(fm.selector)],
-    ["selector strategy", str(fm.selector_strategy)],
-    ["component", str(fm.component)],
-    ["dom path", str(fm.dom_path)],
-    ["checklist item", str(fm.checklist_item)],
-    ["viewport", str(fm.viewport)],
-    ["screen", str(fm.screen)],
-    ["errors", fm.errors_count === undefined ? "" : String(fm.errors_count)],
-    ["actions", fm.actions_count === undefined ? "" : String(fm.actions_count)],
-    ["frames", fm.frames_count === undefined ? "" : String(fm.frames_count)],
-    ["recording", fm.recording === true ? "yes" : ""],
-    ["masked", fm.masked === true ? "yes" : ""],
-    ["scrubbed", fm.scrubbed === true ? "yes" : ""],
-    ["reported", str(fm.created_at) ? formatDate(str(fm.created_at)) : ""],
-    ["issue id", str(fm.id)],
-    ["session", str(session.session_id)],
-    ["base url", str(session.base_url)],
-    ["browser", os],
-    ["timezone", str(session.timezone)],
-    ["language", str(session.language)],
-    ["color scheme", str(session.color_scheme)],
+  const pairs: MetaRow[] = [
+    ["Page", str(fm.url), true],
+    ["Category", str(fm.category)],
+    ["Capture mode", str(fm.mode)],
+    ["Element text", str(fm.element_text)],
+    ["Selector", str(fm.selector), true],
+    ["Selector strategy", str(fm.selector_strategy)],
+    ["Component", str(fm.component), true],
+    ["DOM path", str(fm.dom_path), true],
+    ["Checklist item", str(fm.checklist_item), true],
+    ["Viewport", str(fm.viewport)],
+    ["Screen", str(fm.screen)],
+    ["Console errors", fm.errors_count === undefined ? "" : String(fm.errors_count)],
+    ["Actions recorded", fm.actions_count === undefined ? "" : String(fm.actions_count)],
+    ["Frames", fm.frames_count === undefined ? "" : String(fm.frames_count)],
+    ["Recording", fm.recording === true ? "yes" : ""],
+    ["Masked", fm.masked === true ? "yes" : ""],
+    ["Scrubbed", fm.scrubbed === true ? "yes" : ""],
+    ["Reported", str(fm.created_at) ? formatDate(str(fm.created_at)) : ""],
+    ["Report id", str(fm.id)],
+    ["Session", str(session.session_id), true],
+    ["Site", str(session.base_url), true],
+    ["Browser", os],
+    ["Timezone", str(session.timezone)],
+    ["Language", str(session.language)],
+    ["Color scheme", str(session.color_scheme)],
   ];
   return pairs.filter(([, value]) => value !== "");
 }
@@ -402,23 +460,26 @@ async function renderIssue(
 ): Promise<string> {
   const fm = issue.frontmatter;
   const id = str(fm.id) || issue.file.split("-")[0];
-  const out: string[] = [`<article class="issue" id="issue-${esc(id)}">`];
+  const out: string[] = [`<section class="report" id="issue-${esc(id)}">`];
 
   out.push(
-    `<h3><span class="issue-id">${esc(id)}</span> ${esc(headingFor(bundle, issue, id, titles))}</h3>`
+    '<div class="report-head">' +
+      `<span class="num">${esc(id)}</span>` +
+      `<h3>${esc(headingFor(bundle, issue, id, titles))}</h3>` +
+      "</div>"
   );
 
   // Above the fold, three facts and no more: where, what kind, when. They are
   // what a reader scans; everything else lives in the spoiler at the end.
   const tags: string[] = [];
   if (str(fm.url)) {
-    tags.push(`<span class="tag"><code>${esc(str(fm.url))}</code></span>`);
+    tags.push(`<span class="tag tag-page"><code>${esc(str(fm.url))}</code></span>`);
   }
   if (str(fm.category)) {
     tags.push(`<span class="tag">${esc(str(fm.category))}</span>`);
   }
   if (str(fm.created_at)) {
-    tags.push(`<span class="tag">${esc(formatDate(str(fm.created_at)))}</span>`);
+    tags.push(`<span class="tag tag-dim">${esc(formatDate(str(fm.created_at)))}</span>`);
   }
   if (tags.length > 0) {
     out.push(`<div class="tags">${tags.join("")}</div>`);
@@ -447,7 +508,18 @@ async function renderIssue(
     ? issue.body
     : issue.body.split("\n").slice(1).join("\n");
   const { rest, lines: trail } = takeSection(body, "Actions");
-  out.push(renderBody(rest));
+  // What the reporter wrote is quoted; the machine-written sections that follow
+  // it (`## Errors`, `## Console`) are not — they are data, and putting them
+  // inside the quote would attribute them to the person.
+  const split = rest.search(/(^|\n)## /);
+  const said = split === -1 ? rest : rest.slice(0, split);
+  const machine = split === -1 ? "" : rest.slice(split);
+  if (said.trim()) {
+    out.push(`<div class="quote">${renderBody(said)}</div>`);
+  }
+  if (machine.trim()) {
+    out.push(renderBody(machine));
+  }
 
   // Screenshots: `screenshots` when present, else the single `screenshot`.
   const shots = list(fm.screenshots).map(str).filter(Boolean);
@@ -455,13 +527,15 @@ async function renderIssue(
     shots.push(str(fm.screenshot));
   }
   const figures: string[] = [];
-  for (const name of shots) {
+  for (const [i, name] of shots.entries()) {
     const image = await embedImage(bundle.dir, name, options);
     if (!image) {
       warnings.push(`issue ${id}: screenshot not found: ${name}`);
       continue;
     }
-    figures.push(figure(image.uri, name, `${id}-${name}`));
+    figures.push(
+      figure(image.uri, captionFor(name, i, shots.length), `${id}-${name}`, name)
+    );
   }
   if (fm.screenshot_failed === true) {
     out.push(
@@ -490,8 +564,9 @@ async function renderIssue(
         figures.push(
           figure(
             image.uri,
-            `Recording${clip.id ? ` ${clip.id}` : ""} — first of ${clip.frames} frames (${framesDir}${clip.id ? `/${clip.id}` : ""})`,
-            `${id}-${first}`
+            `Recording${clip.id ? ` ${clip.id.replace(/-/g, " ")}` : ""}, frame 1 of ${clip.frames}`,
+            `${id}-${first}`,
+            first
           )
         );
       }
@@ -521,10 +596,10 @@ async function renderIssue(
   // Everything a reader wants only when they doubt the text: the full
   // frontmatter, the session's context, and the action trail.
   const rows = metaRows(bundle, fm)
-    .map(
-      ([label, value]) =>
-        `<div class="row"><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`
-    )
+    .map(([label, value, code]) => {
+      const cell = code ? `<code>${esc(value)}</code>` : esc(value);
+      return `<div class="row"><dt>${esc(label)}</dt><dd>${cell}</dd></div>`;
+    })
     .join("");
   const summary =
     trail.length > 0
@@ -542,7 +617,7 @@ async function renderIssue(
     "</details>"
   );
 
-  out.push("</article>");
+  out.push("</section>");
   return out.join("\n");
 }
 
@@ -624,47 +699,63 @@ async function buildOnce(
     : str(checklist.title) || str(single.session.project) || "Session report";
 
   // ---- Header -----------------------------------------------------
-  const head: string[] = ['<header class="page-head">'];
-  head.push(`<h1>${esc(title)}</h1>`);
-  const facts: string[] = [];
-  if (many) {
-    const dates = entries.map((e) => e.at).filter(Boolean);
-    const span =
-      dates.length > 0
-        ? `${formatDate(dates[0])} – ${formatDate(dates[dates.length - 1])}`
-        : "";
-    facts.push(
-      `<span><b>Reports</b> ${entries.length} from ${bundles.length} session${bundles.length === 1 ? "" : "s"}</span>`
-    );
-    if (span) {
-      facts.push(`<span><b>Period</b> ${esc(span)}</span>`);
-    }
-  } else if (str(single.session.created_at)) {
-    facts.push(
-      `<span><b>Date</b> ${esc(formatDate(str(single.session.created_at)))}</span>`
-    );
-  }
+  // A title, one sentence saying what the reader is holding, and a dim line of
+  // provenance. The facts that used to sit in a label grid are the same facts;
+  // a sentence is simply what a person reads first without being taught how.
   const urls = [
     ...new Set(bundles.map((b) => str(b.session.base_url)).filter(Boolean)),
   ];
-  if (urls.length > 0) {
-    facts.push(`<span><b>Application</b> ${esc(urls.join(", "))}</span>`);
-  }
-  if (!many && str(reporter.name)) {
+  const on = urls.length > 0 ? ` on ${urls.join(", ")}` : "";
+  const plural = (n: number, word: string) =>
+    `${n} ${word}${n === 1 ? "" : "s"}`;
+
+  let lede: string;
+  /** Provenance parts; `code` renders the value as an identifier. */
+  let source: { text: string; code?: boolean }[];
+  if (many) {
+    const dates = entries.map((e) => e.at).filter(Boolean);
+    lede = `${plural(entries.length, "report")} from ${plural(bundles.length, "session")}${on}.`;
+    const first = dates.length > 0 ? formatDate(dates[0]) : "";
+    const last =
+      dates.length > 0 ? formatDate(dates[dates.length - 1]) : "";
+    source = first
+      ? [{ text: first === last ? first : `${first} – ${last}` }]
+      : [];
+  } else {
+    const what = [
+      checklistItems > 0 ? plural(checklistItems, "check") : "",
+      entries.length > 0 ? plural(entries.length, "report") : "",
+    ].filter(Boolean);
+    lede = `${what.join(" and ") || "Session"}${on}.`;
     const kind = str(reporter.kind);
-    facts.push(
-      `<span><b>Reporter</b> ${esc(str(reporter.name))}${kind ? ` <span class="dim">(${esc(kind)})</span>` : ""}</span>`
+    source = [
+      str(single.session.created_at)
+        ? formatDate(str(single.session.created_at))
+        : "",
+      str(reporter.name)
+        ? `${str(reporter.name)}${kind ? ` (${kind})` : ""}`
+        : "",
+      str(checklist.intent),
+    ]
+      .filter(Boolean)
+      .map((text) => ({ text }));
+  }
+
+  const head: string[] = ['<header class="page">'];
+  head.push(`<h1>${esc(title)}</h1>`);
+  head.push(`<p class="lede">${esc(lede)}</p>`);
+  if (!many && str(single.session.session_id)) {
+    source.push({ text: str(single.session.session_id), code: true });
+  }
+  if (source.length > 0) {
+    head.push(
+      `<p class="source">${source
+        .map(({ text, code }) =>
+          code ? `<code>${esc(text)}</code>` : esc(text)
+        )
+        .join(" · ")}</p>`
     );
   }
-  if (!many && str(checklist.intent)) {
-    facts.push(`<span><b>Intent</b> ${esc(str(checklist.intent))}</span>`);
-  }
-  if (!many) {
-    facts.push(
-      `<span><b>Session</b> <code>${esc(str(single.session.session_id))}</code></span>`
-    );
-  }
-  head.push(`<div class="meta">${facts.join("")}</div>`);
   head.push("</header>");
 
   // ---- Summary ----------------------------------------------------
@@ -703,8 +794,10 @@ async function buildOnce(
     }
   }
 
+  // "Report" throughout: the section is Reports, the merged header counts
+  // reports, and one document should not call the same thing two names.
   const notes: string[] = [
-    `${entries.length} issue${entries.length === 1 ? "" : "s"} filed`,
+    `${entries.length} report${entries.length === 1 ? "" : "s"} filed`,
   ];
   if (evidenced > 0) {
     notes.push(`${evidenced} of ${checklistItems} checks proved with a screenshot`);
@@ -725,17 +818,29 @@ async function buildOnce(
     if (!html) {
       continue;
     }
+    if (checklistHtml.length === 0) {
+      checklistHtml.push(
+        '<section class="checklist">',
+        '<h2 class="section-title">Checklist</h2>'
+      );
+    }
     if (many) {
       checklistHtml.push(
-        `<p class="nb">Session <code>${esc(str(bundle.session.session_id))}</code></p>`
+        `<p class="session-mark">Session <code>${esc(str(bundle.session.session_id))}</code></p>`
       );
     }
     checklistHtml.push(html);
   }
+  if (checklistHtml.length > 0) {
+    checklistHtml.push("</section>");
+  }
 
   const issueHtml: string[] = [];
   if (entries.length > 0) {
-    issueHtml.push('<section class="issues">', "<h2>Reports</h2>");
+    issueHtml.push(
+      '<section class="issues">',
+      '<h2 class="section-title">Reports</h2>'
+    );
     for (const entry of entries) {
       const fixes = fixesByIssue(entry.bundle);
       issueHtml.push(
@@ -745,7 +850,8 @@ async function buildOnce(
     issueHtml.push("</section>");
   } else if (checklistItems > 0) {
     issueHtml.push(
-      '<section class="issues"><h2>Reports</h2><p class="nb">None filed.</p></section>'
+      '<section class="issues"><h2 class="section-title">Reports</h2>' +
+        '<p class="nb">None filed.</p></section>'
     );
   }
 
@@ -775,7 +881,9 @@ async function buildOnce(
     '<button type="button" class="lb-nav lb-nav-prev" id="lb-prev" aria-label="Previous">‹</button>',
     '<button type="button" class="lb-nav lb-nav-next" id="lb-next" aria-label="Next">›</button>',
     '<div class="lb-stage"><img id="lb-img" alt=""></div>',
-    '<div class="lb-bar"><span id="lb-caption"></span><span class="lb-count" id="lb-count"></span></div>',
+    '<div class="lb-bar"><span id="lb-caption"></span>' +
+      '<span class="lb-file" id="lb-file"></span>' +
+      '<span class="lb-count" id="lb-count"></span></div>',
     "</div>",
     `<script>${REPORT_JS}</script>`,
     "</body>",
