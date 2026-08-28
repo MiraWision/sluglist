@@ -983,6 +983,21 @@ For a **dynamic** route (an id/uuid in the path) don't guess an id: give a human
 `url_match` (`"/assessments/*"`). It never navigates — it just lights the item up with a "You're here" tag
 when the tester is on a matching page. The two can coexist (a list `url` + a detail `url_match`).
 
+**Routing in a single-page app.** The "Open ↗" chip opens a new tab by default, which suits an app
+that reloads on every navigation and costs a SPA tester their place in the list. Pass `onNavigate`
+and your router handles the trip instead, on the page the checklist is already open on:
+
+```ts
+mountFeedbackWidget(widget, { onNavigate: (url) => router.push(url) });
+```
+
+The widget then suppresses its own navigation unless you return `false`, which sends that one url
+back to the default. Modified clicks (cmd, ctrl, shift, alt) and non-primary buttons always stay
+with the browser, so "open in a new tab" still works the way a link should. A throwing handler
+falls back to a plain navigation rather than a dead chip. The "You're here" highlighting keeps up
+on its own: it re-renders from the action trail's `navigate` records, which come from the patched
+`history.pushState` every client-side router uses.
+
 Pass a **URL string** instead of an object to fetch the checklist at init (`GET` → JSON of the same
 shape) — handy when a skill generates it: `checklist: "/checklist.json"`. An unreachable or invalid
 checklist warns and is skipped; capture still works.

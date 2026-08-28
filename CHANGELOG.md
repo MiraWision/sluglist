@@ -1,5 +1,30 @@
 # Changelog
 
+## 1.19.0 — the Open chip can stay in your app
+
+A checklist item's "Open ↗" chip always opened a new tab. In a server-rendered app that is merely a
+new tab; in a single-page app it is a cold start that throws away the client's place in the list they
+were walking, and they come back to a second tab with a duplicate widget in it.
+
+`onNavigate` hands the url to the host instead:
+
+```ts
+mountFeedbackWidget(widget, { onNavigate: (url) => router.push(url) });
+```
+
+Not configured, nothing changes: still a new tab, still `target="_blank"`. Configured, the chip
+becomes an in-app navigation, and three things stay where a tester expects them:
+
+- **Modified clicks belong to the browser.** cmd, ctrl, shift, alt and any non-primary button skip
+  the handler entirely, so "open in a new tab" works the way it does on every other link.
+- **Returning `false` opts one url back out.** Useful when a checklist points at something outside
+  the app's own routing.
+- **A throwing handler still moves the tester.** The call runs inside the widget's guard; if a router
+  blows up, the chip falls through to a plain navigation instead of going dead.
+
+The "You're here" highlighting needed nothing: it already re-renders from the action trail's
+`navigate` records, which come from the patched `history.pushState` that client-side routers call.
+
 ## 1.18.0 — the report reads as an article
 
 `sluglist report` produced a correct document that was hard to read: a 25-step action trail buried

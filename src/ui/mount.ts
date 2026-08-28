@@ -1,6 +1,7 @@
 import { applyMask } from "../mask";
 import {
   type ChecklistDef,
+  type ChecklistItem,
   checklistProgress,
   type ChecklistState,
   matchUrlPattern,
@@ -88,6 +89,17 @@ export interface FeedbackWidgetUiConfig {
   hotkey?: string | null;
   /** Called after an issue is captured (before background delivery settles). */
   onIssueCaptured?: (result: CaptureResult) => void;
+  /**
+   * Called when the reporter clicks a checklist item's "Open" chip, so a
+   * single-page app can route to `url` itself instead of losing the tester to
+   * a new tab. Pass your router's push (e.g. Next's `router.push`).
+   *
+   * Without this the chip opens a new tab, unchanged. With it, the widget
+   * suppresses its own navigation unless you return `false`, which opts that
+   * one url back into the default. Modified clicks (cmd, ctrl, shift, alt) and
+   * non-primary buttons always stay with the browser.
+   */
+  onNavigate?: (url: string, item: ChecklistItem) => boolean | void;
   /** Button corner. Default "bottom-right". */
   position?: "bottom-left" | "bottom-right";
   /** Overrides for user-facing texts (labels, hints, toasts). */
@@ -257,6 +269,7 @@ export function mountFeedbackWidget(
   };
   const categories = uiConfig.categories ?? defaultCategories(strings);
   const container = uiConfig.container ?? document.body;
+  const onNavigate = uiConfig.onNavigate;
   // Privacy comes from the core config (masking + consent). `data-private`
   // masking runs even with no privacy config; the `masked` frontmatter flag is
   // emitted whenever privacy is explicitly configured.
@@ -933,11 +946,39 @@ export function mountFeedbackWidget(
         if (item.url) {
           // Static route → a real navigation chip (does not toggle the item).
           const link = el("a", "cl-item-link");
+          const itemUrl = item.url;
           link.textContent = `${strings.checklistOpen} ↗`;
-          link.href = item.url;
-          link.target = "_blank";
+          link.href = itemUrl;
+          // A host that routes on its own keeps the tester on the page they
+          // are already walking; without onNavigate this stays a new tab, so
+          // an app with no router never loses its place either.
+          link.target = onNavigate ? "_self" : "_blank";
           link.rel = "noopener noreferrer";
-          link.addEventListener("click", (e) => e.stopPropagation());
+          link.addEventListener("click", (e) => {
+            e.stopPropagation();
+            if (!onNavigate) {
+              return;
+            }
+            // Modified and non-primary clicks mean "open this somewhere else",
+            // which is the browser's job, not the router's.
+            if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
+              return;
+            }
+            if (e.button !== 0) {
+              return;
+            }
+            // A throwing host handler falls back to "not handled", so the
+            // chip still takes the tester somewhere.
+            const handled = core.guard.run(
+              "checklist.onNavigate",
+              () => onNavigate(itemUrl, item),
+              false as boolean | void
+            );
+            // Returning false opts this one url back into the default.
+            if (handled !== false) {
+              e.preventDefault();
+            }
+          });
           links.appendChild(link);
         }
         if (verdict === "fail" && state?.issue) {
