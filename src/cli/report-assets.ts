@@ -13,13 +13,17 @@ export const REPORT_CSS = `
 /* One palette, always light. A report is a document that gets forwarded,
    printed and screenshotted, and it must look the same to everyone who opens
    it — following the reader's OS would make two people describing "the report"
-   describe different pages. Print inherits this, so paper matches the screen. */
+   describe different pages. Print inherits this, so paper matches the screen.
+
+   The colours are Mira AI's earthy language in its light incarnation: warm
+   paper, sage for what passed, terracotta for what needs a person. Sage and
+   terracotta carry meaning, never decoration. */
 :root{
-  --ink:#14171a; --dim:#5b6672; --line:#e3e7ea; --bg:#fff; --soft:#f6f8f9;
-  --link:#0b5fca; --quote:#0f1418;
-  --pass:#1a7f4b; --pass-bg:#e8f5ee;
-  --fail:#b3261e; --fail-bg:#fdecea;
-  --skip:#6b7480; --skip-bg:#eef1f3;
+  --ink:#2b2622; --dim:#6b615a; --line:#e5dfd3; --bg:#faf7f1; --soft:#f1ede3;
+  --link:#5a7a4c; --quote:#241f1a;
+  --pass:#5a7a4c; --pass-bg:#e9efe2;
+  --fail:#bc5a38; --fail-bg:#f7e7df;
+  --skip:#8c8177; --skip-bg:#ece8df;
 }
 html{-webkit-text-size-adjust:100%}
 body{
@@ -49,9 +53,13 @@ p{margin:0 0 12px}
 .summary-line{font-size:.9rem;color:var(--dim);margin:0}
 
 /* Section headings — "Checklist", "Reports" — are signposts, not titles: the
-   headings a reader scans are the ones on the blocks themselves. */
-.section-title{font-size:.76rem;text-transform:uppercase;letter-spacing:.09em;color:var(--dim);
+   headings a reader scans are the ones on the blocks themselves. The sage dash
+   is the brand's anchor for a level-1 label; the nested .group stays bare,
+   which is what keeps the two levels tellable apart. */
+.section-title{display:flex;align-items:center;gap:9px;
+  font-size:.76rem;text-transform:uppercase;letter-spacing:.09em;color:var(--dim);
   font-weight:650;margin:56px 0 0}
+.section-title::before{content:"";flex:none;width:18px;height:3px;border-radius:2px;background:var(--pass)}
 .group{font-size:.74rem;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);
   font-weight:650;margin:36px 0 -8px}
 .session-mark{font-size:.8rem;color:var(--dim);margin:32px 0 -12px}
@@ -153,7 +161,7 @@ figcaption{font-size:.72rem;color:var(--dim);margin-top:5px;line-height:1.3}
    opaque on purpose — the article stays legible behind it, so the overlay reads
    as "looking closer", not as "navigated away". */
 .lightbox{position:fixed;inset:0;z-index:999;display:none;flex-direction:column;
-  background:rgba(8,10,12,.86);color:#f2f5f7}
+  background:rgba(23,20,18,.88);color:#e8e2dc}
 .lightbox.open{display:flex}
 .lb-stage{flex:1;display:flex;align-items:center;justify-content:center;padding:56px 56px 8px;min-height:0}
 .lb-stage img{max-width:100%;max-height:100%;object-fit:contain;border-radius:6px;cursor:zoom-out}
@@ -164,13 +172,13 @@ figcaption{font-size:.72rem;color:var(--dim);margin-top:5px;line-height:1.3}
 /* The caption sits over the dimmed article, so it gets its own footing —
    without it the filename reads on top of whatever paragraph is behind. */
 .lb-bar{flex:none;display:flex;align-items:center;justify-content:center;gap:14px;
-  padding:18px 56px 22px;font-size:.82rem;color:#aab4bf;text-align:center;
-  background:linear-gradient(to top,rgba(8,10,12,.96),rgba(8,10,12,0))}
+  padding:18px 56px 22px;font-size:.82rem;color:#a6998f;text-align:center;
+  background:linear-gradient(to top,rgba(23,20,18,.96),rgba(23,20,18,0))}
 /* The caption says what the picture is; the file name says which artifact it
    is. Full size is where someone checking the evidence needs both. */
-.lb-file{color:#7d8792;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92em}
+.lb-file{color:#7a6e66;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.92em}
 .lb-count{font-variant-numeric:tabular-nums}
-.lb-close,.lb-nav{position:fixed;border:none;background:rgba(255,255,255,.1);color:#f2f5f7;
+.lb-close,.lb-nav{position:fixed;border:none;background:rgba(255,255,255,.1);color:#e8e2dc;
   cursor:pointer;border-radius:50%;width:40px;height:40px;font-size:20px;line-height:1;
   display:flex;align-items:center;justify-content:center}
 .lb-close:hover,.lb-nav:hover{background:rgba(255,255,255,.2)}
