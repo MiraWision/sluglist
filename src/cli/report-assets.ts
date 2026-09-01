@@ -10,14 +10,14 @@
 
 export const REPORT_CSS = `
 *,*::before,*::after{box-sizing:border-box}
-/* One palette, always light. A report is a document that gets forwarded,
-   printed and screenshotted, and it must look the same to everyone who opens
-   it — following the reader's OS would make two people describing "the report"
-   describe different pages. Print inherits this, so paper matches the screen.
+/* Light by default, never by the reader's OS: a report gets forwarded and
+   screenshotted, and two people describing "the report" must describe the same
+   page. The corner toggle is an explicit choice, remembered per browser — and
+   print ignores it entirely, so paper is always the light page.
 
-   The colours are Mira AI's earthy language in its light incarnation: warm
-   paper, sage for what passed, terracotta for what needs a person. Sage and
-   terracotta carry meaning, never decoration. */
+   The colours are Mira AI's earthy language: warm paper, sage for what passed,
+   terracotta for what needs a person; the dark side is the same clay palette
+   the rest of Mira wears. Sage and terracotta carry meaning, never decoration. */
 :root{
   --ink:#2b2622; --dim:#6b615a; --line:#e5dfd3; --bg:#faf7f1; --soft:#f1ede3;
   --link:#5a7a4c; --quote:#241f1a;
@@ -25,6 +25,20 @@ export const REPORT_CSS = `
   --fail:#bc5a38; --fail-bg:#f7e7df;
   --skip:#8c8177; --skip-bg:#ece8df;
 }
+:root[data-theme=dark]{
+  --ink:#e8e2dc; --dim:#a6998f; --line:#332e29; --bg:#171412; --soft:#1e1a17;
+  --link:#8da47b; --quote:#f0eae3;
+  --pass:#8da47b; --pass-bg:rgb(141 164 123 / 14%);
+  --fail:#d97757; --fail-bg:rgb(217 119 87 / 14%);
+  --skip:#8c8177; --skip-bg:rgb(255 255 255 / 7%);
+}
+/* The corner switch. Quiet on purpose: it is furniture, not content. */
+.theme-toggle{position:fixed;top:14px;right:14px;z-index:60;width:34px;height:34px;
+  display:flex;align-items:center;justify-content:center;border-radius:50%;
+  border:1px solid var(--line);background:var(--soft);color:var(--dim);cursor:pointer;
+  transition:color .15s ease,border-color .15s ease}
+.theme-toggle:hover{color:var(--ink);border-color:var(--dim)}
+.theme-toggle svg{width:16px;height:16px}
 html{-webkit-text-size-adjust:100%}
 body{
   margin:0; background:var(--bg); color:var(--ink);
@@ -193,7 +207,10 @@ figcaption{font-size:.72rem;color:var(--dim);margin-top:5px;line-height:1.3}
   .page h1{font-size:1.75rem}
 }
 @media print{
-  :root{--ink:#000;--dim:#444;--line:#bbb;--bg:#fff;--soft:#f5f5f5}
+  /* Restated for the dark theme at matching specificity: paper never inherits
+     the screen's choice, and the switch itself is screen furniture. */
+  :root,:root[data-theme=dark]{--ink:#000;--dim:#444;--line:#bbb;--bg:#fff;--soft:#f5f5f5}
+  .theme-toggle{display:none}
   body{font-size:11pt}
   .doc{max-width:none;padding:0}
   .report{break-inside:avoid;padding:26px 0}
@@ -222,6 +239,30 @@ figcaption{font-size:.72rem;color:var(--dim);margin-top:5px;line-height:1.3}
  */
 export const REPORT_JS = `
 (function(){
+  /* The theme switch. Injected from here rather than templated, so the report
+     markup stays the document and the furniture stays the viewer's. The choice
+     lives in localStorage per browser; without one the report is light. */
+  var SUN='<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="10" cy="10" r="4"/><path d="M10 1.8v2M10 16.2v2M1.8 10h2M16.2 10h2M4.2 4.2l1.4 1.4M14.4 14.4l1.4 1.4M15.8 4.2l-1.4 1.4M5.6 14.4l-1.4 1.4"/></svg>';
+  var MOON='<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M16.4 12.2A7 7 0 0 1 7.8 3.6a7 7 0 1 0 8.6 8.6z"/></svg>';
+  var KEY='sluglist:theme';
+  var root=document.documentElement;
+  function saved(){try{return localStorage.getItem(KEY)}catch(e){return null}}
+  function apply(dark){
+    if(dark)root.setAttribute('data-theme','dark');else root.removeAttribute('data-theme');
+    toggle.innerHTML=dark?SUN:MOON;
+    toggle.setAttribute('aria-label',dark?'Switch to the light theme':'Switch to the dark theme');
+  }
+  var toggle=document.createElement('button');
+  toggle.type='button';
+  toggle.className='theme-toggle';
+  toggle.addEventListener('click',function(){
+    var dark=!root.hasAttribute('data-theme');
+    apply(dark);
+    try{localStorage.setItem(KEY,dark?'dark':'light')}catch(e){}
+  });
+  document.body.appendChild(toggle);
+  apply(saved()==='dark');
+
   var box=document.getElementById('lightbox');
   var stage=document.getElementById('lb-img');
   var caption=document.getElementById('lb-caption');
