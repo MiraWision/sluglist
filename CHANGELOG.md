@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.20.0 — the report gets its house style, and a dark side
+
+The report page is redesigned around one visual language: warm paper instead of
+neutral blue-grey, sage for what passed, terracotta for what needs a person, and
+every checked item and filed report is now a card with a round number chip
+rather than a run of hairline-separated prose. The rhythm tightens throughout —
+base type steps down to 16px — and verdict badges carry a glyph as well as a
+colour (a check, a cross, a dash), so a colour-blind reader and a skimmer get
+the same fact.
+
+A corner toggle switches the page to a dark theme. Light stays the default and
+the reader's OS still has no say — a forwarded report must look the same to
+everyone — but the toggle is an explicit choice, remembered per browser. Print
+ignores it entirely: paper is always the light page, and the switch itself never
+reaches it.
+
 ## 1.19.0 — the Open chip can stay in your app
 
 A checklist item's "Open ↗" chip always opened a new tab. In a server-rendered app that is merely a
